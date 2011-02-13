@@ -87,14 +87,14 @@ def write_routes_tripes_stop_times(input_file_name):
 
     for line in f:
 
-        if line[:2] == '*Z':
+        if line[0] == '%': # comment character
+            continue
+
+        elif line[:2] == '*Z':
             trip = {}
             trips.append(trip)
             id = line.split()[1]
             stop_sequence = 1
-
-        elif line[:2] == '*G':
-            continue
 
         elif line[:2] == '*A':
             trip['service_id'] = line.split()[4]
@@ -103,10 +103,7 @@ def write_routes_tripes_stop_times(input_file_name):
             trip['route_id'] = line.split()[1]
             trip['id'] = trip['route_id'] + '-' + id + '-' + trip['service_id']
 
-        elif line[:2] == '*R':
-            continue
-
-        elif line:
+        elif line[0] == '*': # 'header' information lines start with '*'
             stop_id = line[:7]
 
             if line[29:33] != '    ':
