@@ -138,7 +138,7 @@ class Proccessing():
                     if len(routes['origins']) > 1:
                         spt = self.graph.shortest_path_tree_retro(None, routes['destination'], s, w)
                     else:
-                        spt = self.graph.shortest_path_tree_retro(routes['origins'][0], routes['destination'], s, w)
+                        spt = self.graph.shortest_path_tree_retro(routes['origins'][0][0], routes['destination'], s, w)
 
                     for orig in routes['origins']:
                         try:
@@ -162,7 +162,7 @@ class Proccessing():
                     if len(routes['destinations']) > 1:
                         spt = self.graph.shortest_path_tree(routes['origin'], None, s, w)
                     else:
-                        spt = self.graph.shortest_path_tree(routes['origin'],routes['destinations'][0], s, w)
+                        spt = self.graph.shortest_path_tree(routes['origin'],routes['destinations'][0][0], s, w)
 
                     for dest in routes['destinations']:
                         try:
