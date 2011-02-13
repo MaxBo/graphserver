@@ -176,6 +176,7 @@ class Proccessing():
             self.conn.commit()
             routes = self.get_route_dict()
 
+        print('\r%s shortest paths found                     ' % num_all_routes )
         w.destroy()
 
 

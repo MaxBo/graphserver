@@ -89,7 +89,7 @@ def calc_corresponding_vertices(cursor, graph, osmdb, gtfsdb):
 
         cv = closest_vertex(lat, lon, gtfsdb, osmdb, graph)
         cursor.execute('INSERT INTO corres_vertices VALUES (?,?)', ( id, cv ))
-    print('\n')
+    print('\r%s corresponding points found                  ' % len(points))
 
 
 def string_to_datetime(s):
