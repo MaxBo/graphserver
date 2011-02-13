@@ -216,6 +216,27 @@ def increment_date_string(string):
     return year + month + day
 
 
+def find_files(input_dir):
+    found_dic = {}
+
+    for f in os.listdir(input_dir):
+        ff = f.lower().split('.')[0]
+
+        if ff == 'bitfeld':
+            found_dic['bitfield'] = f
+
+        elif ff == 'fplan':
+            found_dic['fplan'] = ( f, )
+
+        elif ff == 'eckdaten':
+            found_dic['eckdaten'] = f
+
+        elif ff == 'alldat':
+            found_dic['fplan'] = [ l for l in open(os.join(input_dir, f) ]
+
+    return found_dic
+
+
 def main():
     from optparse import OptionParser
 
