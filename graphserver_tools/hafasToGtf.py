@@ -194,12 +194,12 @@ def hex_to_bool_list(hex_string):
         elif hex == '7': b_list.extend(( False, True, True, True))
         elif hex == '8': b_list.extend(( True, False, False, False))
         elif hex == '9': b_list.extend(( True, False, False, True))
-        elif hex == 'A': b_list.extend(( True, False, True, False))
-        elif hex == 'B': b_list.extend(( True, False, True, True))
-        elif hex == 'C': b_list.extend(( True, True, False, False))
-        elif hex == 'D': b_list.extend(( True, True, False, True))
-        elif hex == 'E': b_list.extend(( True, True, True, False))
-        elif hex == 'F': b_list.extend(( True, True, True, True))
+        elif hex == 'A' or hex == 'a': b_list.extend(( True, False, True, False))
+        elif hex == 'B' or hex == 'b': b_list.extend(( True, False, True, True))
+        elif hex == 'C' or hex == 'c': b_list.extend(( True, True, False, False))
+        elif hex == 'D' or hex == 'd': b_list.extend(( True, True, False, True))
+        elif hex == 'E' or hex == 'e': b_list.extend(( True, True, True, False))
+        elif hex == 'F' or hex == 'f': b_list.extend(( True, True, True, True))
         else: raise Exception('unrecognizable character in hex_string')
 
     return b_list
