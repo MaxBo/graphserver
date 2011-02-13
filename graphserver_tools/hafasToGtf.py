@@ -16,13 +16,7 @@ agency_id = 1
 route_type = 3
 output_file_name = None
 
-def write_agency(dir_name):
-    global output_file_name
-    if dir_name[-1] == os.sep:
-        output_file_name = dir_name[:-1] + '.gtfs.zip'
-    else:
-        output_file_name = dir_name + '.gtfs.zip'
-
+def write_agency():
     agency_file = open('agency.txt', 'w')
     writer = UnicodeWriter(agency_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     writer.writerow(( u'agency_id', u'agency_name', u'agency_url', u'agency_timezone' ))
@@ -244,7 +238,13 @@ def main():
         parser.print_help()
         exit(-1)
 
-    write_agency(args[0])
+    global output_file_name
+    if args[0][-1] == os.sep:
+        output_file_name = args[0][:-1] + '.gtfs.zip'
+    else:
+        output_file_name = args[0] + '.gtfs.zip'
+
+    write_agency()
     write_stops(os.path.join(args[0], stops_file_name))
     write_routes_tripes_stop_times(os.path.join(args[0], fplan_file_name))
     write_calendar_calendar_dates(os.path.join(args[0], bitfield_file_name), os.path.join(args[0], eckdaten_file_name))
