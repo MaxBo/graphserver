@@ -99,6 +99,7 @@ def get_route_id(gtfsdb_cursor, gtfs_trip_id):
 
     return gtfsdb_cursor.next()[0]
 
+
 def humanize_details(route_id, details, gtfsdb_cursor, osmdb_cursor, route_db_cursor):
 
     def add_walk_entry(start_dist, end_dist):
@@ -150,7 +151,7 @@ def humanize_details(route_id, details, gtfsdb_cursor, osmdb_cursor, route_db_cu
 
         try: # if there is a departure at this station the information will be inside the next entry
             if details[i+1][1][:4] == 'psv-':
-                transit_route = details[i+1][5]
+                transit_route = get_route_id(gtfsdb_cursor, details[i+1][5]) if details[i+1][5] else ''
                 transfers = details[i+1][4]
                 time = details[i+1][2]
                 dist_walked = '%.2f' % float(dist_walked)
