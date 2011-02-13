@@ -25,7 +25,7 @@ from graphserver_tools import utf8csv
 def write_details(conn, filename, gtfsdb_cursor, osmdb_cursor):
     writer = utf8csv.UnicodeWriter(open(filename, 'w'))
 
-    writer.writerow(( 'route_id', 'counter', 'label', 'arrival/departure', 'dist_walked', 'transfers', 'transit_route' ))
+    writer.writerow(( u'route_id', u'counter', u'label', u'arrival/departure', u'dist_walked', u'transfers', u'transit_route' ))
 
     c = conn.cursor()
 
@@ -51,7 +51,7 @@ def write_details(conn, filename, gtfsdb_cursor, osmdb_cursor):
 def write_results(conn, filename):
     writer = utf8csv.UnicodeWriter(open(filename, 'w'))
 
-    writer.writerow(( 'route_id', 'start_time', 'end_time', 'total_time' ))
+    writer.writerow(( u'route_id', u'start_time', u'end_time', u'total_time' ))
 
     c = conn.cursor()
 
