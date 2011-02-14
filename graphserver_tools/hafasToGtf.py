@@ -21,9 +21,10 @@ def write_agency():
     writer = UnicodeWriter(agency_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     writer.writerow(( u'agency_id', u'agency_name', u'agency_url', u'agency_timezone' ))
 
-    writer.writerow(( agency_id, dir_name, u'http://www.example.com', u'Europe/Berlin' ))
+    writer.writerow(( agency_id, u'SomeAgency', u'http://www.example.com', u'Europe/Berlin' ))
 
     agency_file.close()
+
     try:
         zip_file = ZipFile(output_file_name, 'a')
         zip_file.write('agency.txt')
@@ -41,6 +42,9 @@ def write_stops(input_file_name):
     f = codecs.open(input_file_name, encoding='latin-1')
 
     for line in f:
+        if line[0] == '%':
+            continue
+
         values = line.split()
 
         id = values[0]
@@ -61,7 +65,72 @@ def write_stops(input_file_name):
     os.remove('stops.txt')
 
 
-def write_routes_tripes_stop_times(input_file_name):
+def get_routes_tripes_stop_times(input_file_name):
+
+    f = codecs.open(input_file_name, encoding='latin-1')
+    trips = []
+    stop_times = []
+
+    for line in f:
+
+        if line[0] == '%': # comment character
+            continue
+
+        elif line[:2] == '*Z': # new 'trip'
+            trip = {}
+            trips.append(trip)
+            id = line.split()[1]
+            stop_sequence = 1
+
+        elif line[:5] == '*A VE':
+            trip['service_id'] = line.split()[4]
+
+        elif line[:2] == '*L':
+            trip['route_id'] = line.split()[1]
+
+        elif line[:2] == '*R':
+            trip['direction'] = line.split()[1]
+
+        elif not line[0] == '*': # 'header' information lines start with '*'
+            stop_id = line[:7]
+
+            if line[29:33] != '    ' or line[29:33] != '9999':
+                arrival_time = line[29:31] + ':' + line[31:33] + ':00'
+
+            if line[34:38] == '    ' or line[34:38] == '9999':
+                departure_time = arrival_time
+            else:
+                departure_time = line[34:36] + ':' + line[36:38] + ':00'
+
+            if line[29:33] == '    ' or line[29:33] == '9999':
+                arrival_time = departure_time
+
+            if 'trip_id' not in trip:
+                trip['trip_id'] = id + '-' + trip['route_id'] + '-' + trip['direction'] + '-' + trip['service_id'] + '-' + arrival_time
+
+            stop_times.append(( trip['trip_id'], arrival_time, departure_time, stop_id, stop_sequence ))
+            stop_sequence += 1
+
+    routes = set([ ( trip['route_id'], 1, trip['route_id'], 'unknown', 3 ) for trip in trips ])
+    trips = [ (t['route_id'], t['service_id'], t['trip_id']) for t in trips ]
+
+    return routes, trips, stop_times
+
+
+def write_routes_tripes_stop_times(input_file_names):
+
+    routes = []
+    trips = []
+    stop_times = []
+
+    for f in input_file_names:
+        r, t, st = get_routes_tripes_stop_times(f)
+        routes.extend(r)
+        trips.extend(t)
+        stop_times.extend(st)
+
+    routes = set(routes)
+
     routes_file = open('routes.txt', 'w')
     trips_file = open('trips.txt', 'w')
     stop_times_file = open('stop_times.txt', 'w')
@@ -74,50 +143,8 @@ def write_routes_tripes_stop_times(input_file_name):
     trips_writer.writerow(( u'route_id', u'service_id', u'trip_id' ))
     stop_times_writer.writerow(( u'trip_id', u'arrival_time', u'departure_time', u'stop_id', u'stop_sequence' ))
 
-
-    f = codecs.open(input_file_name, encoding='latin-1')
-    trips = []
-    stop_times = []
-
-    for line in f:
-
-        if line[0] == '%': # comment character
-            continue
-
-        elif line[:2] == '*Z':
-            trip = {}
-            trips.append(trip)
-            id = line.split()[1]
-            stop_sequence = 1
-
-        elif line[:2] == '*A':
-            trip['service_id'] = line.split()[4]
-
-        elif line[:2] == '*L':
-            trip['route_id'] = line.split()[1]
-            trip['id'] = trip['route_id'] + '-' + id + '-' + trip['service_id']
-
-        elif line[0] == '*': # 'header' information lines start with '*'
-            stop_id = line[:7]
-
-            if line[29:33] != '    ':
-                arrival_time = line[29:31] + ':' + line[31:33] + ':00'
-
-            if line[34:38] == '    ':
-                departure_time = arrival_time
-            else:
-                departure_time = line[34:36] + ':' + line[36:38] + ':00'
-
-            if line[29:33] == '    ':
-                arrival_time = departure_time
-
-            stop_times.append(( trip['id'], arrival_time, departure_time, stop_id, stop_sequence ))
-            stop_sequence += 1
-
-    routes = set([ ( trip['route_id'], 1, trip['route_id'], 'unknown', 3 ) for trip in trips ])
-
     routes_writer.writerows( routes )
-    trips_writer.writerows([ (t['route_id'], t['service_id'], t['id']) for t in trips ])
+    trips_writer.writerows( trips )
     stop_times_writer.writerows( stop_times )
 
     routes_file.close()
@@ -143,16 +170,14 @@ def write_calendar_calendar_dates(bitfield_file_name, eckdaten_file_name):
 
     f = codecs.open(eckdaten_file_name, encoding='latin-1')
 
-    for line in f:
-        data = line.split()
-        if data[-1] == 'Fahrplanstart': start_date = line[6:10] + line[3:5] + line[0:2]
-        elif data[-1] == 'Fahrplanende': end_date = line[6:10] + line[3:5] + line[0:2]
+    lines = [ l for l in f if l[0] != '%' ]
+    start_date = lines[0][6:10] + lines[0][3:5] + lines[0][0:2]
+    end_date = lines[1][6:10] + lines[1][3:5] + lines[1][0:2]
 
     c_writer = UnicodeWriter(calendar_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     c_writer.writerow(( u'service_id', u'monday', u'tuesday', u'wednesday', u'thursday', u'friday', u'saturday', u'sunday', u'start_date', u'end_date' ))
     cd_writer = UnicodeWriter(calendar_dates_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     cd_writer.writerow(( u'service_id', u'date', u'exception_type' ))
-
 
     f = codecs.open(bitfield_file_name, encoding='latin-1')
 
@@ -223,27 +248,31 @@ def find_files(input_dir):
         ff = f.lower().split('.')[0]
 
         if ff == 'bitfeld':
-            found_dic['bitfield'] = f
+            found_dic['bitfeld'] = f
 
         elif ff == 'fplan':
-            found_dic['fplan'] = ( f, )
+            if 'fplan' in found_dic:
+                return {}
+            else:
+                found_dic['fplan'] = ( f, )
 
         elif ff == 'eckdaten':
             found_dic['eckdaten'] = f
 
         elif ff == 'alldat':
-            found_dic['fplan'] = [ l for l in open(os.join(input_dir, f) ]
+            if 'fplan' in found_dic:
+                return {}
+            else:
+                found_dic['fplan'] = [ l[:-2] for l in open(os.path.join(input_dir, f)) ]
+
+        elif ff == 'bfkoord':
+            found_dic['bfkoord'] = f
 
     return found_dic
 
 
 def main():
     from optparse import OptionParser
-
-    bitfield_file_name = 'bitfeld.txt'
-    stops_file_name = 'bfkoord.txt'
-    eckdaten_file_name = 'eckdaten.txt'
-    fplan_file_name = 'FPLAN.TXT'
 
     usage = """usage: python hafasToGtf.py input"""
     parser = OptionParser(usage=usage)
@@ -254,21 +283,51 @@ def main():
         parser.print_help()
         exit(-1)
 
-    if not os.path.exists(os.path.join(args[0], bitfield_file_name)) or not os.path.exists(os.path.join(args[0], eckdaten_file_name)) or not os.path.exists(os.path.join(args[0], stops_file_name)) or not os.path.exists(os.path.join(args[0], fplan_file_name)):
-        print 'ERROR: invalid input data'
+    input_dir = args[0]
+
+    # set the output file name
+    global output_file_name
+    if input_dir[-1] == os.sep:
+        output_file_name = input_dir[:-1] + '.gtfs.zip'
+    else:
+        output_file_name = input_dir + '.gtfs.zip'
+
+    if not os.path.exists(input_dir):
+        print 'ERROR: invalid input'
         parser.print_help()
         exit(-1)
 
-    global output_file_name
-    if args[0][-1] == os.sep:
-        output_file_name = args[0][:-1] + '.gtfs.zip'
-    else:
-        output_file_name = args[0] + '.gtfs.zip'
+    if os.path.exists(output_file_name):
+        print 'ERROR: output file already exists!'
+        parser.print_help()
+        exit(-1)
 
+    files = find_files(input_dir)
+
+    # validate the input
+    if 'bitfeld' not in files:
+        print 'ERROR: invalid input data (bitfeld)'
+        parser.print_help()
+        exit(-1)
+    if 'fplan' not in files:
+        print 'ERROR: invalid input data (fplan)'
+        parser.print_help()
+        exit(-1)
+    if 'eckdaten' not in files:
+        print 'ERROR: invalid input data (eckdaten)'
+        parser.print_help()
+        exit(-1)
+    if 'bfkoord' not in files:
+        print 'ERROR: invalid input data (bfkoord)'
+        parser.print_help()
+        exit(-1)
+
+    # do the convertion
     write_agency()
-    write_stops(os.path.join(args[0], stops_file_name))
-    write_routes_tripes_stop_times(os.path.join(args[0], fplan_file_name))
-    write_calendar_calendar_dates(os.path.join(args[0], bitfield_file_name), os.path.join(args[0], eckdaten_file_name))
+    write_stops(os.path.join(input_dir, files['bfkoord']))
+    write_calendar_calendar_dates(os.path.join(input_dir, files['bitfeld']), os.path.join(input_dir, files['eckdaten']))
+
+    write_routes_tripes_stop_times( [ os.path.join(input_dir, f) for f in files['fplan'] ] )
 
 
 if __name__ == '__main__': main()
