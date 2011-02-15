@@ -1,19 +1,19 @@
 __agency.txt__
 
   agency_id              immer '1'
-  agency_name            Datei-/Ordnername
+  agency_name            immer 'SomeAgency'
   agency_url             http://www.example.com
   agency_timezone        Europe/Berlin
-  
-  
+
+
 __stops.txt__            [bfkoord.txt]
 
   stop_id                erster Eintrag
   stop_name              letzter Eintrag
   stop_lat               zweiter Eintrag
   stop_lon               dritter Eintrag
-  
-  
+
+
 __routes.txt__           [FPLAN.TXT]
 
   route_id               erster Eintrag in 'L'-Zeile
@@ -21,18 +21,19 @@ __routes.txt__           [FPLAN.TXT]
   route_short_name       erster Eintrag in 'L'-Zeile
   route_long_name        Name Starthaltestelle + ' nach ' + Name Endhaltestelle
   route_type             immer '3' (auch wenn das oft nicht stimmt, TODO later)
-  
-  
+
+
 __trips.txt__            [FPLAN.TXT]
 
   route_id               erster Eintrag in 'L'-Zeile
   service_id             letzter Eintrag in 'A VE'-Zeile
-  trip_id                erster Eintrag in 'Z'-Zeile
-  
-  
+  trip_id                erster Eintrag in 'Z'-Zeile + route_id + dircection + service_id + Abfahrtszeit
+  direction              erster Eintrag 'R'-Zeile
+
+
 __stop_times.txt__       [FPLAN.TXT]
 
-  trip_id                erster Eintrag in 'Z'-Zeile
+  trip_id                erster Eintrag in 'Z'-Zeile + route_id + dircection + service_id + Abfahrtszeit
   arrival_time           vorletzer Eintrag, bei Starthaltestelle departure_time
   departure_time         letzter Eintrag, bei Endhaltestelle arrival_time
   stop_id                erster Eintrag
@@ -51,12 +52,12 @@ __calendar.txt__         [bitfeld.txt]
   sunday                 immer '1'
   start_date             erste Zeile [eckdaten.txt]
   end_date               zweite Zeile [eckdaten.txt]
-  
+
 
 __calendar_dates.txt__   [bitfeld.txt][eckdaten.txt]
 
   service_id             erster Eintrag
   date                   berechnung aus bitfeld
   exception_type         immer '2'
-  
+
   NOTIZ: nur Einträge für Tage vornehmen, an denen kein Service ist!
