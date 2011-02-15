@@ -16,10 +16,6 @@ agency_id = 1
 route_type = 3
 output_file_name = None
 
-
-''' this function writes a dummy agency_file file so that a valid gtfs-feed will be created
-
-'''
 def write_agency():
     agency_file = open('agency.txt', 'w')
     writer = UnicodeWriter(agency_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -52,11 +48,11 @@ def write_stops(input_file_name):
         values = line.split()
 
         id = values[0]
-        lon = values[1].replace(',', '.')
-        lat = values[2].replace(',', '.')
+        lat = values[1].replace(',', '.')
+        lon = values[2].replace(',', '.')
         name = ' '.join(values[3:])
 
-        writer.writerow(( id, name, lat, lon ))
+        writer.writerow(( id, name, lon, lat )) # upside down, but it works that way!
 
     stops_file.close()
 
@@ -98,7 +94,7 @@ def get_routes_tripes_stop_times(input_file_name):
         elif not line[0] == '*': # 'header' information lines start with '*'
             stop_id = line[:7]
 
-            if line[29:33] != '    ' and line[29:33] != '9999':
+            if line[29:33] != '    ' or line[29:33] != '9999':
                 arrival_time = line[29:31] + ':' + line[31:33] + ':00'
 
             if line[34:38] == '    ' or line[34:38] == '9999':
