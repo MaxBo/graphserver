@@ -73,10 +73,10 @@ def read_routes(f, cursor):
 
     for line in reader:
         cursor.execute('INSERT INTO routes VALUES (?,?,?,?,?)', ( line[id_column],
-                                                                line[origin_column],
-                                                                line[dest_column],
-                                                                line[time_id_column],
-                                                                0 ))
+                                                                  line[origin_column],
+                                                                  line[dest_column],
+                                                                  line[time_id_column],
+                                                                  0                     ))
 
 def calc_corresponding_vertices(cursor, graph, osmdb, gtfsdb):
     cursor.execute('CREATE TABLE corres_vertices ( point_id INTEGER, vertex_label TEXT )')
@@ -89,6 +89,8 @@ def calc_corresponding_vertices(cursor, graph, osmdb, gtfsdb):
 
         cv = closest_vertex(lat, lon, gtfsdb, osmdb, graph)
         cursor.execute('INSERT INTO corres_vertices VALUES (?,?)', ( id, cv ))
+        print cv
+
     print('\r%s corresponding points found                  ' % len(points))
 
 
@@ -124,11 +126,13 @@ def closest_vertex(lat, lon, gtfsdb, osmdb, graph):
     c.execute('''SELECT id, lat, lon FROM nodes WHERE endnode_refs > 1 AND lat > ? AND lat < ?
                                                                        AND lon > ? AND lon < ?''',
                                                     ( lat-range, lat+range, lon-range, lon+range ))
-    nodes = c.fetchall()
-    nodes = [ n for n in nodes if 'osm-' + n[0] in graph.vertices ]
+    nodes = [ ( ('osm-' + n[0]), n[1], n[2] ) for n in c.fetchall() ]
+    print nodes
+    nodes = [ n for n in nodes if n[0] in [ v.label for v in graph.vertices ] ]
+    print nodes
 
-    for n_id, n_lat, n_lon in c:
-        n_id = 'osm-' + n_id
+    for n_id, n_lat, n_lon in nodes:
+        n_id = n_id
 
         dist = distance(lat, lon, n_lat, n_lon)
 
