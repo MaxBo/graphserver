@@ -124,6 +124,9 @@ def closest_vertex(lat, lon, gtfsdb, osmdb, graph):
     c.execute('''SELECT id, lat, lon FROM nodes WHERE endnode_refs > 1 AND lat > ? AND lat < ?
                                                                        AND lon > ? AND lon < ?''',
                                                     ( lat-range, lat+range, lon-range, lon+range ))
+    nodes = c.fetchall()
+    nodes = [ n for n in nodes if 'osm-' + n[0] in graph.vertices ]
+
     for n_id, n_lat, n_lon in c:
         n_id = 'osm-' + n_id
 
