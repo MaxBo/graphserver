@@ -10,6 +10,8 @@ import sqlite3
 import datetime
 import sys
 import math
+import thread
+import time
 
 from graphserver.graphdb import GraphDatabase
 from graphserver.core import State
@@ -79,19 +81,82 @@ def read_routes(f, cursor):
                                                                   0                     ))
 
 def calc_corresponding_vertices(cursor, graph, osmdb, gtfsdb):
-    cursor.execute('CREATE TABLE corres_vertices ( point_id INTEGER, vertex_label TEXT )')
 
+    ''' wrapper function for multithreading'''
+    def closest_vertices(list):
+        for id, lat, lon in list:
+            closest_vertex(id, lat, lon)
+
+
+    def closest_vertex(id, lat, lon):
+        cv = None
+        min_dist = sys.maxint
+
+        for s_id, s_lat, s_lon in stations:
+            dist = distance(lat, lon, s_lat, s_lon)
+
+            if dist < min_dist:
+                min_dist = dist
+                cv = 'sta-' + s_id
+
+        conn = sqlite3.connect(osmdb)
+        c = conn.cursor()
+
+        range = 0.01 # might not be the best number
+        c.execute('''SELECT id, lat, lon FROM nodes WHERE endnode_refs > 1 AND lat > ? AND lat < ? AND lon > ? AND lon < ?''',
+                                                                                    ( lat-range, lat+range, lon-range, lon+range ))
+        # following code should only be temporary
+        nodes = [ ( ('osm-' + n[0]), n[1], n[2] ) for n in c.fetchall() ]
+        c.close()
+
+        nodes = [ n for n in nodes if n[0] in possible_nodes]
+
+        for n_id, n_lat, n_lon in nodes:
+            dist = distance(lat, lon, n_lat, n_lon)
+
+            if dist < min_dist:
+                min_dist = dist
+                cv = n_id
+
+        corres_vertices.append(( id, cv ))
+
+
+    # do the setup
     points = cursor.execute('SELECT id, lat, lon FROM points').fetchall()
 
-    for i, (id, lat, lon) in enumerate(points):
-        sys.stdout.write('\r%s/%s corresponding points found' % ( i, len(points) ))
+    conn = sqlite3.connect(gtfsdb)
+    c = conn.cursor()
+    stations = c.execute('SELECT stop_id, stop_lat, stop_lon FROM stops').fetchall()
+    c.close()
+
+    possible_nodes = [ v.label for v in graph.vertices ] # only temp
+
+    corres_vertices = [] # will contain tuples of points with their corresponding vertices
+
+
+    # start a few threads for calculating
+    num_threads = 32
+    num_calculations_per_thread = len(points) / num_threads
+
+    for i in range(num_threads):
+        thread.start_new_thread( closest_vertices, (points[i*num_calculations_per_thread:(i+1)*num_calculations_per_thread], ))
+
+
+    # wait till all threads are finished
+    while len(corres_vertices) != len(points):
+        sys.stdout.write('\r%s/%s corresponding points found' % ( len(corres_vertices), len(points) ))
         sys.stdout.flush()
 
-        cv = closest_vertex(lat, lon, gtfsdb, osmdb, graph)
-        cursor.execute('INSERT INTO corres_vertices VALUES (?,?)', ( id, cv ))
-        print cv
+        time.sleep(1.0)
 
     print('\r%s corresponding points found                  ' % len(points))
+
+
+    # write the stuff into the database
+    cursor.execute('CREATE TABLE corres_vertices ( point_id INTEGER, vertex_label TEXT )')
+
+    for id, cv in corres_vertices:
+        cursor.execute('INSERT INTO corres_vertices VALUES (?,?)', ( id, cv ))
 
 
 def string_to_datetime(s):
@@ -99,7 +164,7 @@ def string_to_datetime(s):
     sl = [int(x) for x in s.split(':')]
     return datetime.datetime(sl[2],sl[1], sl[0], sl[3], sl[4])
 
-
+'''
 def closest_vertex(lat, lon, gtfsdb, osmdb, graph):
     cv = None
     min_dist = sys.maxint
@@ -122,10 +187,10 @@ def closest_vertex(lat, lon, gtfsdb, osmdb, graph):
     conn = sqlite3.connect(osmdb)
     c = conn.cursor()
 
-    range = 0.05 # might not be the best number
-    c.execute('''SELECT id, lat, lon FROM nodes WHERE endnode_refs > 1 AND lat > ? AND lat < ?
-                                                                       AND lon > ? AND lon < ?''',
-                                                    ( lat-range, lat+range, lon-range, lon+range ))
+    range = 0.01 # might not be the best number
+    c.execute('SELECT id, lat, lon FROM nodes WHERE endnode_refs > 1 AND lat > ? AND lat < ? AND lon > ? AND lon < ?',
+                                                                        ( lat-range, lat+range, lon-range, lon+range ))
+
     nodes = [ ( ('osm-' + n[0]), n[1], n[2] ) for n in c.fetchall() ]
     print nodes
     nodes = [ n for n in nodes if n[0] in [ v.label for v in graph.vertices ] ]
@@ -142,6 +207,7 @@ def closest_vertex(lat, lon, gtfsdb, osmdb, graph):
 
     c.close()
     return cv
+'''
 
 
 
