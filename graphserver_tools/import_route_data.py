@@ -109,7 +109,7 @@ def calc_corresponding_vertices(cursor, graph, osmdb, gtfsdb):
         nodes = [ ( ('osm-' + n[0]), n[1], n[2] ) for n in c.fetchall() ]
         c.close()
 
-        nodes = [ n for n in nodes if n[0] in possible_nodes]
+        #nodes = [ n for n in nodes if n[0] in possible_nodes]
 
         for n_id, n_lat, n_lon in nodes:
             dist = distance(lat, lon, n_lat, n_lon)
@@ -129,7 +129,7 @@ def calc_corresponding_vertices(cursor, graph, osmdb, gtfsdb):
     stations = c.execute('SELECT stop_id, stop_lat, stop_lon FROM stops').fetchall()
     c.close()
 
-    possible_nodes = [ v.label for v in graph.vertices ] # only temp
+    #possible_nodes = [ v.label for v in graph.vertices ] # only temp
 
     corres_vertices = [] # will contain tuples of points with their corresponding vertices
 
