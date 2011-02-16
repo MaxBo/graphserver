@@ -53,6 +53,7 @@ def build_base_data():
     print('importing data into (graph) databases...')
     import_base_data.create_gs_datbases(osm_xml_filename, osmdb_filename, gtfs_filename, gtfsdb_filename, gsdb_filename)
     import_base_data.add_missing_stops(gtfsdb_filename, gsdb_filename)
+    import_base_data.delete_orphan_nodes(osmdb_filename)
 
     print('linking transit to osm data...')
     graph_database = GraphDatabase(gsdb_filename)
