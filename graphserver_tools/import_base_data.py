@@ -8,6 +8,7 @@
 
 import sqlite3
 import sys
+from rtree import Rtree
 
 from graphserver.graphdb import GraphDatabase
 from graphserver.ext.gtfs.gtfsdb import GTFSDatabase
@@ -15,6 +16,7 @@ from graphserver.core import Street
 from graphserver.compiler.gdb_import_osm import gdb_import_osm
 from graphserver.compiler.gdb_import_gtfs import gdb_load_gtfsdb
 from graphserver.ext.osm.osmdb import osm_to_osmdb, OSMDB
+from graphserver.ext.osm.osmfilters import DeleteOrphanNodesFilter
 
 from graphserver_tools.netToGtf import NetToGtf
 from graphserver_tools.utils import read_config, distance, delete_bad_edges
@@ -97,12 +99,24 @@ def add_missing_stops(gtfsdb_filename, gsdb_filename):
     for s in gtfsdb_c:
         stop_label = 'sta-' + s[0]
         gsdb_c.execute('SELECT * FROM vertices WHERE label=?', (stop_label, ))
+
         if len(gsdb_c.fetchall()) == 0:
             gsdb_c.execute('INSERT INTO vertices VALUES (?)', (stop_label, ))
 
     gtfsdb_conn.commit()
     gsdb_conn.commit()
 
+
+def delete_orphan_nodes(osmdb_filename):
+
+    db = OSMDB(osmdb_filename, rtree_index=False)
+    filter = DeleteOrphanNodesFilter()
+
+    filter.run(db, *[])
+
+    # reindex the database
+    db.index = Rtree(db.dbname)
+    db.index_endnodes()
 
 
 def main():
