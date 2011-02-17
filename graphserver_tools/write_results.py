@@ -42,8 +42,8 @@ def write_details(conn, filename, gtfsdb_cursor, osmdb_cursor):
                                FROM trip_details
                                WHERE trip_id=?''', ( id, )).fetchall()
 
-
-        writer.writerows(humanize_details(route_id, details, gtfsdb_cursor, osmdb_cursor, c))
+        if details: # there will be no details if there is no path between origin and destination at this trip
+            writer.writerows(humanize_details(route_id, details, gtfsdb_cursor, osmdb_cursor, c))
 
     c.close()
 
