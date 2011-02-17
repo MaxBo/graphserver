@@ -135,11 +135,15 @@ def calc_corresponding_vertices(cursor, graph, osmdb, gtfsdb):
 
 
     # start a few threads for calculating
-    num_threads = 32
+    num_threads = 32 #  there will actualy be one more
     num_calculations_per_thread = len(points) / num_threads
 
     for i in range(num_threads):
         thread.start_new_thread( closest_vertices, (points[i*num_calculations_per_thread:(i+1)*num_calculations_per_thread], ))
+
+    # a few points won't be calculted due to non-floating-point division
+    print points[(i+1)*num_calculations_per_thread
+    thread.start_new_thread( closest_vertices, (points[(i+1)*num_calculations_per_thread:], ) )
 
 
     # wait till all threads are finished
