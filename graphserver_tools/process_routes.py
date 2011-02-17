@@ -2,12 +2,8 @@
 # -*- coding: utf-8 -*-
 
 # Author Tobias Ottenweller
-# 24.10.2010 - 12.11.2010
+# 24.10.2010
 # Gertz Gutsche Rümenapp Gbr
-
-# Arguments:
-# 1 - routing database filename
-# 2 - graphserver database filename
 
 
 import sqlite3
@@ -213,12 +209,16 @@ class Proccessing():
         self.trip_id += 1
 
 
-    def write_error_trip(time, route_id):
+    def write_error_trip(self, time, route_id):
+        ''' this method will write a very long trip into the database. '''
+
         start_time = datetime.datetime.fromtimestamp(time)
         end_time = datetime.datetime(2099, 12, 31)
 
         self.cursor.execute('INSERT INTO trips VALUES (?,?,?,?,?)', ( self.trip_id, route_id,
                         start_time, end_time, (time.mktime(d.timetuple()) - time ) ))
+
+        self.trip_id += 1
 
 
     def __init__(self, graph, route_db_filename, time_step=240, walking_speed=1.2, max_walk=1080, walking_reluctance=2):
