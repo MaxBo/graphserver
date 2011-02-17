@@ -209,14 +209,14 @@ class Proccessing():
         self.trip_id += 1
 
 
-    def write_error_trip(self, time, route_id):
+    def write_error_trip(self, start_time, route_id):
         ''' this method will write a very long trip into the database. '''
 
-        start_time = datetime.datetime.fromtimestamp(time)
+        start_date_time = datetime.datetime.fromtimestamp(start_time)
         end_time = datetime.datetime(2099, 12, 31)
 
         self.cursor.execute('INSERT INTO trips VALUES (?,?,?,?,?)', ( self.trip_id, route_id,
-                        start_time, end_time, (time.mktime(d.timetuple()) - time ) ))
+                        start_date_time, end_time, (time.mktime(end_time.timetuple()) - start_time ) ))
 
         self.trip_id += 1
 
