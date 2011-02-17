@@ -44,14 +44,14 @@ class Proccessing():
 
     def create_db_tables(self):
 
-        try:
-            self.cursor.execute('''CREATE TABLE trips ( id INTEGER PRIMARY KEY,
+
+        self.cursor.execute('''CREATE TABLE trips ( id INTEGER PRIMARY KEY,
                                                     route_id INTEGER,
                                                     start_time TIMESTAMP,
                                                     end_time TIMESTAMP,
                                                     total_time INTEGER)''')
 
-            self.cursor.execute('''CREATE TABLE trip_details ( trip_id INTEGER,
+        self.cursor.execute('''CREATE TABLE trip_details ( trip_id INTEGER,
                                                            counter INTEGER,
                                                            label TEXT,
                                                            time TIMESTAMP,
@@ -59,14 +59,11 @@ class Proccessing():
                                                            dist_walked REAL,
                                                            num_transfers INTEGER,
                                                            gtfs_trip_id TEXT)''')
-        except:
-            pass
 
         self.cursor.execute('CREATE INDEX IF NOT EXISTS IDX_time ON routes ( time )')
         self.cursor.execute('CREATE INDEX IF NOT EXISTS IDX_origin ON routes ( origin )')
 
         self.conn.commit()
-
 
 
     def get_route_dict(self):
@@ -147,8 +144,7 @@ class Proccessing():
                             if not vertices: raise Exception()
 
                         except:
-                            print '\tERROR: there is no path from %s to %s!' % ( orig[0], routes['destination'] )
-
+                            self.write_error_trip(t, dest[1])
                         else:
                             self.write_retro_trip(vertices, orig[1])
 
@@ -171,8 +167,7 @@ class Proccessing():
                             if not vertices: raise Exception()
 
                         except:
-                            print '\tERROR: there is no path from %s to %s' % ( routes['origin'], dest[0] )
-
+                            self.write_error_trip(t, dest[1])
                         else:
                             self.write_trip(vertices, dest[1])
 
@@ -218,6 +213,14 @@ class Proccessing():
         self.trip_id += 1
 
 
+    def write_error_trip(time, route_id):
+        start_time = datetime.datetime.fromtimestamp(time)
+        end_time = datetime.datetime(2099, 12, 31)
+
+        self.cursor.execute('INSERT INTO trips VALUES (?,?,?,?,?)', ( self.trip_id, route_id,
+                        start_time, end_time, (time.mktime(d.timetuple()) - time ) ))
+
+
     def __init__(self, graph, route_db_filename, time_step=240, walking_speed=1.2, max_walk=1080, walking_reluctance=2):
 
         self.time_step = time_step
@@ -232,25 +235,4 @@ class Proccessing():
         self.trip_id = 0
         self.create_db_tables()
 
-
         self.process()
-
-'''
-
-if __name__ == '__main__':
-    from graphserver_tools import utils
-    from graphserver.graphdb import GraphDatabase
-
-    g = GraphDatabase(sys.argv[2]).incarnate()
-
-    defaults = { 'time-step':'240', 'max-walk':'11080', 'walking-reluctance':'20', 'walking-speed':'1.2' }
-
-    config = utils.read_config(sys.argv[3], defaults)
-
-    Proccessing(g, sys.argv[1], int(config['time-step']), float(config['walking-speed']), int(config['max-walk']), int(config['walking-reluctance']))
-
-    print 'done proccessing routes'
-
-    g.destroy()
-
-'''
