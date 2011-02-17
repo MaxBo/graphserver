@@ -105,9 +105,11 @@ def calc_corresponding_vertices(cursor, graph, osmdb, gtfsdb):
         range = 0.01 # might not be the best number
         c.execute('''SELECT id, lat, lon FROM nodes WHERE endnode_refs > 1 AND lat > ? AND lat < ? AND lon > ? AND lon < ?''',
                                                                                     ( lat-range, lat+range, lon-range, lon+range ))
+        nodes = c.fetchall()
         c.close()
 
-        for n_id, n_lat, n_lon in c.fetchall():
+
+        for n_id, n_lat, n_lon in nodes:
             dist = distance(lat, lon, n_lat, n_lon)
 
             if dist < min_dist:
