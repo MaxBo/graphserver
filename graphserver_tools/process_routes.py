@@ -128,10 +128,15 @@ class Proccessing():
                 for t in routes['times']:
                     s = State(1, t)
 
-                    if len(routes['origins']) > 1:
-                        spt = self.graph.shortest_path_tree_retro(None, routes['destination'], s, w)
-                    else:
-                        spt = self.graph.shortest_path_tree_retro(routes['origins'][0][0], routes['destination'], s, w)
+                    try:
+                        if len(routes['origins']) > 1:
+                            spt = self.graph.shortest_path_tree_retro(None, routes['destination'], s, w)
+                        else:
+                            spt = self.graph.shortest_path_tree_retro(routes['origins'][0][0], routes['destination'], s, w)
+                    except:
+                        for orig in routes['origins']:
+                            self.write_error_trip(t, orig[1])
+
 
                     for orig in routes['origins']:
                         try:
@@ -140,7 +145,7 @@ class Proccessing():
                             if not vertices: raise Exception()
 
                         except:
-                            self.write_error_trip(t, dest[1])
+                            self.write_error_trip(t, orig[1])
                         else:
                             self.write_retro_trip(vertices, orig[1])
 
@@ -151,10 +156,15 @@ class Proccessing():
                 for t in routes['times']:
                     s = State(1, t)
 
-                    if len(routes['destinations']) > 1:
-                        spt = self.graph.shortest_path_tree(routes['origin'], None, s, w)
-                    else:
-                        spt = self.graph.shortest_path_tree(routes['origin'],routes['destinations'][0][0], s, w)
+                    try:
+                        if len(routes['destinations']) > 1:
+                            spt = self.graph.shortest_path_tree(routes['origin'], None, s, w)
+                        else:
+                            spt = self.graph.shortest_path_tree(routes['origin'],routes['destinations'][0][0], s, w)
+                    except:
+                        for dest in routes['destinations']:
+                            self.write_error_trip(t, dest[1])
+
 
                     for dest in routes['destinations']:
                         try:
