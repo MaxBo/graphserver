@@ -134,8 +134,7 @@ class Proccessing():
                         else:
                             spt = self.graph.shortest_path_tree_retro(routes['origins'][0][0], routes['destination'], s, w)
                     except:
-                        for orig in routes['origins']:
-                            self.write_error_trip(t, orig[1])
+                        pass
 
 
                     for orig in routes['origins']:
@@ -149,7 +148,10 @@ class Proccessing():
                         else:
                             self.write_retro_trip(vertices, orig[1])
 
-                    spt.destroy()
+                    try:
+                        spt.destroy()
+                    except:
+                        pass
 
 
             else: # use none retro trips
@@ -162,8 +164,7 @@ class Proccessing():
                         else:
                             spt = self.graph.shortest_path_tree(routes['origin'],routes['destinations'][0][0], s, w)
                     except:
-                        for dest in routes['destinations']:
-                            self.write_error_trip(t, dest[1])
+                        pass
 
 
                     for dest in routes['destinations']:
@@ -177,7 +178,10 @@ class Proccessing():
                         else:
                             self.write_trip(vertices, dest[1])
 
-                    spt.destroy()
+                    try:
+                        spt.destroy()
+                    except:
+                        pass
 
 
             self.conn.commit()
