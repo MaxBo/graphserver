@@ -227,10 +227,10 @@ class Proccessing():
         ''' this method will write a very long trip into the database. '''
 
         start_date_time = datetime.datetime.fromtimestamp(start_time)
-        end_time = datetime.datetime.fromtimestamp(sys.maxint)
+        end_time = datetime.datetime(2030,12,31)
 
         self.cursor.execute('INSERT INTO trips VALUES (?,?,?,?,?)', ( self.trip_id, route_id,
-                        start_date_time, end_time, (sys.maxint - start_time ) ))
+                        start_date_time, end_time, (time.mktime(end_time.timetuple()) - start_time ) ))
 
         self.trip_id += 1
 
