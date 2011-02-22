@@ -94,16 +94,30 @@ def get_routes_tripes_stop_times(input_file_name):
         elif not line[0] == '*': # 'header' information lines start with '*'
             stop_id = line[:7]
 
-            if line[29:33] != '    ' or line[29:33] != '9999':
-                arrival_time = line[29:31] + ':' + line[31:33] + ':00'
+            if len(line) > 41 and ( ' ' in line[31:35] and ' ' in line[38:42] ):
+                if line[29:33] != '    ' or line[29:33] != '9999':
+                    arrival_time = line[29:31] + ':' + line[31:33] + ':00'
 
-            if line[34:38] == '    ' or line[34:38] == '9999':
-                departure_time = arrival_time
-            else:
-                departure_time = line[34:36] + ':' + line[36:38] + ':00'
+                if line[34:38] == '    ' or line[34:38] == '9999':
+                    departure_time = arrival_time
+                else:
+                    departure_time = line[34:36] + ':' + line[36:38] + ':00'
 
-            if line[29:33] == '    ' or line[29:33] == '9999':
-                arrival_time = departure_time
+                if line[29:33] == '    ' or line[29:33] == '9999':
+                    arrival_time = departure_time
+
+            elif len(line) > 41: # assume the arrival/departure times are shifted to the right and have 5 digits
+                if line[31:35] != '    ' or line[31:35] != '9999':
+                    arrival_time = line[31:33] + ':' + line[33:35] + ':00'
+
+                if line[38:42] == '    ' or line[38:42] == '9999':
+                    departure_time = arrival_time
+                else:
+                    departure_time = line[38:40] + ':' + line[40:42] + ':00'
+
+                if line[31:35] == '    ' or line[31:35] == '9999':
+                    arrival_time = departure_time
+
 
             if 'trip_id' not in trip:
                 trip['trip_id'] = id + '-' + trip['route_id'] + '-' + trip['direction'] + '-' + trip['service_id'] + '-' + arrival_time
