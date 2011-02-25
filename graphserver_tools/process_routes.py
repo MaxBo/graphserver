@@ -41,13 +41,13 @@ class Proccessing():
     def create_db_tables(self):
 
 
-        self.cursor.execute('''CREATE TABLE trips ( id INTEGER PRIMARY KEY,
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS trips ( id INTEGER PRIMARY KEY,
                                                     route_id INTEGER,
                                                     start_time TIMESTAMP,
                                                     end_time TIMESTAMP,
                                                     total_time INTEGER)''')
 
-        self.cursor.execute('''CREATE TABLE trip_details ( trip_id INTEGER,
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS trip_details ( trip_id INTEGER,
                                                            counter INTEGER,
                                                            label TEXT,
                                                            time TIMESTAMP,
