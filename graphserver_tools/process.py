@@ -7,7 +7,6 @@ import sqlite3
 from graphserver_tools import import_base_data
 from graphserver_tools import import_route_data
 from graphserver_tools.utils import utils
-from graphserver_tools.netToGtf import NetToGtf
 from graphserver_tools import write_results
 from graphserver_tools import process_routes
 
@@ -88,12 +87,24 @@ def main():
         	parser.print_help()
         	exit(-1)
 
-    print('importing routing data...')
-    import_route_data.main(points_filename, routes_filename, times_filename, graphdb_filename, gtfsdb_filename, osmdb_filename, routingdb_filename)
-
-    print('calculation shortest paths...')
     g = GraphDatabase(graphdb_filename).incarnate()
 
+    print('importing routing data...')
+    #import_route_data.main(points_filename, routes_filename, times_filename, graphdb_filename, gtfsdb_filename, osmdb_filename, routingdb_filename)
+
+    conn = sqlite3.connect(routingdb_filename, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    import_route_data.read_times(times_filename, cursor)
+    import_route_data.read_points(points_filename, cursor)
+    import_route_data.read_routes(routes_filename, cursor)
+
+    import_route_data.calc_corresponding_vertices(cursor, g ,osmdb_filename, gtfsdb_filename)
+
+    conn.commit()
+
+    print('calculation shortest paths...')
     defaults = { 'time-step':'240', 'max-walk':'11080', 'walking-reluctance':'20', 'walking-speed':'1.2' }
     config = utils.read_config(os.path.join(dir_name, 'config.txt'), defaults)
 

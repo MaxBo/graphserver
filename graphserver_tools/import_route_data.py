@@ -16,8 +16,8 @@ import time
 from graphserver.graphdb import GraphDatabase
 from graphserver.core import State
 
-from graphserver_tools import utf8csv
-from graphserver_tools.utils.utils import distance
+from graphserver_tools.utils.utils import distance, string_to_datetime
+from graphserver_tools.utils import utf8csv
 
 
 def read_points(f, cursor):
@@ -136,7 +136,7 @@ def calc_corresponding_vertices(cursor, graph, osmdb, gtfsdb):
     for i in range(num_threads):
         thread.start_new_thread( closest_vertices, (points[i*num_calculations_per_thread:(i+1)*num_calculations_per_thread], ))
 
-    # a few points won't be calculted due to non-floating-point division
+    # a few points won't be calculted due to integer division
     thread.start_new_thread( closest_vertices, (points[(i+1)*num_calculations_per_thread:], ) )
 
     # wait till all threads are finished
@@ -154,13 +154,7 @@ def calc_corresponding_vertices(cursor, graph, osmdb, gtfsdb):
     for id, cv in corres_vertices:
         cursor.execute('INSERT INTO corres_vertices VALUES (?,?)', ( id, cv ))
 
-
-def string_to_datetime(s):
-    # format: DD:MM:YYYY:HH:MM
-    sl = [int(x) for x in s.split(':')]
-    return datetime.datetime(sl[2],sl[1], sl[0], sl[3], sl[4])
-
-
+'''
 def main(points_filename, routes_filename, times_filename, gdb_filename, gtfsdb_filename, osmdb_filename, routingdb_file):
 
     g = GraphDatabase(gdb_filename).incarnate()
@@ -177,4 +171,4 @@ def main(points_filename, routes_filename, times_filename, gdb_filename, gtfsdb_
 
     g.destroy()
 
-    conn.commit()
+    conn.commit()'''

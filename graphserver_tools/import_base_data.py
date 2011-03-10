@@ -5,7 +5,6 @@
 # 21.10.2010
 # Gertz Gutsche Rümenapp Gbr
 
-
 import sqlite3
 import sys
 from rtree import Rtree
@@ -18,8 +17,8 @@ from graphserver.compiler.gdb_import_gtfs import gdb_load_gtfsdb
 from graphserver.ext.osm.osmdb import osm_to_osmdb, OSMDB
 from graphserver.ext.osm.osmfilters import DeleteOrphanNodesFilter
 
-
 from graphserver_tools.utils.utils import read_config, distance
+
 
 
 def create_gs_datbases(osm_xml_filename, osmdb_filename, gtfs_filename, gtfsdb_filename, gsdb_filename):
@@ -56,7 +55,6 @@ def link_osm_gtfs(gtfsdb_file, osmdb_file, gdb_file, max_link_dist=150):
                                                                 AND lat > ? AND lat < ?
                                                                 AND lon > ? AND lon < ?''',
                                         ( s_lat-range, s_lat+range, s_lon-range, s_lon+range ))
-
         nodes = osm_cursor.fetchall()
         dists = []
 
