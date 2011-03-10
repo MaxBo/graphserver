@@ -10,7 +10,7 @@
 from zipfile import ZipFile
 import datetime, codecs, csv, os
 
-from graphserver_tools.utf8csv import UnicodeWriter
+from graphserver_tools.utils.utf8csv import UnicodeWriter
 
 agency_id = 1
 route_type = 3
@@ -294,6 +294,7 @@ def main():
     (options, args) = parser.parse_args()
 
     if len(args) != 1:
+        print 'ERROR: invalid argument(s)'
         parser.print_help()
         exit(-1)
 

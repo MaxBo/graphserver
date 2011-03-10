@@ -15,8 +15,8 @@ import codecs
 import csv
 from pyproj import Proj, transform
 
-from graphserver_tools.utf8csv import UnicodeWriter
-from graphserver_tools.utils import read_config, time_adder, coord_to_wgs84, eliminate_blank_lines
+from graphserver_tools.utils.utf8csv import UnicodeWriter
+from graphserver_tools.utils.utils import read_config, time_adder, coord_to_wgs84, eliminate_blank_lines
 
 
 # TODO: - error handling
