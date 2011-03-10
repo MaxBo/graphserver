@@ -5,7 +5,6 @@
 # 21.10.2010 - 06.12.2010
 # Gertz Gutsche Rümenapp Gbr
 
-
 import sqlite3
 import datetime
 import sys
@@ -20,7 +19,9 @@ from graphserver_tools.utils.utils import distance, string_to_datetime
 from graphserver_tools.utils import utf8csv
 
 
-def read_points(f, cursor):
+def read_points(f, conn):
+    cursor = conn.cursor()
+
     cursor.execute('CREATE TABLE points ( id INTEGER PRIMARY KEY, lat REAL, lon REAL, name TEXT )')
     reader = utf8csv.UnicodeReader(open(f))
 
@@ -35,12 +36,18 @@ def read_points(f, cursor):
         cursor.execute('INSERT INTO points VALUES (?,?,?,?)',
                          ( line[id_column], line[lat_column], line[lon_column], line[name_column] ))
 
+    cursor.close()
+    conn.commit()
 
-def read_times(f, cursor):
+
+def read_times(f, conn):
+    cursor = conn.cursor()
+
     cursor.execute('''CREATE TABLE times ( id INTEGER PRIMARY KEY,
                                            start TIMESTAMP,
                                            end TIMESTAMP,
                                            is_arrival_time INTEGER )''')
+
     reader = utf8csv.UnicodeReader(open(f))
 
     header = reader.next()
@@ -57,8 +64,13 @@ def read_times(f, cursor):
         cursor.execute('INSERT INTO times VALUES (?,?,?,?)',
                             ( line[id_column], start_date, end_date, line[is_arrival_column] ))
 
+    cursor.close()
+    conn.commit()
 
-def read_routes(f, cursor):
+
+def read_routes(f, conn):
+    cursor = conn.cursor()
+
     cursor.execute('''CREATE TABLE routes ( id INTEGER PRIMARY KEY,
                                             origin INTEGER,
                                             destination INTEGER,
@@ -79,8 +91,10 @@ def read_routes(f, cursor):
                                                                   line[dest_column],
                                                                   line[time_id_column],
                                                                   0                     ))
+    cursor.close()
+    conn.commit()
 
-def calc_corresponding_vertices(cursor, graph, osmdb, gtfsdb):
+def calc_corresponding_vertices(conn, graph, osmdb, gtfsdb):
 
     ''' wrapper function for multithreading'''
     def closest_vertices(list):
@@ -120,6 +134,7 @@ def calc_corresponding_vertices(cursor, graph, osmdb, gtfsdb):
 
 
     # do the setup
+    cursor = conn.cursor()
     points = cursor.execute('SELECT id, lat, lon FROM points').fetchall()
 
     conn = sqlite3.connect(gtfsdb)
@@ -154,21 +169,5 @@ def calc_corresponding_vertices(cursor, graph, osmdb, gtfsdb):
     for id, cv in corres_vertices:
         cursor.execute('INSERT INTO corres_vertices VALUES (?,?)', ( id, cv ))
 
-'''
-def main(points_filename, routes_filename, times_filename, gdb_filename, gtfsdb_filename, osmdb_filename, routingdb_file):
-
-    g = GraphDatabase(gdb_filename).incarnate()
-
-    conn = sqlite3.connect(routingdb_file, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-
-    read_times(times_filename, cursor)
-    read_points(points_filename, cursor)
-    read_routes(routes_filename, cursor)
-
-    calc_corresponding_vertices(cursor, g ,osmdb_filename, gtfsdb_filename)
-
-    g.destroy()
-
-    conn.commit()'''
+    cursor.close()
+    conn.commit()

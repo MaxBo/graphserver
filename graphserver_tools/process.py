@@ -94,13 +94,12 @@ def main():
 
     conn = sqlite3.connect(routingdb_filename, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
     conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
 
-    import_route_data.read_times(times_filename, cursor)
-    import_route_data.read_points(points_filename, cursor)
-    import_route_data.read_routes(routes_filename, cursor)
+    import_route_data.read_times(times_filename, conn)
+    import_route_data.read_points(points_filename, conn)
+    import_route_data.read_routes(routes_filename, conn)
 
-    import_route_data.calc_corresponding_vertices(cursor, g ,osmdb_filename, gtfsdb_filename)
+    import_route_data.calc_corresponding_vertices(conn, g ,osmdb_filename, gtfsdb_filename)
 
     conn.commit()
 
