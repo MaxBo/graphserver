@@ -9,8 +9,8 @@ setup(  name='graphserver_tools',
         entry_points={
             'console_scripts': [
                 'gst_process = graphserver_tools.process:main',
-                'gst_netToGtfs = graphserver_tools.netToGtf:main',
-                'gst_hafasToGtfs = graphserver_tools.hafasToGtf:main',
+                'gst_netToGtfs = graphserver_tools.ext.netToGtf:main',
+                'gst_hafasToGtfs = graphserver_tools.ext.hafasToGtf:main',
             ],
         }
      )

@@ -6,9 +6,8 @@ import sqlite3
 
 from graphserver_tools import import_base_data
 from graphserver_tools import import_route_data
-from graphserver_tools import utils
+from graphserver_tools.utils import utils
 from graphserver_tools.netToGtf import NetToGtf
-from graphserver_tools.utils import read_config
 from graphserver_tools import write_results
 from graphserver_tools import process_routes
 
@@ -30,16 +29,13 @@ def build_base_data():
             print('ERROR: cannot create folder XX-System')
             exit(-1)
 
-
     if not os.path.exists(osm_xml_filename):
         print('ERROR: no osm data found!')
         exit(-1)
 
-
     if not os.path.exists(gtfs_filename):
         print('ERROR: no transit data found!...')
         exit(-1)
-
 
     print('importing data into (graph) databases...')
     import_base_data.create_gs_datbases(osm_xml_filename, osmdb_filename, gtfs_filename, gtfsdb_filename, gsdb_filename)
@@ -74,7 +70,6 @@ def main():
     results_filename = os.path.join(dir_name, 'results.csv')
     result_details_filename = os.path.join(dir_name, 'result_details.csv')
     routingdb_filename = os.path.join(dir_name, 'routing.db')
-
 
     if not os.path.exists(times_filename) or not os.path.exists(points_filename) or not os.path.exists(routes_filename):
         print('ERROR: could not find one or more input files')

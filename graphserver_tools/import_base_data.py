@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # Author Tobias Ottenweller
-# 21.10.2010 - 29.10.2010
+# 21.10.2010
 # Gertz Gutsche Rümenapp Gbr
 
 
@@ -18,8 +18,8 @@ from graphserver.compiler.gdb_import_gtfs import gdb_load_gtfsdb
 from graphserver.ext.osm.osmdb import osm_to_osmdb, OSMDB
 from graphserver.ext.osm.osmfilters import DeleteOrphanNodesFilter
 
-from graphserver_tools.netToGtf import NetToGtf
-from graphserver_tools.utils import read_config, distance, delete_bad_edges
+
+from graphserver_tools.utils.utils import read_config, distance
 
 
 def create_gs_datbases(osm_xml_filename, osmdb_filename, gtfs_filename, gtfsdb_filename, gsdb_filename):
@@ -29,7 +29,6 @@ def create_gs_datbases(osm_xml_filename, osmdb_filename, gtfs_filename, gtfsdb_f
     osmdb = OSMDB( osmdb_filename )
 
     gtfsdb = GTFSDatabase( gtfsdb_filename, overwrite=True )
-    #from pudb import set_trace; set_trace()
     gtfsdb.load_gtfs( gtfs_filename)
 
 
@@ -117,44 +116,3 @@ def delete_orphan_nodes(osmdb_filename):
     # reindex the database
     db.index = Rtree(db.dbname)
     db.index_endnodes()
-
-
-def main():
-    import sys
-    from pyproj import Proj
-
-    net_filename = sys.argv[1] # might also be a gtfs-zip file
-    gtfs_filename = sys.argv[1][:-3] +'zip'
-    osm_xml_filename = sys.argv[2]
-    osmdb_filename = sys.argv[2] + 'db'
-    gtfsdb_filename = sys.argv[1][:-3] + 'gtfsdb'
-    gsdb_filename = sys.argv[3]
-    config_filename = sys.argv[4]
-
-
-    defaults = { 'proj-init-code':'epsg:31468', }
-
-    config = read_config(config_filename, defaults)
-
-
-    if net_filename[-4:] == '.net' :
-        ntg = NetToGtf(net_filename, gtfs_filename, False, net_types_map={},
-                           calendar_types=None, from_proj=Proj(init=config['proj-init-code']))
-        ntg.write_gtf()
-
-    else: # asume that the net_file is a gtfs zip file
-        gtfs_filename = net_filename
-
-    create_gs_datbases(osm_xml_filename, osmdb_filename, gtfs_filename, gtfsdb_filename, gsdb_filename)
-
-    graph_database = GraphDatabase(gsdb_filename)
-
-
-    link_osm_gtfs(gtfsdb_filename, osmdb_filename, gsdb_filename)
-
-
-    #print 'done importing base data'
-
-
-if __name__ == '__main__':
-    main()

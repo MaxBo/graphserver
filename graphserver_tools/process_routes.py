@@ -42,19 +42,19 @@ class Proccessing():
 
 
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS trips ( id INTEGER PRIMARY KEY,
-                                                    route_id INTEGER,
-                                                    start_time TIMESTAMP,
-                                                    end_time TIMESTAMP,
-                                                    total_time INTEGER)''')
+                                                                  route_id INTEGER,
+                                                                  start_time TIMESTAMP,
+                                                                  end_time TIMESTAMP,
+                                                                  total_time INTEGER)''')
 
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS trip_details ( trip_id INTEGER,
-                                                           counter INTEGER,
-                                                           label TEXT,
-                                                           time TIMESTAMP,
-                                                           weight INTEGER,
-                                                           dist_walked REAL,
-                                                           num_transfers INTEGER,
-                                                           gtfs_trip_id TEXT)''')
+                                                                         counter INTEGER,
+                                                                         label TEXT,
+                                                                         time TIMESTAMP,
+                                                                         weight INTEGER,
+                                                                         dist_walked REAL,
+                                                                         num_transfers INTEGER,
+                                                                         gtfs_trip_id TEXT)''')
 
         self.cursor.execute('CREATE INDEX IF NOT EXISTS IDX_time ON routes ( time )')
         self.cursor.execute('CREATE INDEX IF NOT EXISTS IDX_origin ON routes ( origin )')
@@ -100,6 +100,7 @@ class Proccessing():
         return { 'origin':self.get_gs_vertex(origin), 'times':self.prepare_times(start_time, end_time),
                  'arrival':False,
                  'destinations':[ ( self.get_gs_vertex(dest[1]), dest[0] ) for dest in destinations ] }
+
 
     def process_trips(self, routes):
         for t in routes['times']:
@@ -197,18 +198,16 @@ class Proccessing():
         print('\r%s shortest paths found                     ' % num_all_routes )
 
 
+    ''' in retro_paths the walking distance is counted in the wrong direction.
+        this method corrects this.
+    '''
     def write_retro_trip(self, vertices, route_id):
-        ''' in retro_paths the walking distance is counted in the wrong direction.
-            this method corrects this.
-        '''
-
         total_dist_walked = vertices[0].state.dist_walked
 
         for v in vertices:
             v.state.dist_walked = total_dist_walked - v.state.dist_walked
 
         self.write_trip(vertices, route_id)
-
 
 
     def write_trip(self, vertices, route_id):
@@ -229,9 +228,8 @@ class Proccessing():
         self.trip_id += 1
 
 
+    ''' this method will write a very long trip into the database. '''
     def write_error_trip(self, start_time, route_id):
-        ''' this method will write a very long trip into the database. '''
-
         start_date_time = datetime.datetime.fromtimestamp(start_time)
         end_time = datetime.datetime(2030,12,31)
 

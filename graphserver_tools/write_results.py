@@ -2,23 +2,13 @@
 # -*- coding: utf-8 -*-
 
 # Author Tobias Ottenweller
-# 29.10.2010 - 04.11.2010
+# 29.10.2010
 # Gertz Gutsche Rümenapp Gbr
-
-
-# Arguments:
-#
-# 1 - results.csv filename (will be created)
-# 2 - result_details.csv filename (will be created)
-# 3 - routing db filename
-# 4 - osm db filename
-# 5 - gtfs db filename
-
 
 import sqlite3
 import datetime
 
-from graphserver_tools import utf8csv
+from graphserver_tools.utils import utf8csv
 
 
 
@@ -34,9 +24,9 @@ def write_details(conn, filename, gtfsdb_cursor, osmdb_cursor):
 
     for r, in sorted(routes, key=lambda route: route[0]):
         id, route_id = c.execute('''SELECT id, route_id
-                          FROM trips
-                          WHERE total_time=( SELECT MIN(total_time) FROM trips WHERE route_id=? )
-                          AND route_id=?''', ( r, r )).fetchone()
+                                    FROM trips
+                                    WHERE total_time=( SELECT MIN(total_time) FROM trips WHERE route_id=? )
+                                    AND route_id=?''', ( r, r )).fetchone()
 
         details = c.execute('''SELECT counter, label, time, dist_walked, num_transfers, gtfs_trip_id
                                FROM trip_details
@@ -61,12 +51,11 @@ def write_results(conn, filename):
     for r, in sorted(routes, key=lambda route: route[0]):
 
         fastest_trip = list(c.execute('''SELECT route_id, start_time, end_time, total_time
-                                    FROM trips
-                                    WHERE total_time=( SELECT MIN(total_time) FROM trips WHERE route_id=? )
-                                    AND route_id=?''', ( r, r )).fetchone())
+                                         FROM trips
+                                         WHERE total_time=( SELECT MIN(total_time) FROM trips WHERE route_id=? )
+                                         AND route_id=?''', ( r, r )).fetchone())
 
         fastest_trip[3] = '%i:%02i:%02i' % ( fastest_trip[3]/3600, (fastest_trip[3]/60)%60, fastest_trip[3]%60 )
-
 
         writer.writerow(fastest_trip)
 
@@ -188,28 +177,3 @@ def create_indices(conn):
     c.execute('CREATE INDEX IF NOT EXISTS IDX_trip_id ON trip_details ( trip_id )')
 
     conn.commit()
-
-
-if __name__ == '__main__':
-    import sys
-
-    results_filename = sys.argv[1]
-    details_filename = sys.argv[2]
-
-    route_conn = sqlite3.connect(sys.argv[3], detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
-    route_conn.row_factory = sqlite3.Row
-
-    osm_conn = sqlite3.connect(sys.argv[4])
-    gtfs_conn = sqlite3.connect(sys.argv[5])
-
-    osm_c = osm_conn.cursor()
-    gtfs_c = gtfs_conn.cursor()
-
-    create_indices(route_conn)
-
-    write_results(route_conn, results_filename)
-    write_details(route_conn, details_filename, gtfs_c, osm_c)
-
-    print('done writing results')
-
-

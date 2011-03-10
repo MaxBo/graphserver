@@ -17,7 +17,7 @@ from graphserver.graphdb import GraphDatabase
 from graphserver.core import State
 
 from graphserver_tools import utf8csv
-from graphserver_tools.utils import distance
+from graphserver_tools.utils.utils import distance
 
 
 def read_points(f, cursor):
