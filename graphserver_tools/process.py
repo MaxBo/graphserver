@@ -90,8 +90,6 @@ def main():
     g = GraphDatabase(graphdb_filename).incarnate()
 
     print('importing routing data...')
-    #import_route_data.main(points_filename, routes_filename, times_filename, graphdb_filename, gtfsdb_filename, osmdb_filename, routingdb_filename)
-
     conn = sqlite3.connect(routingdb_filename, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
     conn.row_factory = sqlite3.Row
 
@@ -118,12 +116,9 @@ def main():
     osm_conn = sqlite3.connect(osmdb_filename)
     gtfs_conn = sqlite3.connect(gtfsdb_filename)
 
-    osm_c = osm_conn.cursor()
-    gtfs_c = gtfs_conn.cursor()
-
     write_results.create_indices(route_conn)
 
     write_results.write_results(route_conn, results_filename)
-    write_results.write_details(route_conn, result_details_filename, gtfs_c, osm_c)
+    write_results.write_details(route_conn, result_details_filename, gtfs_conn, osm_conn)
 
     print('DONE')

@@ -22,7 +22,10 @@ from graphserver_tools.utils import utf8csv
 def read_points(f, conn):
     cursor = conn.cursor()
 
-    cursor.execute('CREATE TABLE points ( id INTEGER PRIMARY KEY, lat REAL, lon REAL, name TEXT )')
+    cursor.execute('''CREATE TABLE points ( id INTEGER PRIMARY KEY,
+                                            lat REAL NOT NULL,
+                                            lon REAL NOT NULL,
+                                            name TEXT )''')
     reader = utf8csv.UnicodeReader(open(f))
 
     header = reader.next()
@@ -44,9 +47,9 @@ def read_times(f, conn):
     cursor = conn.cursor()
 
     cursor.execute('''CREATE TABLE times ( id INTEGER PRIMARY KEY,
-                                           start TIMESTAMP,
-                                           end TIMESTAMP,
-                                           is_arrival_time INTEGER )''')
+                                           start TIMESTAMP NOT NULL,
+                                           end TIMESTAMP  NOT NULL,
+                                           is_arrival_time BOOLEAN NOT NULL  )''')
 
     reader = utf8csv.UnicodeReader(open(f))
 
@@ -72,10 +75,10 @@ def read_routes(f, conn):
     cursor = conn.cursor()
 
     cursor.execute('''CREATE TABLE routes ( id INTEGER PRIMARY KEY,
-                                            origin INTEGER,
-                                            destination INTEGER,
-                                            time TEXT ,
-                                            done INTEGER )''')
+                                            origin INTEGER REFERENCES points,
+                                            destination INTEGER REFERENCES points,
+                                            time INTEGER REFERENCES times,
+                                            done BOOLEAN )''')
     reader = utf8csv.UnicodeReader(open(f))
 
     header = reader.next()
@@ -118,10 +121,9 @@ def calc_corresponding_vertices(conn, graph, osmdb, gtfsdb):
 
         range = 0.01 # might not be the best number
         c.execute('''SELECT id, lat, lon FROM nodes WHERE endnode_refs > 1 AND lat > ? AND lat < ? AND lon > ? AND lon < ?''',
-                                                                                    ( lat-range, lat+range, lon-range, lon+range ))
+                                                            ( lat-range, lat+range, lon-range, lon+range ))
         nodes = c.fetchall()
         c.close()
-
 
         for n_id, n_lat, n_lon in nodes:
             dist = distance(lat, lon, n_lat, n_lon)
@@ -164,7 +166,8 @@ def calc_corresponding_vertices(conn, graph, osmdb, gtfsdb):
     print('\r%s corresponding points found                  ' % len(points))
 
     # write the stuff into the database
-    cursor.execute('CREATE TABLE corres_vertices ( point_id INTEGER, vertex_label TEXT )')
+    cursor.execute('''CREATE TABLE corres_vertices ( point_id INTEGER PRIMARY KEY REFERENCES points,
+                                                     vertex_label TEXT ) ''')
 
     for id, cv in corres_vertices:
         cursor.execute('INSERT INTO corres_vertices VALUES (?,?)', ( id, cv ))

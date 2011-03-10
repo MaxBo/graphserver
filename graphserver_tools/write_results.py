@@ -5,19 +5,17 @@
 # 29.10.2010
 # Gertz Gutsche Rümenapp Gbr
 
-import sqlite3
-import datetime
-
 from graphserver_tools.utils import utf8csv
 
 
-
-def write_details(conn, filename, gtfsdb_cursor, osmdb_cursor):
+def write_details(conn, filename, gtfsdb_conn, osmdb_conn):
     writer = utf8csv.UnicodeWriter(open(filename, 'w'))
 
     writer.writerow(( u'route_id', u'counter', u'label', u'arrival/departure', u'dist_walked', u'transfers', u'transit_route' ))
 
     c = conn.cursor()
+    osm_c = osmdb_conn.cursor()
+    gtfs_c = gtfsdb_conn.cursor()
 
     routes = set(c.execute('SELECT route_id FROM trips').fetchall())
 
@@ -33,9 +31,11 @@ def write_details(conn, filename, gtfsdb_cursor, osmdb_cursor):
                                WHERE trip_id=?''', ( id, )).fetchall()
 
         if details: # there will be no details if there is no path between origin and destination at this trip
-            writer.writerows(humanize_details(route_id, details, gtfsdb_cursor, osmdb_cursor, c))
+            writer.writerows(humanize_details(route_id, details, gtfs_c, osm_c, c))
 
     c.close()
+    osm_c.close()
+    gtfs_c.close()
 
 
 def write_results(conn, filename):
@@ -172,8 +172,9 @@ def humanize_details(route_id, details, gtfsdb_cursor, osmdb_cursor, route_db_cu
 def create_indices(conn):
     c = conn.cursor()
 
-    c.execute('CREATE INDEX IF NOT EXISTS IDX_route_id ON trips ( route_id )')
-    c.execute('CREATE INDEX IF NOT EXISTS IDX_total_time ON trips ( total_time )')
-    c.execute('CREATE INDEX IF NOT EXISTS IDX_trip_id ON trip_details ( trip_id )')
+    c.execute('CREATE INDEX IDX_route_id ON trips ( route_id )')
+    c.execute('CREATE INDEX IDX_total_time ON trips ( total_time )')
+    c.execute('CREATE INDEX IDX_trip_id ON trip_details ( trip_id )')
 
+    c.close()
     conn.commit()

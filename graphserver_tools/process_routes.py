@@ -40,24 +40,30 @@ class Proccessing():
 
     def create_db_tables(self):
 
+        try:
+            self.cursor.execute('''CREATE TABLE trips ( id INTEGER PRIMARY KEY,
+                                                        route_id INTEGER REFERENCES routes,
+                                                        start_time TIMESTAMP NOT NULL,
+                                                        end_time TIMESTAMP NOT NULL,
+                                                        total_time INTEGER NOT NULL )''')
+        except:
+            pass
 
-        self.cursor.execute('''CREATE TABLE IF NOT EXISTS trips ( id INTEGER PRIMARY KEY,
-                                                                  route_id INTEGER,
-                                                                  start_time TIMESTAMP,
-                                                                  end_time TIMESTAMP,
-                                                                  total_time INTEGER)''')
+        try:
+            self.cursor.execute('''CREATE TABLE trip_details ( trip_id INTEGER REFERENCE trips,
+                                                               counter INTEGER NOT NULL,
+                                                               label TEXT NOT NULL,
+                                                               time TIMESTAMP NOT NULL,
+                                                               weight INTEGER NOT NULL,
+                                                               dist_walked REAL NOT NULL,
+                                                               num_transfers INTEGER NOT NULL,
+                                                               gtfs_trip_id TEXT) ''')   # for postgres add:'''UNIQUE (trip_id, counter)''')
+        except:
+            pass
 
-        self.cursor.execute('''CREATE TABLE IF NOT EXISTS trip_details ( trip_id INTEGER,
-                                                                         counter INTEGER,
-                                                                         label TEXT,
-                                                                         time TIMESTAMP,
-                                                                         weight INTEGER,
-                                                                         dist_walked REAL,
-                                                                         num_transfers INTEGER,
-                                                                         gtfs_trip_id TEXT)''')
-
-        self.cursor.execute('CREATE INDEX IF NOT EXISTS IDX_time ON routes ( time )')
-        self.cursor.execute('CREATE INDEX IF NOT EXISTS IDX_origin ON routes ( origin )')
+        self.cursor.execute('CREATE INDEX IDX_time ON routes ( time )')
+        self.cursor.execute('CREATE INDEX IDX_origin ON routes ( origin )')
+        self.cursor.execute('CREATE INDEX IDX_destination ON routes ( destination )')
 
         self.conn.commit()
 
@@ -160,6 +166,7 @@ class Proccessing():
                     self.write_retro_trip(vertices, orig[1])
 
             # cleanup
+            s.destroy()
             try:
                 spt.destroy()
             except:
@@ -223,8 +230,7 @@ class Proccessing():
 
             self.cursor.execute('INSERT INTO trip_details VALUES (?,?,?,?,?,?,?,?)',
                                             ( str(self.trip_id) + self.trip_prefix, c, v.label, time, v.state.weight,
-                                              v.state.dist_walked, v.state.num_transfers,
-                                              v.state.trip_id ))
+                                              v.state.dist_walked, v.state.num_transfers, v.state.trip_id ))
         self.trip_id += 1
 
 
@@ -257,3 +263,6 @@ class Proccessing():
         self.create_db_tables()
 
         self.process()
+
+    def __del__(self):
+        self.walk_ops.destroy()
