@@ -16,12 +16,10 @@ from graphserver_tools import process_routes
 
 def build_base_data():
     gtfs_filename = os.path.join('01-Basisdaten', 'transit_data.zip')
+    osm_xml_filename = os.path.join('01-Basisdaten', 'streets.osm')
     osmdb_filename = os.path.join('XX-System', 'streets.osmdb')
     gtfsdb_filename = os.path.join('XX-System', 'transit_feed.gtfsdb')
     gsdb_filename = os.path.join('XX-System', 'graph.db')
-
-    net_filename = os.path.join('01-Basisdaten', 'transit_data.net')
-    osm_xml_filename = os.path.join('01-Basisdaten', 'streets.osm')
 
     try:
         os.mkdir('XX-System')
@@ -36,13 +34,6 @@ def build_base_data():
     if not os.path.exists(osm_xml_filename):
         print('ERROR: no osm data found!')
         exit(-1)
-
-
-    if os.path.exists(net_filename) and not os.path.exists(gtfs_filename):
-        print('creating GTFS feed from .net file...')
-        ntg = NetToGtf(net_filename, gtfs_filename, False,
-               net_types_map={}, calendar_types=None, from_proj=Proj(init='epsg:4326'))
-        ntg.write_gtf()
 
 
     if not os.path.exists(gtfs_filename):
