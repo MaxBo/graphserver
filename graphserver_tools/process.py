@@ -61,9 +61,18 @@ def build_base_data():
 
 
 def main():
-    # TODO: write CLI interface stuff
+    from optparse import OptionParser
 
-    dir_name = sys.argv[1]
+    usage = """usage: python gst_process calculation-folder.\nnote: a special file hirarchie is neccessary in this folder. See documentaion for further information."""
+    parser = OptionParser(usage=usage)
+
+    (options, args) = parser.parse_args()
+
+    if len(args) != 1:
+        parser.print_help()
+        exit(-1)
+
+    dir_name = args[0]
 
     times_filename = os.path.join(dir_name, 'times.csv')
     points_filename = os.path.join(dir_name, 'points.csv')
@@ -78,6 +87,7 @@ def main():
 
     if not os.path.exists(times_filename) or not os.path.exists(points_filename) or not os.path.exists(routes_filename):
         print('ERROR: could not find one or more input files')
+        parser.print_help()
         exit(-1)
 
 
@@ -89,6 +99,7 @@ def main():
     except:
         if os.path.exists(routingdb_filename):
         	print('ERROR: could not remove old routing database')
+        	parser.print_help()
         	exit(-1)
 
     print('importing routing data...')
