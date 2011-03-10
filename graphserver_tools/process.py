@@ -63,7 +63,7 @@ def build_base_data():
 def main():
     from optparse import OptionParser
 
-    usage = """usage: python gst_process calculation-folder.\nnote: a special file hirarchie is neccessary in this folder. See documentaion for further information."""
+    usage = """usage: python gst_process calculation-folder.\nNote: a special file hirarchie is neccessary in this folder. See documentaion for further information."""
     parser = OptionParser(usage=usage)
 
     (options, args) = parser.parse_args()
