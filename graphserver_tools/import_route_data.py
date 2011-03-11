@@ -5,7 +5,7 @@
 # 21.10.2010 - 06.12.2010
 # Gertz Gutsche Rümenapp Gbr
 
-import sqlite3
+import psycopg2
 import datetime
 import sys
 import math
@@ -22,6 +22,7 @@ from graphserver_tools.utils import utf8csv
 def read_points(f, conn):
     cursor = conn.cursor()
 
+    cursor.execute('DROP TABLE IF EXISTS points')
     cursor.execute('''CREATE TABLE points ( id INTEGER PRIMARY KEY,
                                             lat REAL NOT NULL,
                                             lon REAL NOT NULL,
@@ -46,6 +47,7 @@ def read_points(f, conn):
 def read_times(f, conn):
     cursor = conn.cursor()
 
+    cursor.execute('DROP TABLE IF EXISTS times')
     cursor.execute('''CREATE TABLE times ( id INTEGER PRIMARY KEY,
                                            start TIMESTAMP NOT NULL,
                                            end TIMESTAMP  NOT NULL,
@@ -74,6 +76,7 @@ def read_times(f, conn):
 def read_routes(f, conn):
     cursor = conn.cursor()
 
+    cursor.execute('DROP TABLE IF EXISTS routes')
     cursor.execute('''CREATE TABLE routes ( id INTEGER PRIMARY KEY,
                                             origin INTEGER REFERENCES points,
                                             destination INTEGER REFERENCES points,
@@ -166,6 +169,7 @@ def calc_corresponding_vertices(conn, graph, osmdb, gtfsdb):
     print('\r%s corresponding points found                  ' % len(points))
 
     # write the stuff into the database
+    cursor.execute('DROP TABLE IF EXISTS corres_vertices')
     cursor.execute('''CREATE TABLE corres_vertices ( point_id INTEGER PRIMARY KEY REFERENCES points,
                                                      vertex_label TEXT ) ''')
 

@@ -3,6 +3,9 @@ from pyproj import Proj
 from graphserver.graphdb import GraphDatabase
 import sys
 import sqlite3
+import psycopg2
+import thread
+import time
 
 from graphserver_tools import import_base_data
 from graphserver_tools import import_route_data
@@ -90,8 +93,7 @@ def main():
     g = GraphDatabase(graphdb_filename).incarnate()
 
     print('importing routing data...')
-    conn = sqlite3.connect(routingdb_filename, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
-    conn.row_factory = sqlite3.Row
+    conn = psycopg2.connect(dbname:'gs' user='root')
 
     import_route_data.read_times(times_filename, conn)
     import_route_data.read_points(points_filename, conn)
@@ -100,25 +102,38 @@ def main():
     import_route_data.calc_corresponding_vertices(conn, g ,osmdb_filename, gtfsdb_filename)
 
     conn.commit()
+    g.destroy()
 
     print('calculation shortest paths...')
     defaults = { 'time-step':'240', 'max-walk':'11080', 'walking-reluctance':'20', 'walking-speed':'1.2' }
     config = utils.read_config(os.path.join(dir_name, 'config.txt'), defaults)
 
-    process_routes.Proccessing(g, routingdb_filename, int(config['time-step']), float(config['walking-speed']), int(config['max-walk']), int(config['walking-reluctance']))
+    prefixes = ( 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L' )
 
-    g.destroy()
+
+    for p in prefixes:
+        thread.start_new_thread(process_routes.Proccessing, (graphdb_filename, conn, int(config['time-step']), float(config['walking-speed']), int(config['max-walk']), int(config['walking-reluctance']), p))
+
+    cursor = conn.cursor()
+    finished = False
+    while not finished:
+        time.sleep(5.0)
+	    route_cursor.execute('SELECT origin FROM routes WHERE done=?', ( 0, ) )
+
+        if not route_cursor.fetchone():
+            finished = True
+            cursor.close()
+        else:
+            print '%s routes waiting to be processed' % len(route_cursor.fetchall())
+
 
     print('writing results...')
-    route_conn = sqlite3.connect(routingdb_filename, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
-    route_conn.row_factory = sqlite3.Row
-
     osm_conn = sqlite3.connect(osmdb_filename)
     gtfs_conn = sqlite3.connect(gtfsdb_filename)
 
-    write_results.create_indices(route_conn)
+    write_results.create_indices(conn)
 
-    write_results.write_results(route_conn, results_filename)
-    write_results.write_details(route_conn, result_details_filename, gtfs_conn, osm_conn)
+    write_results.write_results(conn, results_filename)
+    write_results.write_details(conn, result_details_filename, gtfs_conn, osm_conn)
 
     print('DONE')

@@ -11,6 +11,7 @@ import datetime
 import time
 import sys
 from graphserver.core import WalkOptions, State
+form graphserver.graphdb import GraphDatabase
 
 
 class Proccessing():
@@ -57,7 +58,7 @@ class Proccessing():
                                                                weight INTEGER NOT NULL,
                                                                dist_walked REAL NOT NULL,
                                                                num_transfers INTEGER NOT NULL,
-                                                               gtfs_trip_id TEXT) ''')   # for postgres add:'''UNIQUE (trip_id, counter)''')
+                                                               gtfs_trip_id TEXT) UNIQUE (trip_id, counter)''')
         except:
             pass
 
@@ -245,7 +246,7 @@ class Proccessing():
         self.trip_id += 1
 
 
-    def __init__(self, graph, route_db_filename, time_step=240, walking_speed=1.2, max_walk=1080, walking_reluctance=2, trip_prefix=''):
+    def __init__(self, graph_db_filename, db_connection, time_step=240, walking_speed=1.2, max_walk=1080, walking_reluctance=2, trip_prefix=''):
 
         self.trip_prefix = trip_prefix
         self.time_step = time_step
@@ -255,9 +256,8 @@ class Proccessing():
         self.walk_ops.max_walk = max_walk
         self.walk_ops.walking_reluctance = walking_reluctance
 
-        self.graph = graph
-        self.conn = sqlite3.connect(route_db_filename, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
-        self.conn.row_factory = sqlite3.Row
+        self.graph = GraphDatabase(graph_db_filename).incarnate()
+        self.conn = db_connection
         self.cursor = self.conn.cursor()
         self.trip_id = 0
         self.create_db_tables()
@@ -266,3 +266,6 @@ class Proccessing():
 
     def __del__(self):
         self.walk_ops.destroy()
+        self.graph.destroy()
+        self.cursor.close()
+        self.conn.commit()
