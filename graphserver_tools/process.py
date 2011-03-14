@@ -4,7 +4,7 @@ from graphserver.graphdb import GraphDatabase
 import sys
 import sqlite3
 import psycopg2
-import thread
+import multiprocessing
 import time
 
 from graphserver_tools import import_base_data
@@ -93,7 +93,7 @@ def main():
     g = GraphDatabase(graphdb_filename).incarnate()
 
     print('importing routing data...')
-    conn = psycopg2.connect(dbname:'gs' user='root')
+    conn = psycopg2.connect("dbname=gs user=root")
 
     import_route_data.read_times(times_filename, conn)
     import_route_data.read_points(points_filename, conn)
@@ -102,30 +102,34 @@ def main():
     import_route_data.calc_corresponding_vertices(conn, g ,osmdb_filename, gtfsdb_filename)
 
     conn.commit()
-    g.destroy()
 
     print('calculation shortest paths...')
     defaults = { 'time-step':'240', 'max-walk':'11080', 'walking-reluctance':'20', 'walking-speed':'1.2' }
     config = utils.read_config(os.path.join(dir_name, 'config.txt'), defaults)
 
+    process_routes.create_db_tables(conn)
+
     prefixes = ( 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L' )
 
+    for i in range(4):
+        p = multiprocessing.Process(target=process_routes.Proccessing, args=(g, "dbname=gs user=root", int(config['time-step']), float(config['walking-speed']), int(config['max-walk']), int(config['walking-reluctance']), prefixes[i]))
+        time.sleep(1) #workaround for duplicate calculations
+        p.start()
 
-    for p in prefixes:
-        thread.start_new_thread(process_routes.Proccessing, (graphdb_filename, conn, int(config['time-step']), float(config['walking-speed']), int(config['max-walk']), int(config['walking-reluctance']), p))
-
+    g.destroy()
     cursor = conn.cursor()
     finished = False
     while not finished:
         time.sleep(5.0)
-	    route_cursor.execute('SELECT origin FROM routes WHERE done=?', ( 0, ) )
+        cursor.execute('SELECT origin FROM routes WHERE done=%s', ( False, ) )
 
-        if not route_cursor.fetchone():
+        if not cursor.fetchone():
+            print 'all routes processed                                                   '
             finished = True
             cursor.close()
         else:
-            print '%s routes waiting to be processed' % len(route_cursor.fetchall())
-
+            sys.stdout.write('\r%s routes waiting to be processed' % len(cursor.fetchall()))
+            sys.stdout.flush()
 
     print('writing results...')
     osm_conn = sqlite3.connect(osmdb_filename)
