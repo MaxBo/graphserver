@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # Author Tobias Ottenweller
-# 21.10.2010 - 06.12.2010
+# 21.10.2010
 # Gertz Gutsche Rümenapp Gbr
 
 import psycopg2
@@ -11,6 +11,7 @@ import sys
 import math
 import thread
 import time
+import sqlite3
 
 from graphserver.graphdb import GraphDatabase
 from graphserver.core import State
@@ -22,7 +23,7 @@ from graphserver_tools.utils import utf8csv
 def read_points(f, conn):
     cursor = conn.cursor()
 
-    cursor.execute('DROP TABLE IF EXISTS points')
+    cursor.execute('DROP TABLE IF EXISTS points CASCADE')
     cursor.execute('''CREATE TABLE points ( id INTEGER PRIMARY KEY,
                                             lat REAL NOT NULL,
                                             lon REAL NOT NULL,
@@ -37,7 +38,7 @@ def read_points(f, conn):
 
     points = {}
     for line in reader:
-        cursor.execute('INSERT INTO points VALUES (?,?,?,?)',
+        cursor.execute('INSERT INTO points VALUES (%s,%s,%s,%s)',
                          ( line[id_column], line[lat_column], line[lon_column], line[name_column] ))
 
     cursor.close()
@@ -47,10 +48,10 @@ def read_points(f, conn):
 def read_times(f, conn):
     cursor = conn.cursor()
 
-    cursor.execute('DROP TABLE IF EXISTS times')
+    cursor.execute('DROP TABLE IF EXISTS times CASCADE')
     cursor.execute('''CREATE TABLE times ( id INTEGER PRIMARY KEY,
-                                           start TIMESTAMP NOT NULL,
-                                           end TIMESTAMP  NOT NULL,
+                                           start_time TIMESTAMP NOT NULL,
+                                           end_time TIMESTAMP NOT NULL,
                                            is_arrival_time BOOLEAN NOT NULL  )''')
 
     reader = utf8csv.UnicodeReader(open(f))
@@ -66,7 +67,7 @@ def read_times(f, conn):
         start_date = string_to_datetime(line[start_column])
         end_date = string_to_datetime(line[end_column])
 
-        cursor.execute('INSERT INTO times VALUES (?,?,?,?)',
+        cursor.execute('INSERT INTO times VALUES (%s,%s,%s,%s)',
                             ( line[id_column], start_date, end_date, line[is_arrival_column] ))
 
     cursor.close()
@@ -76,7 +77,7 @@ def read_times(f, conn):
 def read_routes(f, conn):
     cursor = conn.cursor()
 
-    cursor.execute('DROP TABLE IF EXISTS routes')
+    cursor.execute('DROP TABLE IF EXISTS routes CASCADE')
     cursor.execute('''CREATE TABLE routes ( id INTEGER PRIMARY KEY,
                                             origin INTEGER REFERENCES points,
                                             destination INTEGER REFERENCES points,
@@ -92,11 +93,11 @@ def read_routes(f, conn):
     time_id_column = header.index(u'time_id')
 
     for line in reader:
-        cursor.execute('INSERT INTO routes VALUES (?,?,?,?,?)', ( line[id_column],
+        cursor.execute('INSERT INTO routes VALUES (%s,%s,%s,%s,%s)', ( line[id_column],
                                                                   line[origin_column],
                                                                   line[dest_column],
                                                                   line[time_id_column],
-                                                                  0                     ))
+                                                                  False                 ))
     cursor.close()
     conn.commit()
 
@@ -140,7 +141,8 @@ def calc_corresponding_vertices(conn, graph, osmdb, gtfsdb):
 
     # do the setup
     cursor = conn.cursor()
-    points = cursor.execute('SELECT id, lat, lon FROM points').fetchall()
+    cursor.execute('SELECT id, lat, lon FROM points')
+    points = cursor.fetchall()
 
     conn = sqlite3.connect(gtfsdb)
     c = conn.cursor()
@@ -174,7 +176,7 @@ def calc_corresponding_vertices(conn, graph, osmdb, gtfsdb):
                                                      vertex_label TEXT ) ''')
 
     for id, cv in corres_vertices:
-        cursor.execute('INSERT INTO corres_vertices VALUES (?,?)', ( id, cv ))
+        cursor.execute('INSERT INTO corres_vertices VALUES (%s,%s)', ( id, cv ))
 
     cursor.close()
     conn.commit()
