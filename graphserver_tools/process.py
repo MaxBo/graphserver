@@ -111,25 +111,22 @@ def main():
 
     prefixes = ( 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L' )
 
+    processes = []
+
     for i in range(4):
         p = multiprocessing.Process(target=process_routes.Proccessing, args=(g, "dbname=gs user=root", int(config['time-step']), float(config['walking-speed']), int(config['max-walk']), int(config['walking-reluctance']), prefixes[i]))
-        time.sleep(1) #workaround for duplicate calculations
+        time.sleep(1) #workaround for duplicate calculations - should be only temporary
         p.start()
+        processes.append(p)
 
     g.destroy()
-    cursor = conn.cursor()
-    finished = False
-    while not finished:
-        time.sleep(5.0)
-        cursor.execute('SELECT origin FROM routes WHERE done=%s', ( False, ) )
 
-        if not cursor.fetchone():
-            print 'all routes processed                                                   '
-            finished = True
-            cursor.close()
-        else:
-            sys.stdout.write('\r%s routes waiting to be processed' % len(cursor.fetchall()))
-            sys.stdout.flush()
+    status_printer = multiprocessing.Process(target=process_routes.print_status, args=(conn, ))
+    status_printer.start()
+    processes.append(status_printer)
+
+    for p in processes:
+        p.join()
 
     print('writing results...')
     osm_conn = sqlite3.connect(osmdb_filename)

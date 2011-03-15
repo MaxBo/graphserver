@@ -256,3 +256,21 @@ def create_db_tables(connection):
     cursor.close()
 
 
+def print_status(connection):
+    cursor = connection.cursor()
+
+    finished = False
+    while not finished:
+        time.sleep(5.0)
+        cursor.execute('SELECT origin FROM routes WHERE done=%s', ( False, ) )
+
+        if not cursor.fetchone():
+            sys.stdout.write('\rall routes processed                                                   ')
+            sys.stdout.flush()
+
+            finished = True
+            cursor.close()
+        else:
+            sys.stdout.write('\r%s routes waiting to be processed              ' % len(cursor.fetchall()))
+            sys.stdout.flush()
+
