@@ -17,18 +17,21 @@ def write_details(conn, filename, gtfsdb_conn, osmdb_conn):
     osm_c = osmdb_conn.cursor()
     gtfs_c = gtfsdb_conn.cursor()
 
-    routes = set(c.execute('SELECT route_id FROM trips').fetchall())
+    c.execute('SELECT route_id FROM trips')
+    routes = set(c.fetchall())
 
 
     for r, in sorted(routes, key=lambda route: route[0]):
-        id, route_id = c.execute('''SELECT id, route_id
-                                    FROM trips
-                                    WHERE total_time=( SELECT MIN(total_time) FROM trips WHERE route_id=? )
-                                    AND route_id=?''', ( r, r )).fetchone()
+        c.execute('''SELECT id, route_id
+                     FROM trips
+                     WHERE total_time=( SELECT MIN(total_time) FROM trips WHERE route_id=%s )
+                     AND route_id=%s''', ( r, r ))
+        id, route_id = c.fetchone()
 
-        details = c.execute('''SELECT counter, label, time, dist_walked, num_transfers, gtfs_trip_id
-                               FROM trip_details
-                               WHERE trip_id=?''', ( id, )).fetchall()
+        c.execute('''SELECT counter, label, time, dist_walked, num_transfers, gtfs_trip_id
+                     FROM trip_details
+                     WHERE trip_id=%s''', ( id, ))
+        details = c.fetchall()
 
         if details: # there will be no details if there is no path between origin and destination at this trip
             writer.writerows(humanize_details(route_id, details, gtfs_c, osm_c, c))
@@ -45,15 +48,16 @@ def write_results(conn, filename):
 
     c = conn.cursor()
 
-    routes = set(c.execute('SELECT route_id FROM trips').fetchall())
+    c.execute('SELECT route_id FROM trips')
+    routes = set(c.fetchall())
 
 
     for r, in sorted(routes, key=lambda route: route[0]):
-
-        fastest_trip = list(c.execute('''SELECT route_id, start_time, end_time, total_time
-                                         FROM trips
-                                         WHERE total_time=( SELECT MIN(total_time) FROM trips WHERE route_id=? )
-                                         AND route_id=?''', ( r, r )).fetchone())
+        c.execute('''SELECT route_id, start_time, end_time, total_time
+                     FROM trips
+                     WHERE total_time=( SELECT MIN(total_time) FROM trips WHERE route_id=%s )
+                     AND route_id=%s''', ( r, r ))
+        fastest_trip = list(c.fetchone())
 
         fastest_trip[3] = '%i:%02i:%02i' % ( fastest_trip[3]/3600, (fastest_trip[3]/60)%60, fastest_trip[3]%60 )
 
@@ -70,11 +74,14 @@ def get_lat_lon(osmdb_cursor, gs_osm_vertex):
 
 
 def get_node_name(route_db_cursor, node_label):
-    pid, = route_db_cursor.execute('SELECT point_id FROM corres_vertices WHERE vertex_label=?', ( node_label, )).fetchone()
+    route_db_cursor.execute('SELECT point_id FROM corres_vertices WHERE vertex_label=%s', ( node_label, ))
+    try:
+        pid, = route_db_cursor.fetchone()
+    except:
+        return ''
 
-    if not pid: return ''
-
-    return route_db_cursor.execute('SELECT name FROM points WHERE id=?', ( pid, )).fetchone()[0]
+    route_db_cursor.execute('SELECT name FROM points WHERE id=%s', ( pid, ))
+    return route_db_cursor.fetchone()[0]
 
 
 def get_station_name(gtfsdb_cursor, gs_sta_vertex):

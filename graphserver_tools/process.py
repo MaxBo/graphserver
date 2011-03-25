@@ -94,6 +94,7 @@ def main():
 
     print('importing routing data...')
     conn = psycopg2.connect("dbname=gs user=root")
+    conn.set_client_encoding('UTF8')
 
     import_route_data.read_times(times_filename, conn)
     import_route_data.read_points(points_filename, conn)
@@ -129,6 +130,10 @@ def main():
         p.join()
 
     print('writing results...')
+    conn.close() # pgsql gets somehow confused, so a new connection is needed!
+    conn = psycopg2.connect("dbname=gs user=root")
+    conn.set_client_encoding('UTF8')
+
     osm_conn = sqlite3.connect(osmdb_filename)
     gtfs_conn = sqlite3.connect(gtfsdb_filename)
 

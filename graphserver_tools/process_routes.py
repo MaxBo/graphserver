@@ -265,7 +265,7 @@ def print_status(connection):
         cursor.execute('SELECT origin FROM routes WHERE done=%s', ( False, ) )
 
         if not cursor.fetchone():
-            sys.stdout.write('\rall routes processed                                                   ')
+            sys.stdout.write('\rall routes processed                                                   \n')
             sys.stdout.flush()
 
             finished = True
