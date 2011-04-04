@@ -5,8 +5,8 @@
 # 21.10.2010
 # Gertz Gutsche Rümenapp Gbr
 
-import sqlite3
 import sys
+import psycopg2
 from rtree import Rtree
 
 from graphserver.graphdb import GraphDatabase
@@ -20,42 +20,38 @@ from graphserver.ext.osm.osmfilters import DeleteOrphanNodesFilter
 from graphserver_tools.utils.utils import read_config, distance
 
 
+def create_gs_datbases(osm_xml_filename, gtfs_filename, db_conn_string):
+    osmdb = osm_to_osmdb( osm_xml_filename, db_conn_string )
 
-def create_gs_datbases(osm_xml_filename, osmdb_filename, gtfs_filename, gtfsdb_filename, gsdb_filename):
+    print 'number edges in osm-tables: %s' % len(list(osmdb.edges()))
 
-    osm_to_osmdb( osm_xml_filename, osmdb_filename, False, False )
-
-    osmdb = OSMDB( osmdb_filename )
-
-    gtfsdb = GTFSDatabase( gtfsdb_filename, overwrite=True )
-    gtfsdb.load_gtfs( gtfs_filename)
+    gtfsdb = GTFSDatabase( db_conn_string, overwrite=True )
+    gtfsdb.load_gtfs( gtfs_filename )
 
 
-    gdb = GraphDatabase( gsdb_filename, overwrite=False )
+    gdb = GraphDatabase( db_conn_string, overwrite=True )
 
     gdb_load_gtfsdb( gdb, 1, gtfsdb, gdb.get_cursor())
     gdb_import_osm(gdb, osmdb, 'osm', {}, None);
 
 
-def link_osm_gtfs(gtfsdb_file, osmdb_file, gdb_file, max_link_dist=150):
+def link_osm_gtfs(db_conn_string, max_link_dist=150):
 
-    osm_conn = sqlite3.connect(osmdb_file)
-    osm_cursor = osm_conn.cursor()
+    conn = psycopg2.connect(db_conn_string)
+    cursor = conn.cursor()
 
-    gdb = GraphDatabase(gdb_file)
+    gdb = GraphDatabase(db_conn_string)
 
-    gtfsdb = GTFSDatabase(gtfsdb_file)
-    stations = gtfsdb.stops()
+    #gtfsdb = GTFSDatabase(db_conn_string)
+    #stations = gtfsdb.stops()
 
-    for i, (s_label, s_name, s_lat, s_lon) in enumerate(stations):
+    cursor.execute('SELECT stop_id, stop_lat, stop_lon FROM gtfs_stops')
+    for i, (s_label, s_lat, s_lon) in enumerate(cursor.fetchall()):
         j = False
 
-        range = 0.01 # might not be the best number
-        osm_cursor.execute('''SELECT id, lat, lon FROM nodes WHERE endnode_refs > 1
-                                                                AND lat > ? AND lat < ?
-                                                                AND lon > ? AND lon < ?''',
-                                        ( s_lat-range, s_lat+range, s_lon-range, s_lon+range ))
-        nodes = osm_cursor.fetchall()
+        range = 0.05 # might not be the best number
+        cursor.execute('''SELECT id, lat, lon FROM osm_nodes WHERE endnode_refs > 1 AND lat > %s AND lat < %s AND lon > %s AND lon < %s''', ( s_lat-range, s_lat+range, s_lon-range, s_lon+range ))
+        nodes = cursor.fetchall()
         dists = []
 
         for n_label, n_lat, n_lon in nodes:
@@ -83,34 +79,34 @@ def link_osm_gtfs(gtfsdb_file, osmdb_file, gdb_file, max_link_dist=150):
         if not dists:
             print('\tWARNING: failed linking %s! (%s, %s)' % (s_label, s_lat, s_lon))
 
+    gdb.commit()
+    conn.commit()
+    cursor.close()
 
-def add_missing_stops(gtfsdb_filename, gsdb_filename):
-    gtfsdb_conn = sqlite3.connect(gtfsdb_filename)
-    gsdb_conn = sqlite3.connect(gsdb_filename)
 
-    gtfsdb_c = gtfsdb_conn.cursor()
-    gsdb_c = gsdb_conn.cursor()
+def add_missing_stops(db_conn_string):
+    conn = psycopg2.connect(db_conn_string)
+    cursor = conn.cursor()
 
-    gtfsdb_c.execute('SELECT stop_id FROM stops')
+    cursor.execute('SELECT stop_id FROM gtfs_stops')
 
-    for s in gtfsdb_c:
+    for s in cursor.fetchall():
         stop_label = 'sta-' + s[0]
-        gsdb_c.execute('SELECT * FROM vertices WHERE label=?', (stop_label, ))
+        cursor.execute('SELECT * FROM graph_vertices WHERE label=%s', (stop_label, ))
 
-        if len(gsdb_c.fetchall()) == 0:
-            gsdb_c.execute('INSERT INTO vertices VALUES (?)', (stop_label, ))
+        if len(cursor.fetchall()) == 0:
+            cursor.execute('INSERT INTO graph_vertices VALUES (%s)', (stop_label, ))
 
-    gtfsdb_conn.commit()
-    gsdb_conn.commit()
+    conn.commit()
 
 
-def delete_orphan_nodes(osmdb_filename):
+def delete_orphan_nodes(db_conn_string):
 
-    db = OSMDB(osmdb_filename, rtree_index=False)
+    db = OSMDB(db_conn_string, rtree_index=False)
     filter = DeleteOrphanNodesFilter()
 
     filter.run(db, *[])
 
     # reindex the database
-    db.index = Rtree(db.dbname)
+    db.index = Rtree()
     db.index_endnodes()

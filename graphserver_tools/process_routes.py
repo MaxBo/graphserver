@@ -19,12 +19,12 @@ from graphserver.graphdb import GraphDatabase
 
 class Proccessing():
     def get_gs_vertex(self, point_id):
-        self.cursor.execute('SELECT vertex_label FROM corres_vertices WHERE point_id=%s', ( point_id, ))
+        self.cursor.execute('SELECT vertex_label FROM cal_corres_vertices WHERE point_id=%s', ( point_id, ))
         return self.cursor.fetchone()[0]
 
 
     def get_point(self, vertex_label):
-        self.cursor.execute('SELECT point_id FROM corres_vertices WHERE vertex_label=%s', ( vertex_label, ))
+        self.cursor.execute('SELECT point_id FROM cal_corres_vertices WHERE vertex_label=%s', ( vertex_label, ))
         return [x[0] for x in self.cursor][0]
 
 
@@ -44,12 +44,12 @@ class Proccessing():
 
     def get_route_dict(self):
         try:
-            self.cursor.execute('SELECT origin, destination, time FROM routes WHERE done=%s LIMIT 1', ( False, ))
+            self.cursor.execute('SELECT origin, destination, time FROM cal_routes WHERE done=%s LIMIT 1', ( False, ))
             origin, destination, time = self.cursor.fetchone()
         except: # there are no routes to Compute
             return None
 
-        self.cursor.execute('SELECT start_time, end_time, is_arrival_time FROM times WHERE id=%s', ( time, ))
+        self.cursor.execute('SELECT start_time, end_time, is_arrival_time FROM cal_times WHERE id=%s', ( time, ))
         start_time, end_time, is_arrival = self.cursor.fetchone()
 
         if is_arrival:
@@ -59,10 +59,10 @@ class Proccessing():
 
 
     def get_retro_dict(self, destination, time, start_time, end_time):
-        self.cursor.execute('''SELECT id, origin FROM routes WHERE destination=? AND time=%s''', ( destination, time ))
+        self.cursor.execute('''SELECT id, origin FROM cal_routes WHERE destination=? AND time=%s''', ( destination, time ))
         origins = list(self.cursor.fetchall())
 
-        self.cursor.execute('UPDATE routes SET done=? WHERE destination=%s AND time=%s', ( True, destination, time ))
+        self.cursor.execute('UPDATE cal_routes SET done=? WHERE destination=%s AND time=%s', ( True, destination, time ))
         self.conn.commit()
 
         return { 'destination':self.get_gs_vertex(destination), 'times':self.prepare_times(start_time, end_time),
@@ -71,10 +71,10 @@ class Proccessing():
 
 
     def get_dict(self, origin, time, start_time, end_time):
-        self.cursor.execute('''SELECT id, destination FROM routes WHERE origin=%s AND time=%s''', ( origin, time ))
+        self.cursor.execute('''SELECT id, destination FROM cal_routes WHERE origin=%s AND time=%s''', ( origin, time ))
         destinations = list(self.cursor.fetchall())
 
-        self.cursor.execute('UPDATE routes SET done=%s WHERE origin=%s AND time=%s', ( True, origin, time ))
+        self.cursor.execute('UPDATE cal_routes SET done=%s WHERE origin=%s AND time=%s', ( True, origin, time ))
         self.conn.commit()
 
         return { 'origin':self.get_gs_vertex(origin), 'times':self.prepare_times(start_time, end_time),
@@ -82,7 +82,7 @@ class Proccessing():
                  'destinations':[ ( self.get_gs_vertex(dest[1]), dest[0] ) for dest in destinations ] }
 
 
-    def process_trips(self, routes):
+    def process_paths(self, routes):
         for t in routes['times']:
             s = State(1, t)
 
@@ -114,7 +114,7 @@ class Proccessing():
                 pass
 
 
-    def process_retro_trips(self, routes):
+    def process_retro_paths(self, routes):
         for t in routes['times']:
             s = State(1, t)
 
@@ -147,26 +147,26 @@ class Proccessing():
                 pass
 
 
-    '''
+    def run(self):
+        '''
         method for processing (calculating shortest paths) all routes stored inside the databases
         associated with this object.
         [only routes with the processed flag not set will be processed]
-    '''
-    def run(self):
+        '''
         routes = self.get_route_dict()
         while ( routes ):
             if routes['arrival']:
-                self.process_retro_trips(routes)
+                self.process_retro_paths(routes)
             else:
-                self.process_trips(routes)
+                self.process_paths(routes)
 
             routes = self.get_route_dict()
 
 
-    ''' in retro_paths the walking distance is counted in the wrong direction.
-        this method corrects this.
-    '''
     def write_retro_trip(self, vertices, route_id):
+        ''' in retro_paths the walking distance is counted in the wrong direction.
+            this method corrects this.
+        '''
         total_dist_walked = vertices[0].state.dist_walked
 
         for v in vertices:
@@ -182,12 +182,12 @@ class Proccessing():
         start_time = datetime.datetime.fromtimestamp(vertices[0].state.time)
         end_time = datetime.datetime.fromtimestamp(vertices[-1].state.time)
 
-        self.cursor.execute('INSERT INTO trips VALUES (%s,%s,%s,%s,%s)', ( self.trip_prefix + current_trip_id, route_id, start_time, end_time, (vertices[-1].state.time - vertices[0].state.time ) ))
+        self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', ( self.trip_prefix + current_trip_id, route_id, start_time, end_time, (vertices[-1].state.time - vertices[0].state.time ) ))
 
         for c, v in enumerate(vertices):
             time = datetime.datetime.fromtimestamp(v.state.time)
 
-            self.cursor.execute('INSERT INTO trip_details VALUES (%s,%s,%s,%s,%s,%s,%s,%s)', ( self.trip_prefix + current_trip_id, c, v.label, time, v.state.weight, v.state.dist_walked, v.state.num_transfers, v.state.trip_id ))
+            self.cursor.execute('INSERT INTO cal_paths_details VALUES (%s,%s,%s,%s,%s,%s,%s,%s)', ( self.trip_prefix + current_trip_id, c, v.label, time, v.state.weight, v.state.dist_walked, v.state.num_transfers, v.state.trip_id ))
 
 
     ''' this method will write a very long trip into the database. '''
@@ -198,7 +198,7 @@ class Proccessing():
         start_date_time = datetime.datetime.fromtimestamp(start_time)
         end_time = datetime.datetime(2030,12,31)
 
-        self.cursor.execute('INSERT INTO trips VALUES (%s,%s,%s,%s,%s)', (self.trip_prefix + current_trip_id, route_id, start_date_time, end_time, (time.mktime(end_time.timetuple()) - start_time ) ))
+        self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', (self.trip_prefix + current_trip_id, route_id, start_date_time, end_time, (time.mktime(end_time.timetuple()) - start_time ) ))
 
 
     def __init__(self, graph, db_connection_string, time_step=240, walking_speed=1.2, max_walk=1080, walking_reluctance=2, trip_prefix=''):
@@ -229,28 +229,28 @@ class Proccessing():
 def create_db_tables(connection):
     cursor = connection.cursor()
 
-    cursor.execute('DROP TABLE IF EXISTS trips CASCADE')
-    cursor.execute('''CREATE TABLE trips ( id TEXT PRIMARY KEY,
-                                           route_id INTEGER REFERENCES routes,
+    cursor.execute('DROP TABLE IF EXISTS cal_paths CASCADE')
+    cursor.execute('''CREATE TABLE cal_paths ( id TEXT PRIMARY KEY,
+                                           route_id INTEGER REFERENCES cal_routes,
                                            start_time TIMESTAMP NOT NULL,
                                            end_time TIMESTAMP NOT NULL,
                                            total_time INTEGER NOT NULL )''')
 
-    cursor.execute('DROP TABLE IF EXISTS trip_details CASCADE')
-    cursor.execute('''CREATE TABLE trip_details ( trip_id TEXT REFERENCES trips,
-                                                  counter INTEGER NOT NULL,
-                                                  label TEXT NOT NULL,
-                                                  time TIMESTAMP NOT NULL,
-                                                  weight INTEGER NOT NULL,
-                                                  dist_walked REAL NOT NULL,
-                                                  num_transfers INTEGER NOT NULL,
-                                                  gtfs_trip_id TEXT,
-                                                  UNIQUE (trip_id, counter)) ''')
+    cursor.execute('DROP TABLE IF EXISTS cal_paths_details CASCADE')
+    cursor.execute('''CREATE TABLE cal_paths_details ( path_id TEXT REFERENCES cal_paths,
+                                                       counter INTEGER NOT NULL,
+                                                       label TEXT NOT NULL,
+                                                       time TIMESTAMP NOT NULL,
+                                                       weight INTEGER NOT NULL,
+                                                       dist_walked REAL NOT NULL,
+                                                       num_transfers INTEGER NOT NULL,
+                                                       gtfs_trip_id TEXT,
+                                                    UNIQUE (path_id, counter)) ''')
 
-    cursor.execute('CREATE INDEX IDX_time ON routes ( time )')
-    cursor.execute('CREATE INDEX IDX_origin ON routes ( origin )')
-    cursor.execute('CREATE INDEX IDX_destination ON routes ( destination )')
-    cursor.execute('CREATE INDEX IDX_done ON routes ( done )')
+    cursor.execute('CREATE INDEX IDX_time ON cal_routes ( time )')
+    cursor.execute('CREATE INDEX IDX_origin ON cal_routes ( origin )')
+    cursor.execute('CREATE INDEX IDX_destination ON cal_routes ( destination )')
+    cursor.execute('CREATE INDEX IDX_done ON cal_routes ( done )')
 
     connection.commit()
     cursor.close()
@@ -262,7 +262,7 @@ def print_status(connection):
     finished = False
     while not finished:
         time.sleep(5.0)
-        cursor.execute('SELECT origin FROM routes WHERE done=%s', ( False, ) )
+        cursor.execute('SELECT origin FROM cal_routes WHERE done=%s', ( False, ) )
 
         if not cursor.fetchone():
             sys.stdout.write('\rall routes processed                                                   \n')

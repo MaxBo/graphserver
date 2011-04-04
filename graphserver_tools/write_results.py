@@ -8,37 +8,34 @@
 from graphserver_tools.utils import utf8csv
 
 
-def write_details(conn, filename, gtfsdb_conn, osmdb_conn):
+def write_details(conn, filename):
     writer = utf8csv.UnicodeWriter(open(filename, 'w'))
 
     writer.writerow(( u'route_id', u'counter', u'label', u'arrival/departure', u'dist_walked', u'transfers', u'transit_route' ))
 
     c = conn.cursor()
-    osm_c = osmdb_conn.cursor()
-    gtfs_c = gtfsdb_conn.cursor()
 
-    c.execute('SELECT route_id FROM trips')
+    c.execute('SELECT route_id FROM cal_paths')
     routes = set(c.fetchall())
 
 
     for r, in sorted(routes, key=lambda route: route[0]):
         c.execute('''SELECT id, route_id
-                     FROM trips
-                     WHERE total_time=( SELECT MIN(total_time) FROM trips WHERE route_id=%s )
+                     FROM cal_paths
+                     WHERE total_time=( SELECT MIN(total_time) FROM cal_paths WHERE route_id=%s )
                      AND route_id=%s''', ( r, r ))
         id, route_id = c.fetchone()
 
         c.execute('''SELECT counter, label, time, dist_walked, num_transfers, gtfs_trip_id
-                     FROM trip_details
-                     WHERE trip_id=%s''', ( id, ))
+                     FROM cal_paths_details
+                     WHERE path_id=%s''', ( id, ))
         details = c.fetchall()
 
         if details: # there will be no details if there is no path between origin and destination at this trip
-            writer.writerows(humanize_details(route_id, details, gtfs_c, osm_c, c))
+            writer.writerows(humanize_details(route_id, details, conn))
 
+    conn.commit()
     c.close()
-    osm_c.close()
-    gtfs_c.close()
 
 
 def write_results(conn, filename):
@@ -48,14 +45,14 @@ def write_results(conn, filename):
 
     c = conn.cursor()
 
-    c.execute('SELECT route_id FROM trips')
+    c.execute('SELECT route_id FROM cal_paths')
     routes = set(c.fetchall())
 
 
     for r, in sorted(routes, key=lambda route: route[0]):
         c.execute('''SELECT route_id, start_time, end_time, total_time
-                     FROM trips
-                     WHERE total_time=( SELECT MIN(total_time) FROM trips WHERE route_id=%s )
+                     FROM cal_paths
+                     WHERE total_time=( SELECT MIN(total_time) FROM cal_paths WHERE route_id=%s )
                      AND route_id=%s''', ( r, r ))
         fastest_trip = list(c.fetchone())
 
@@ -66,37 +63,52 @@ def write_results(conn, filename):
     c.close()
 
 
-def get_lat_lon(osmdb_cursor, gs_osm_vertex):
-    osmdb_cursor.execute('SELECT lat, lon FROM nodes WHERE id=?', ( gs_osm_vertex[4:], ))
-    lat, lon = osmdb_cursor.fetchone()
+def get_lat_lon(conn, gs_osm_vertex):
+    cursor = conn.cursor()
 
+    cursor.execute('SELECT lat, lon FROM osm_nodes WHERE id=?', ( gs_osm_vertex[4:], ))
+    lat, lon = cursor.fetchone()
+
+    cursor.close()
     return '%.4f, %.4f' % ( lat, lon )
 
 
-def get_node_name(route_db_cursor, node_label):
-    route_db_cursor.execute('SELECT point_id FROM corres_vertices WHERE vertex_label=%s', ( node_label, ))
+def get_node_name(conn, node_label):
+    cusor = conn.cursor()
+    cursor.execute('SELECT point_id FROM cal_corres_vertices WHERE vertex_label=%s', ( node_label, ))
     try:
         pid, = route_db_cursor.fetchone()
     except:
         return ''
 
-    route_db_cursor.execute('SELECT name FROM points WHERE id=%s', ( pid, ))
-    return route_db_cursor.fetchone()[0]
+    cursor.execute('SELECT name FROM cal_points WHERE id=%s', ( pid, ))
+    ret = cursor.fetchone()[0]
+
+    cursor.close()
+    return ret
 
 
-def get_station_name(gtfsdb_cursor, gs_sta_vertex):
-    gtfsdb_cursor.execute('SELECT stop_name FROM stops WHERE stop_id=?', ( gs_sta_vertex[4:], ))
+def get_station_name(conn, gs_sta_vertex):
+    cursor = conn.cursor()
 
-    return gtfsdb_cursor.next()[0]
+    cursor.execute('SELECT stop_name FROM gtfs_stops WHERE stop_id=%s', ( gs_sta_vertex[4:], ))
+    ret = cursor.next()[0]
 
-
-def get_route_id(gtfsdb_cursor, gtfs_trip_id):
-    gtfsdb_cursor.execute('SELECT route_id FROM trips WHERE trip_id=?',  ( gtfs_trip_id, ))
-
-    return gtfsdb_cursor.next()[0]
+    cursor.close()
+    return ret
 
 
-def humanize_details(route_id, details, gtfsdb_cursor, osmdb_cursor, route_db_cursor):
+def get_route_id(conn, gtfs_trip_id):
+    cursor = conn.cursor()
+
+    cursor.execute('SELECT route_id FROM cal_paths WHERE path_id=%s',  ( gtfs_trip_id, ))
+    ret = gtfsdb_cursor.next()[0]
+
+    cursor.close()
+    return ret
+
+
+def humanize_details(route_id, details, conn):
 
     def add_walk_entry(start_dist, end_dist):
         walk = 'walk (%.0f m)' % (float(start_dist) - float(end_dist))
@@ -115,7 +127,7 @@ def humanize_details(route_id, details, gtfsdb_cursor, osmdb_cursor, route_db_cu
         except IndexError: # the will be an IndexError at the first entry
             pass
 
-        label = '%s (%s)' % ( get_node_name(route_db_cursor, label), get_lat_lon(osmdb_cursor, label) )
+        label = '%s (%s)' % ( get_node_name(conn, label), get_lat_lon(conn, label) )
         transit_route = ''
         dist_walked = '%.2f' % float(dist_walked)
 
@@ -139,8 +151,8 @@ def humanize_details(route_id, details, gtfsdb_cursor, osmdb_cursor, route_db_cu
             pass
 
         # add the entry
-        label = get_station_name(gtfsdb_cursor, label)
-        transit_route = get_route_id(gtfsdb_cursor, transit_route) if transit_route else ''
+        label = get_station_name(conn, label)
+        transit_route = get_route_id(conn, transit_route) if transit_route else ''
         dist_walked = '%.2f' % float(dist_walked)
 
         hum_details.append([ route_id, counter, label, time, dist_walked, transfers, transit_route ])
@@ -179,9 +191,9 @@ def humanize_details(route_id, details, gtfsdb_cursor, osmdb_cursor, route_db_cu
 def create_indices(conn):
     c = conn.cursor()
 
-    c.execute('CREATE INDEX IDX_route_id ON trips ( route_id )')
-    c.execute('CREATE INDEX IDX_total_time ON trips ( total_time )')
-    c.execute('CREATE INDEX IDX_trip_id ON trip_details ( trip_id )')
+    c.execute('CREATE INDEX IDX_route_id ON cal_paths ( route_id )')
+    c.execute('CREATE INDEX IDX_total_time ON cal_paths ( total_time )')
+    c.execute('CREATE INDEX IDX_path_id ON cal_paths_details ( path_id )')
 
     c.close()
     conn.commit()

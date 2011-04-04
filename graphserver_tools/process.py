@@ -14,22 +14,9 @@ from graphserver_tools import write_results
 from graphserver_tools import process_routes
 
 
-
-def build_base_data():
+def build_base_data(db_conn_string):
     gtfs_filename = os.path.join('01-Basisdaten', 'transit_data.zip')
     osm_xml_filename = os.path.join('01-Basisdaten', 'streets.osm')
-    osmdb_filename = os.path.join('XX-System', 'streets.osmdb')
-    gtfsdb_filename = os.path.join('XX-System', 'transit_feed.gtfsdb')
-    gsdb_filename = os.path.join('XX-System', 'graph.db')
-
-    try:
-        os.mkdir('XX-System')
-    except:
-        if os.path.exists('XX-System'):
-            print('WARNING: XX-System already exists! - may lead to errors')
-        else:
-            print('ERROR: cannot create folder XX-System')
-            exit(-1)
 
     if not os.path.exists(osm_xml_filename):
         print('ERROR: no osm data found!')
@@ -40,13 +27,12 @@ def build_base_data():
         exit(-1)
 
     print('importing data into (graph) databases...')
-    import_base_data.create_gs_datbases(osm_xml_filename, osmdb_filename, gtfs_filename, gtfsdb_filename, gsdb_filename)
-    import_base_data.add_missing_stops(gtfsdb_filename, gsdb_filename)
-    import_base_data.delete_orphan_nodes(osmdb_filename)
+    import_base_data.create_gs_datbases(osm_xml_filename, gtfs_filename, db_conn_string)
+    import_base_data.add_missing_stops(db_conn_string)
+    import_base_data.delete_orphan_nodes(db_conn_string)
 
     print('linking transit to osm data...')
-    graph_database = GraphDatabase(gsdb_filename)
-    import_base_data.link_osm_gtfs(gtfsdb_filename, osmdb_filename, gsdb_filename)
+    import_base_data.link_osm_gtfs(db_conn_string)
 
 
 def main():
@@ -66,12 +52,8 @@ def main():
     times_filename = os.path.join(dir_name, 'times.csv')
     points_filename = os.path.join(dir_name, 'points.csv')
     routes_filename = os.path.join(dir_name, 'routes.csv')
-    graphdb_filename = os.path.join('XX-System', 'graph.db')
-    gtfsdb_filename = os.path.join('XX-System', 'transit_feed.gtfsdb')
-    osmdb_filename = os.path.join('XX-System', 'streets.osmdb')
     results_filename = os.path.join(dir_name, 'results.csv')
-    result_details_filename = os.path.join(dir_name, 'result_details.csv')
-    routingdb_filename = os.path.join(dir_name, 'routing.db')
+    result_details_filename = os.path.join(dir_name, 'result-details.csv')
 
     if not os.path.exists(times_filename) or not os.path.exists(points_filename) or not os.path.exists(routes_filename):
         print('ERROR: could not find one or more input files')
@@ -79,44 +61,46 @@ def main():
         exit(-1)
 
 
-    if not os.path.exists(os.path.join('XX-System', 'graph.db')):
-        build_base_data()
+     # read the configuration
+    defaults = { 'time-step':'240',
+                 'max-walk':'11080',
+                 'walking-reluctance':'20',
+                 'walking-speed':'1.2',
+                 'psql-host':'localhost',
+                 'psql-port':'5432',
+                 'psql-user':'postgres',
+                 'psql-password':'',
+                 'psql-database':'graphserver' }
 
-    try:
-        os.remove(routingdb_filename)
-    except:
-        if os.path.exists(routingdb_filename):
-        	print('ERROR: could not remove old routing database')
-        	parser.print_help()
-        	exit(-1)
+    config = utils.read_config(os.path.join(dir_name, 'config.txt'), defaults)
+    psql_connect_string = 'dbname=%s user=%s password=%s host=%s port=%s' % ( config['psql-database'], config['psql-user'], config['psql-password'], config['psql-host'], config['psql-port'] )
 
-    g = GraphDatabase(graphdb_filename).incarnate()
+
+    build_base_data(psql_connect_string)
+
+    g = GraphDatabase(psql_connect_string).incarnate()
 
     print('importing routing data...')
-    conn = psycopg2.connect("dbname=gs user=root")
+    conn = psycopg2.connect(psql_connect_string)
     conn.set_client_encoding('UTF8')
 
     import_route_data.read_times(times_filename, conn)
     import_route_data.read_points(points_filename, conn)
     import_route_data.read_routes(routes_filename, conn)
 
-    import_route_data.calc_corresponding_vertices(conn, g ,osmdb_filename, gtfsdb_filename)
+    import_route_data.calc_corresponding_vertices(g, psql_connect_string)
 
     conn.commit()
 
     print('calculation shortest paths...')
-    defaults = { 'time-step':'240', 'max-walk':'11080', 'walking-reluctance':'20', 'walking-speed':'1.2' }
-    config = utils.read_config(os.path.join(dir_name, 'config.txt'), defaults)
-
     process_routes.create_db_tables(conn)
 
     prefixes = ( 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L' )
-
     processes = []
 
     for i in range(4):
-        p = multiprocessing.Process(target=process_routes.Proccessing, args=(g, "dbname=gs user=root", int(config['time-step']), float(config['walking-speed']), int(config['max-walk']), int(config['walking-reluctance']), prefixes[i]))
-        time.sleep(1) #workaround for duplicate calculations - should be only temporary
+        p = multiprocessing.Process(target=process_routes.Proccessing, args=(g, psql_connect_string, int(config['time-step']), float(config['walking-speed']), int(config['max-walk']), int(config['walking-reluctance']), prefixes[i]))
+        time.sleep(1) #workaround for duplicate calculations - should be temporary
         p.start()
         processes.append(p)
 
@@ -131,15 +115,11 @@ def main():
 
     print('writing results...')
     conn.close() # pgsql gets somehow confused, so a new connection is needed!
-    conn = psycopg2.connect("dbname=gs user=root")
-    conn.set_client_encoding('UTF8')
-
-    osm_conn = sqlite3.connect(osmdb_filename)
-    gtfs_conn = sqlite3.connect(gtfsdb_filename)
+    conn = psycopg2.connect(psql_connect_string)
 
     write_results.create_indices(conn)
 
     write_results.write_results(conn, results_filename)
-    write_results.write_details(conn, result_details_filename, gtfs_conn, osm_conn)
+    write_results.write_details(conn, result_details_filename)
 
     print('DONE')
