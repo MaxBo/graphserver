@@ -66,7 +66,7 @@ def write_results(conn, filename):
 def get_lat_lon(conn, gs_osm_vertex):
     cursor = conn.cursor()
 
-    cursor.execute('SELECT lat, lon FROM osm_nodes WHERE id=?', ( gs_osm_vertex[4:], ))
+    cursor.execute('SELECT lat, lon FROM osm_nodes WHERE id=%s', ( gs_osm_vertex[4:], ))
     lat, lon = cursor.fetchone()
 
     cursor.close()
@@ -74,7 +74,7 @@ def get_lat_lon(conn, gs_osm_vertex):
 
 
 def get_node_name(conn, node_label):
-    cusor = conn.cursor()
+    cursor = conn.cursor()
     cursor.execute('SELECT point_id FROM cal_corres_vertices WHERE vertex_label=%s', ( node_label, ))
     try:
         pid, = route_db_cursor.fetchone()
@@ -101,8 +101,8 @@ def get_station_name(conn, gs_sta_vertex):
 def get_route_id(conn, gtfs_trip_id):
     cursor = conn.cursor()
 
-    cursor.execute('SELECT route_id FROM cal_paths WHERE path_id=%s',  ( gtfs_trip_id, ))
-    ret = gtfsdb_cursor.next()[0]
+    cursor.execute('SELECT route_id FROM gtfs_trips WHERE trip_id=%s',  ( gtfs_trip_id, ))
+    ret = cursor.next()[0]
 
     cursor.close()
     return ret
@@ -159,7 +159,7 @@ def humanize_details(route_id, details, conn):
 
         try: # if there is a departure at this station the information will be inside the next entry
             if details[i+1][1][:4] == 'psv-':
-                transit_route = get_route_id(gtfsdb_cursor, details[i+1][5]) if details[i+1][5] else ''
+                transit_route = get_route_id(conn, details[i+1][5]) if details[i+1][5] else ''
                 transfers = details[i+1][4]
                 time = details[i+1][2]
                 dist_walked = '%.2f' % float(dist_walked)
