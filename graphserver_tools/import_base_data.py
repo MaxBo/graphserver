@@ -42,9 +42,6 @@ def link_osm_gtfs(db_conn_string, max_link_dist=150):
 
     gdb = GraphDatabase(db_conn_string)
 
-    #gtfsdb = GTFSDatabase(db_conn_string)
-    #stations = gtfsdb.stops()
-
     cursor.execute('SELECT stop_id, stop_lat, stop_lon FROM gtfs_stops')
     for i, (s_label, s_lat, s_lon) in enumerate(cursor.fetchall()):
         j = False
