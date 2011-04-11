@@ -166,8 +166,8 @@ def calc_corresponding_vertices(graph, db_conn_string):
 
     # write the stuff into the database
     c.execute('DROP TABLE IF EXISTS cal_corres_vertices')
-    c.execute('''CREATE TABLE cal_corres_vertices ( point_id INTEGER PRIMARY KEY REFERENCES cal_points,
-                                                    vertex_label TEXT REFERENCES graph_vertices) ''')
+    #c.execute('CREATE TABLE cal_corres_vertices ( point_id INTEGER PRIMARY KEY REFERENCES cal_points, vertex_label TEXT REFERENCES graph_vertices ( label ) ) ')
+    c.execute('CREATE TABLE cal_corres_vertices ( point_id INTEGER PRIMARY KEY REFERENCES cal_points, vertex_label TEXT ) ')
 
     for id, cv in corres_vertices:
         c.execute('INSERT INTO cal_corres_vertices VALUES (%s,%s)', ( id, cv ))
