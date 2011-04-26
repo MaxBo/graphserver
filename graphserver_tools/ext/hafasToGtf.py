@@ -51,7 +51,7 @@ def write_stops(input_file_name):
         id = values[0]
         lat = values[1].replace(',', '.')
         lon = values[2].replace(',', '.')
-        name = ' '.join(values[3:])
+        name = '"' + ' '.join(values[3:]) +'"'
 
         writer.writerow(( id, name, lon, lat )) # upside down, but it works that way!
 

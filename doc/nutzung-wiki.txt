@@ -1,0 +1,137 @@
+==== Graphserver, Graphserver Tools & Transitfeed ====
+
+=== Installation ===
+
+Um Graphserver, Graphserver Tools sowie die Transitfeed Tools nutzen zu können müssen diese installiert werden. Grundsätzliche sollte die Installation auf jedem unixoiden Betriebssystem möglich sein.
+
+    * graphserver_v*.7z entpacken, in den Ordner //graphserver_v*/pygs// wechseln und mit dem Aufruf <code>$ sudo python setup.py install</code> Graphserver installieren.
+
+    * graphserver_tools_v*.7z entpacken, in den Ordner //graphserver_tools_v*// wechseln und ebenfalls mit <code>$ sudo python setup.py install</code> Graphserver Tools installieren.
+
+    * Die aktuelle Version von transitfeed (http://code.google.com/p/googletransitdatafeed/) herunterladen, entpacken und im entsprechenden Ordner  mit <code>$ sudo python setup.py install</code> installieren.
+
+
+Die Archive und entpackten Ordner können anschließend einfach gelöscht werden.
+
+
+=== Nutzung ===
+
+Folgende Funktionalitäten werden bereitgestellt:
+    * Erstellen eines GTFS-Feeds aus einer Netzdatei (Visum)
+    * Erstellen eines GTFS-Feeds aus einer Hafas-Export-Datei
+    * Überprüfung von GTFS-Feeds auf (grobe) Fehler
+    * Ansicht eines GTFS-Feeds als Layer über Google Maps
+    * Das Berechnen von kürzesten Wegen innerhalb eines GTFS-Feeds bzw. Netzdatei mit Hilfe von OpenStreetMap Daten
+
+
+
+== Netzdatei nach GTFS-Feed ==
+Zur Umwandlung wird das Skript gst_netToGtfs benötigt. Es kann wie folgt aufgerufen werden:
+
+<code>$ gst_netToGtfs <input> <output></code>
+
+//input// ist die umwzuandelte Netzdatei und //output// der Name das zu erstellenden GTFS-Feeds.
+Koordinaten innerhalb der Netzdatei müssen immer in WGS84 vorliegen.
+
+== Hafas-Export-Datei nach GTFS-Feed ==
+Zur Umwandlung wird das Skript gst_hafasToGtfs benötigt. Es kann wie folgt aufgerufen werden:
+
+<code>$ gst_hafasToGtfs <input> <output></code>
+
+//input// ist die umzuwandelte Hafas-Datei.
+
+
+== Überprüfen eines GTFS-Feeds ==
+Hierzu steht das Skript feedvalidator.py  zur Verfügung. Es wird wie folgt aufgerufen:
+
+<code>$ feedvalidator.py <feed></code>
+
+Feed steht natürlich für der zu überprüfenden GTFS-Feed. Nach durchlaufen der Tests, wird eine Webseite erstellt und angezeigt, die das Ergebnis enthält.
+
+
+
+== Ansicht eines GTFS-Feeds ==
+Um einen Feed grafisch visualisiert Anzeigen zu lassen steht das Skript scheduleviewer.py zur Verfügung. Es wird wie folgt benutzt:
+
+<code>$ scheduleviewer.py <feed></code>
+
+Feed ist der anzuzeigende Feed. Nach kurzem Laden, stellt das Skript unter der eingeblendeten Adresse lokal eine Webseite zur Verfügung, auf der der eigelesene Feed als Layer über Google Maps eingeblendet wird. Mit //Control + C// bzw. //Steuerung + C// kann das Skript beendet werden.
+
+
+== Berechnung kürzester Wege ==
+Um Berechnungen durchführen zu können, müssen die benötigten Daten in einem Ordner eingefügt werden. Benötigt werden follgende Dateien:
+^ Name (muss exakt stimmen) ^ Beschreibung ^
+| streets.osm | OpenStreetMap Daten im XML-Format |
+| transit_data.zip | GTFS-Feed mit den Verkehrsdaten |
+| times.csv | CSV-Datei mit Zeiten für die Berechnug (siehe Dateiformate) |
+| points.csv | CSV-Datei mit Koordinaten für die Berechnug (siehe Dateiformate) |
+| routes.csv | CSV-Datei mit Punkte-Zeit-Kombinationen für die Berechnug (siehe Dateiformate) |
+| config.txt | Konfigurationsdatei (siehe Konfigurationdatei) |
+
+Die Berechnung selbst wird wie folgt durchgeführt:
+<code>$ gst_process <Berchnungsordner></code>
+
+**Achtung:** Sollten bereits OSM- und GTFS- Daten in die Datenbank geladen worden sein, werden diese nicht erneut geladen. Um diese erneut zu laden steht die //force//-Option bereit:
+<code>$ gst_process -f <Berchnungsordner></code>
+
+Nach erfolgreichem Durchlaufen der Berechnungen sollten folgende Dateien im //Berechnungsordner// angelegt worden sein:
+^ Name ^Beschreibung ^
+| results.csv | Ergebnis der berechneten Routen (Start, Ende, benötigte Zeit)|
+| result-details.csv | Verlauf der berechneten Routen (Fußwege, Wartezeiten, Linien)|
+
+== Dateiformate ==
+Die Zeiten, Punkte und Routen müssen als CSV-Dateien vorliegen. Als Trennzeichen muss das Komma verwendet werden. Bei Zahlen, die ein Komma enthalten, muss diese durch eine Punkt ersetzt werden. Die CSV-Resultat-Dateien werden im gleichen Format erzeugt.
+
+
+
+^ times.csv (Zeitfenster) ^^
+| **Spalte** | **Erläuterung** |
+| id | beliebige Ganzzahl |
+| start | Start des Zeitfensters (Format: TT:MM:JJJJ:HH:MM) |
+| end | Ende des Zeitfensters (Format: TT:MM:JJJJ:HH:MM) |
+| is_arrival_time | 0 oder 1 - gibt an, ob das Zeitfenster die Ankunft (1) oder die Abfahrt (0) definiert |
+
+
+^ points.csv ^^
+| **Spalte** | **Erläuterung** |
+| id | beliebige Ganzzahl |
+| lat | Latitide des Punktes (WGS84) |
+| lon | Longtude des Punktes (WGS84) |
+| name | beliebig |
+
+
+^ routes.csv ^^
+| **Spalte** | **Erläuterung** |
+| id | beliebige Ganzzahl |
+| destination | id des Endpunktes (aus points.csv) |
+| time_id | id des Zeitfensters (aus times.csv) |
+
+
+
+== Konfigurationsdatei ==
+Diese Datei enthält Name-Wert Paare, die durch das ‚=’-Zeichen getrennt werden. Pro Zeile darf maximal ein Paar vorhanden sein. Einträge können, wenn diese nicht benötigt werden, einfach weggelassen werden.
+
+Beispiel:
+<code>
+link-dist=150
+time-step=240
+max-walk=1080
+</code>
+
+
+^ Mögliche Einstallungen ^^^
+| **Name** | **Erklärung** |
+| walking-speed | Geschwindigkeit, in der sich Fußgänger fortbewegen. Einheit: m/s. Punkt statt Komma verwenden |
+| time-step | Zeitabstand, in dem innerhalb der definierten Zeitfenster Berechnungen durchgeführt werden sollen. Je kleiner der Wert, desto genauer, aber auch zeitintensiver die Berechnungen. |
+| max-walk | Entfernung in Metern, wie weit der max. Fußweg pro Berechnung sein darf. **Achtung: Soft-Limit** |
+| walking-reluctance | Faktor um den der ‚virtuelle Fahrgast’ lieber fährt als läuft. 1 – Fahren und Laufen wird als gleich lang empfunden. 2 – Laufen dauert gefühlt doppelt so lange. |
+| psql-host | IP oder Domain des Datenbankservers |
+| psql-port | Port des Datenbankservers |
+| psql-user | Datenbankbenutzer |
+| psql-password | Passwort des Datenbankbenutzers |
+| psql-database | Datenbankname, in die Daten geschrieben werden sollen |
+
+
+=== Bekannte Fehler ===
+
+    * Das Skript netToGtfs überprüft nicht, ob tatsächlich alle benötigten Information innerhalb der Netzdatei vorhanden sind.
