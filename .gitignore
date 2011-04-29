@@ -1,1 +1,4 @@
 .DS_Store
+build/*
+*.egg
+graphserver_tools.egg-info/*
