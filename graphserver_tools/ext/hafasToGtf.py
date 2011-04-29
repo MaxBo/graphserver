@@ -51,9 +51,10 @@ def write_stops(input_file_name):
         id = values[0]
         lat = values[1].replace(',', '.')
         lon = values[2].replace(',', '.')
-        name = '"' + ' '.join(values[3:]) +'"'
+        #name = '"' + ' '.join(values[3:]) +'"'
+        name = ' '.join(values[3:])
 
-        writer.writerow(( id, name, lon, lat )) # upside down, but it works that way!
+        writer.writerow(( id, name, lon, lat )) # upside down, but it works
 
     stops_file.close()
 
@@ -220,7 +221,7 @@ def write_calendar_calendar_dates(bitfield_file_name, eckdaten_file_name):
     os.remove('calendar_dates.txt')
 
 
-def hex_to_bool_list(hex_string):
+def hex_to_bool_list(hex_string, verbose=True):
     b_list = []
 
     for hex in hex_string:
@@ -240,7 +241,11 @@ def hex_to_bool_list(hex_string):
         elif hex == 'D' or hex == 'd': b_list.extend(( True, True, False, True))
         elif hex == 'E' or hex == 'e': b_list.extend(( True, True, True, False))
         elif hex == 'F' or hex == 'f': b_list.extend(( True, True, True, True))
-        else: raise Exception('unrecognizable character in hex_string')
+        else:
+            if verbose:
+                b_list.extend(( False, False, False, False))
+            else:
+                raise Exception('unrecognizable character in hex_string')
 
     return b_list
 
