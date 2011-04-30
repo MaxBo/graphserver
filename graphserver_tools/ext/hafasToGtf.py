@@ -187,11 +187,13 @@ def write_calendar_calendar_dates(bitfield_file_name, eckdaten_file_name):
     f = codecs.open(eckdaten_file_name, encoding='latin-1')
 
     lines = [ l for l in f if l[0] != '%' ]
+
     start_date = lines[0][6:10] + lines[0][3:5] + lines[0][0:2]
     end_date = lines[1][6:10] + lines[1][3:5] + lines[1][0:2]
 
     c_writer = UnicodeWriter(calendar_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     c_writer.writerow(( u'service_id', u'monday', u'tuesday', u'wednesday', u'thursday', u'friday', u'saturday', u'sunday', u'start_date', u'end_date' ))
+
     cd_writer = UnicodeWriter(calendar_dates_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     cd_writer.writerow(( u'service_id', u'date', u'exception_type' ))
 
@@ -200,11 +202,21 @@ def write_calendar_calendar_dates(bitfield_file_name, eckdaten_file_name):
     for line in f:
         date = start_date
         id, hex_field = line.split()
-        c_writer.writerow(( id, 1, 1, 1, 1, 1, 1, 1, start_date, end_date ))
+
+        bool_list = hex_to_bool_list(hex_field)
+
+        if bool_list.count(True) > 25:
+            exception_type = 2
+            c_writer.writerow(( id, 1, 1, 1, 1, 1, 1, 1, start_date, end_date ))
+        else
+            exception_type = 1
+            c_writer.writerow(( id, 0, 0, 0, 0, 0, 0, 0, start_date, end_date ))
+
 
         for bool in hex_to_bool_list(hex_field):
-            if not bool:
-                cd_writer.writerow(( id, date, 2 ))
+            if (bool == False and exception_type == 2) or (bool == True and exception_type == 1):
+                cd_writer.writerow(( id, date, exception_type ))
+
             date = increment_date_string(date)
 
     calendar_file.close()
