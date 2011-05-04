@@ -59,10 +59,10 @@ class Proccessing():
 
 
     def get_retro_dict(self, destination, time, start_time, end_time):
-        self.cursor.execute('''SELECT id, origin FROM cal_routes WHERE destination=? AND time=%s''', ( destination, time ))
+        self.cursor.execute('''SELECT id, origin FROM cal_routes WHERE destination=%s AND time=%s''', ( destination, time ))
         origins = list(self.cursor.fetchall())
 
-        self.cursor.execute('UPDATE cal_routes SET done=? WHERE destination=%s AND time=%s', ( True, destination, time ))
+        self.cursor.execute('UPDATE cal_routes SET done=%s WHERE destination=%s AND time=%s', ( True, destination, time ))
         self.conn.commit()
 
         return { 'destination':self.get_gs_vertex(destination), 'times':self.prepare_times(start_time, end_time),
