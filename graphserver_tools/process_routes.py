@@ -140,7 +140,6 @@ class Proccessing():
                     self.write_retro_trip(vertices, orig[1])
 
             # cleanup
-            s.destroy()
             try:
                 spt.destroy()
             except:
