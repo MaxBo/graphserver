@@ -120,9 +120,15 @@ def calc_corresponding_vertices(graph, db_conn_string):
                 min_dist = dist
                 cv = 'sta-' + s_id
 
-        range = 0.01 # might not be the best number
-        c.execute('''SELECT id, lat, lon FROM osm_nodes WHERE endnode_refs > 1 AND lat > %s AND lat < %s AND lon > %s AND lon < %s''', ( lat-range, lat+range, lon-range, lon+range ))
-        nodes = c.fetchall()
+        range = 0.05 # might not be the best number
+
+        c = conn.cursor()
+        c.execute('''SELECT id, lat, lon FROM osm_nodes WHERE endnode_refs > 1
+                                                                   AND lat > %s
+                                                                   AND lat < %s
+                                                                   AND lon > %s
+                                                                   AND lon < %s''', ( lat-range, lat+range, lon-range, lon+range ))
+        nodes = [n for n in c]
 
         for n_id, n_lat, n_lon in nodes:
             dist = distance(lat, lon, n_lat, n_lon)
@@ -132,6 +138,7 @@ def calc_corresponding_vertices(graph, db_conn_string):
                 cv = 'osm-' + n_id
 
         corres_vertices.append(( id, cv ))
+        c.close();
 
 
     # do the setup
@@ -167,9 +174,12 @@ def calc_corresponding_vertices(graph, db_conn_string):
     # write the stuff into the database
     c.execute('DROP TABLE IF EXISTS cal_corres_vertices')
     #c.execute('CREATE TABLE cal_corres_vertices ( point_id INTEGER PRIMARY KEY REFERENCES cal_points, vertex_label TEXT REFERENCES graph_vertices ( label ) ) ')
-    c.execute('CREATE TABLE cal_corres_vertices ( point_id INTEGER PRIMARY KEY REFERENCES cal_points, vertex_label TEXT ) ')
+    c.execute('CREATE TABLE cal_corres_vertices ( point_id INTEGER PRIMARY KEY REFERENCES cal_points, vertex_label TEXT NOT NULL ) ')
 
     for id, cv in corres_vertices:
+        if not cv:
+            print "\tERROR: point with id %s cannot be linked into graph!" % id
+            cv = graph.verices[0].label
         c.execute('INSERT INTO cal_corres_vertices VALUES (%s,%s)', ( id, cv ))
 
     conn.commit()
