@@ -261,7 +261,7 @@ def print_status(connection):
     finished = False
     while not finished:
         time.sleep(5.0)
-        cursor.execute('SELECT origin FROM cal_routes WHERE done=%s', ( False, ) )
+        cursor.execute('SELECT origin FROM cal_routes WHERE done=false')
 
         if not cursor.fetchone():
             sys.stdout.write('\rall routes processed                                                   \n')

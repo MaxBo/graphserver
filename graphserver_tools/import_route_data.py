@@ -179,7 +179,7 @@ def calc_corresponding_vertices(graph, db_conn_string):
     for id, cv in corres_vertices:
         if not cv:
             print "\tERROR: point with id %s cannot be linked into graph!" % id
-            cv = graph.verices[0].label
+            cv = graph.vertices[0].label
         c.execute('INSERT INTO cal_corres_vertices VALUES (%s,%s)', ( id, cv ))
 
     conn.commit()
