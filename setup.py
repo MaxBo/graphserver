@@ -11,6 +11,7 @@ setup(  name='graphserver_tools',
                 'gst_process = graphserver_tools.process:main',
                 'gst_netToGtfs = graphserver_tools.ext.netToGtf:main',
                 'gst_hafasToGtfs = graphserver_tools.ext.hafasToGtf:main',
+                'gst_cropOSM = graphserver_tools.ext.cropOSM:main',
             ],
         }
      )
