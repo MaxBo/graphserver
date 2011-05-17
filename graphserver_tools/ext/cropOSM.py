@@ -1,12 +1,14 @@
 #! /usr/bin/env python
 
-from zipfile import zipfile
+from zipfile import ZipFile
 from optparse import OptionParser
 from subprocess import Popen
 
+from graphserver_tools.utils import utf8csv
+
 def read_lat_lon_from_stops(zipped_file):
     try:
-        stops_file = zipped_file.open("stops.txt")
+        reader = utf8csv.UnicodeReader(zipped_file.open("stops.txt"))
     except:
         print "ERROR: bad gtfs-feed - could not open stops.txt"
         exit(-1)
@@ -14,12 +16,13 @@ def read_lat_lon_from_stops(zipped_file):
     lats = []
     lons = []
 
-    lines = [l for l in stops_file]
+    header = reader.next()
+    lat_index = header.index(u'stop_lat')
+    lon_index = header.index(u'stop_lon')
 
-    lat_index = l[0].split(',').index('stop_lat')
-    lon_index = l[0].split(',').index('stop_lon')
+    for l in reader:
+        if not l: continue
 
-    for l in lines:
         lats.append(float(l[lat_index]))
         lons.append(float(l[lon_index]))
 
@@ -34,15 +37,15 @@ def crop_osm(gtfs_feed, input_osm, output_osm):
     right = max(lons)
     top = max(lats)
 
-    print 'calculated smallest rectangle around gtfs-feed:'
-    print 'left: %f' % left
-    print 'bottom: %f' % bottom
-    print 'right: %f' % right
-    print 'top: %f' % top
+    print '\ncalculated smallest rectangle around gtfs-feed:'
+    print '\tleft: %f' % left
+    print '\tbottom: %f' % bottom
+    print '\tright: %f' % right
+    print '\ttop: %f\n' % top
 
     args = [ 'osmosis', '--read-xml', input_osm, '--bounding-box', 'completeWays=yes',
-             'left='+string(left), 'bottom='+string(bottom), 'right='+string(right),
-             'top='+string(top), '--write_xml', output_osm ]
+             'left='+str(left), 'bottom='+str(bottom), 'right='+str(right),
+             'top='+str(top), '--write-xml', output_osm ]
 
     Popen(args).communicate()
 
@@ -57,12 +60,12 @@ def main():
         exit(-1)
 
     if len(args) == 2:
-        output_osm = input_osm.split('.')[:-1] + 'cropped.osm'
+        output_osm = args[1][:-4] + '-cropped.osm'
     else:
         output_osm = args[2]
 
 
-    crop_osm(args[0], args[1], output_osm)
+    crop_osm(ZipFile(args[0]), args[1], output_osm)
 
 
 if __name__ == '__main__': main()
