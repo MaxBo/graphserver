@@ -41,7 +41,7 @@ def crop_osm(gtfs_feed, input_osm, output_osm):
     print '\tleft: %f' % left
     print '\tbottom: %f' % bottom
     print '\tright: %f' % right
-    print '\ttop: %f\n' % top
+    print '\ttop: %f\n\n' % top
 
     args = [ 'osmosis', '--read-xml', input_osm, '--bounding-box', 'completeWays=yes',
              'left='+str(left), 'bottom='+str(bottom), 'right='+str(right),

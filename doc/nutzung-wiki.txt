@@ -4,14 +4,14 @@
 
 Um Graphserver, Graphserver Tools sowie die Transitfeed Tools nutzen zu können müssen diese installiert werden. Grundsätzliche sollte die Installation auf jedem unixoiden Betriebssystem möglich sein.
 
-    * graphserver_v*.7z entpacken, in den Ordner //graphserver_v*/pygs// wechseln und mit dem Aufruf <code>$ sudo python setup.py install</code> Graphserver installieren.
+    * graphserver_v*.zip entpacken, in den Ordner //graphserver_v*/pygs// wechseln und mit dem Aufruf <code>$ sudo python setup.py install</code> Graphserver installieren.
 
-    * graphserver_tools_v*.7z entpacken, in den Ordner //graphserver_tools_v*// wechseln und ebenfalls mit <code>$ sudo python setup.py install</code> Graphserver Tools installieren.
+    * graphserver_tools_v*.zip entpacken, in den Ordner //graphserver_tools_v*// wechseln und ebenfalls mit <code>$ sudo python setup.py install</code> Graphserver Tools installieren.
 
     * Die aktuelle Version von transitfeed (http://code.google.com/p/googletransitdatafeed/) herunterladen, entpacken und im entsprechenden Ordner  mit <code>$ sudo python setup.py install</code> installieren.
 
+    * Um OpenStreetMap Daten zuschneiden zu können, wird osmosis (http://dev.openstreetmap.org/~bretth/osmosis-build/osmosis-latest.zip) benötigt. Das Tool osmosis muss in Pfad liegen - Informationen dazu befinden sich in der readme.txt von osmosis.
 
-Die Archive und entpackten Ordner können anschließend einfach gelöscht werden.
 
 
 === Nutzung ===
@@ -56,6 +56,14 @@ Um einen Feed grafisch visualisiert Anzeigen zu lassen steht das Skript schedule
 <code>$ scheduleviewer.py <feed></code>
 
 Feed ist der anzuzeigende Feed. Nach kurzem Laden, stellt das Skript unter der eingeblendeten Adresse lokal eine Webseite zur Verfügung, auf der der eigelesene Feed als Layer über Google Maps eingeblendet wird. Mit //Control + C// bzw. //Steuerung + C// kann das Skript beendet werden.
+
+
+== Zusschneiden einer OpenStreetMap XML Datei ==
+Um Berechnungen schneller durchführen zu können, kann eine OpenStreetMap XML Datei exakt auf die Größe des verwendeten GTFS-Feeds zugeschnitten werden. Das dazu benötigte Tool nennt sich gst_cropOSM. Nutzung:
+
+<code>$ gst_cropOSM <gtfs-feed> <osm-input> <osm-output></code>
+
+Die Angabe von osm-output ist optional.
 
 
 == Berechnung kürzester Wege ==
