@@ -65,11 +65,11 @@ class GraphDatabase:
                       AS ON INSERT TO graph_vertices
                       WHERE label IN ( SELECT label FROM graph_vertices)
                       DO INSTEAD NOTHING""" )
-
+        '''
         c.execute( """CREATE OR REPLACE RULE ignore_duplicate_graph_resources
                       AS ON INSERT TO graph_resources
                       WHERE name IN ( SELECT name FROM graph_resources)
-                      DO INSTEAD NOTHING""" )'''
+                      DO INSTEAD NOTHING""" )
 
 
         self.conn.commit()
