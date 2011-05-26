@@ -158,7 +158,7 @@ class GraphDatabase:
     def add_edge(self, from_v_label, to_v_label, payload, outside_c=None):
         c = outside_c or self.conn.cursor()
 
-        epid = self.put_edge_payload( payload, c )
+        epid = self.put_edge_payload( payload, c )[0]
         c.execute( "EXECUTE  preparedGraphEdgeInsert (%s, %s, %s)", (from_v_label, to_v_label, epid) )
 
         if hasattr(payload, "__resources__"):
