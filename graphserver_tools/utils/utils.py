@@ -11,11 +11,12 @@ import sqlite3
 import math
 import datetime
 from pyproj import Proj, transform
+from termcolor import colored
 
 from graphserver.core import Street
 
 
-def read_config(filename, defaults):
+def read_config(filename, defaults, raise_exception=False):
     try:
         config = copy.copy(defaults)
 
@@ -28,8 +29,11 @@ def read_config(filename, defaults):
                 if stuff[0] in config:
                     config[stuff[0]] = stuff[1][:-1]
     except:
-        print('\tERROR: could not read configuration')
-        return defaults
+        if raise_exception:
+            raise
+        else:
+            print(colored('ERROR: could not read configuration', 'red'))
+            return defaults
 
     return config
 
