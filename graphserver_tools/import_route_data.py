@@ -105,8 +105,13 @@ def calc_corresponding_vertices(graph, db_conn_string):
 
     def closest_vertices(list):
         ''' wrapper function for multithreading'''
-        for id, lat, lon in list:
-            closest_vertex(id, lat, lon)
+
+        try:
+            for i, (id, lat, lon) in enumerate(list):
+                closest_vertex(id, lat, lon)
+
+        except psycopg2.OperationalError: # pick up the work if the cursor gets closed due to bad network connection
+            closest_vertices(list[i:])
 
 
     def closest_vertex(id, lat, lon):
@@ -122,12 +127,11 @@ def calc_corresponding_vertices(graph, db_conn_string):
 
         range = 0.05 # might not be the best number
 
+        conn = psycopg2.connect(db_conn_string)
         c = conn.cursor()
-        c.execute('''SELECT id, lat, lon FROM osm_nodes WHERE endnode_refs > 1
-                                                                   AND lat > %s
-                                                                   AND lat < %s
-                                                                   AND lon > %s
-                                                                   AND lon < %s''', ( lat-range, lat+range, lon-range, lon+range ))
+
+        c.execute('''SELECT id, lat, lon FROM osm_nodes WHERE endnode_refs > 1 AND lat > %s AND lat < %s  AND lon > %s AND lon < %s''',
+                                                                                            ( lat-range, lat+range, lon-range, lon+range ))
         nodes = [n for n in c]
 
         for n_id, n_lat, n_lon in nodes:
@@ -138,7 +142,10 @@ def calc_corresponding_vertices(graph, db_conn_string):
                 cv = 'osm-' + n_id
 
         corres_vertices.append(( id, cv ))
-        c.close();
+        if not c.closed:
+            c.close();
+        if not conn.closed:
+            conn.close();
 
 
     # do the setup
@@ -162,21 +169,32 @@ def calc_corresponding_vertices(graph, db_conn_string):
     # a few points won't be calculted due to integer division
     thread.start_new_thread( closest_vertices, (points[(i+1)*num_calculations_per_thread:], ) )
 
-    # wait till all threads are finished
-    while len(corres_vertices) != len(points):
+    # wait till all points are calculated
+    finished = False
+
+    while not finished:
         sys.stdout.write('\r%s/%s corresponding points found' % ( len(corres_vertices), len(points) ))
         sys.stdout.flush()
 
         time.sleep(1.0)
 
+        if set([id for id, lat, lon in points]) == set([id for id, cv in corres_vertices]):
+            finished = True
+
+
     print('\r%s corresponding points found                  ' % len(points))
+
+    if conn.closed:
+        conn = psycopg2.connect(db_conn_string)
+    if c.closed:
+        c = conn.cursor()
 
     # write the stuff into the database
     c.execute('DROP TABLE IF EXISTS cal_corres_vertices')
     #c.execute('CREATE TABLE cal_corres_vertices ( point_id INTEGER PRIMARY KEY REFERENCES cal_points, vertex_label TEXT REFERENCES graph_vertices ( label ) ) ')
     c.execute('CREATE TABLE cal_corres_vertices ( point_id INTEGER PRIMARY KEY REFERENCES cal_points, vertex_label TEXT NOT NULL ) ')
 
-    for id, cv in corres_vertices:
+    for id, cv in set(corres_vertices):
         if not cv:
             print "\tERROR: point with id %s cannot be linked into graph!" % id
             cv = graph.vertices[0].label
