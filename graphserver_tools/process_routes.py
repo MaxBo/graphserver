@@ -264,12 +264,12 @@ def print_status(connection):
         cursor.execute('SELECT origin FROM cal_routes WHERE done=false')
 
         if not cursor.fetchone():
-            sys.stdout.write('\rall routes processed                                                   \n')
+            sys.stdout.write('\rthe last routes getting processed. Please wait ...                                                        \n')
             sys.stdout.flush()
 
             finished = True
             cursor.close()
         else:
-            sys.stdout.write('\r%s routes waiting to be processed              ' % len(cursor.fetchall()))
+            sys.stdout.write('\r%s routes waiting to be processed. Please wait ...              ' % len(cursor.fetchall()))
             sys.stdout.flush()
 

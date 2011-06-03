@@ -49,6 +49,27 @@ def time_adder(time_string1, time_string2):
     return '%02d:%02d:%02d' % (h, m, s)
 
 
+""" Converts an integer representing a number of seconds into a human readable time string (H:MM:SS).
+"""
+def seconds_time_string(seconds):
+    seconds = int(seconds)
+
+    hours = 0
+    minutes = 0
+
+    while seconds >= 3600:
+        hours += 1
+        seconds -= 3600
+
+    while seconds >= 60:
+        minutes += 1
+        seconds -= 60
+
+    return '%d:%02d:%02d' % (hours, minutes, seconds)
+
+
+
+
 """ Converts a string with a format like this DD:MM:YYYY:HH:MM into a datetime object
 """
 def string_to_datetime(s):
