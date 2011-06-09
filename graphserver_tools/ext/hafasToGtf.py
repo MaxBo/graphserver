@@ -208,7 +208,7 @@ def write_calendar_calendar_dates(bitfield_file_name, eckdaten_file_name):
         if bool_list.count(True) > 25:
             exception_type = 2
             c_writer.writerow(( id, 1, 1, 1, 1, 1, 1, 1, start_date, end_date ))
-        else
+        else:
             exception_type = 1
             c_writer.writerow(( id, 0, 0, 0, 0, 0, 0, 0, start_date, end_date ))
 
