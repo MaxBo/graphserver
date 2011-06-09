@@ -24,7 +24,7 @@ def read_config(filename, defaults, raise_exception=False):
 
         for line in f:
             if line[0] not in ( '#', '\n' ) or line == '\r\n':
-                line = line.relace('\r\n', '').replace('\n', '')
+                line = line.replace('\r\n', '').replace('\n', '')
                 stuff = line.split('=')
 
                 if stuff[0] in config:
