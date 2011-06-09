@@ -5,8 +5,6 @@
 # 24.10.2010
 # Gertz Gutsche Rümenapp Gbr
 
-
-import sqlite3
 import datetime
 import time
 import sys
@@ -246,9 +244,13 @@ def create_db_tables(connection):
                                                        gtfs_trip_id TEXT,
                                                     UNIQUE (path_id, counter)) ''')
 
+    cursor.execute('DROP INDEX IF EXISTS IDX_time')
     cursor.execute('CREATE INDEX IDX_time ON cal_routes ( time )')
+    cursor.execute('DROP INDEX IF EXISTS IDX_origin')
     cursor.execute('CREATE INDEX IDX_origin ON cal_routes ( origin )')
+    cursor.execute('DROP INDEX IF EXISTS IDX_destination')
     cursor.execute('CREATE INDEX IDX_destination ON cal_routes ( destination )')
+    cursor.execute('DROP INDEX IF EXISTS IDX_done')
     cursor.execute('CREATE INDEX IDX_done ON cal_routes ( done )')
 
     connection.commit()
@@ -264,7 +266,7 @@ def print_status(connection):
         cursor.execute('SELECT origin FROM cal_routes WHERE done=false')
 
         if not cursor.fetchone():
-            sys.stdout.write('\rthe last routes getting processed. Please wait ...                                                        \n')
+            sys.stdout.write('\rThe last routes getting processed. Please wait ...                                                        \n')
             sys.stdout.flush()
 
             finished = True
