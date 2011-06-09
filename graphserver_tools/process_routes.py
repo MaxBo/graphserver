@@ -14,6 +14,8 @@ import thread
 from graphserver.core import WalkOptions, State
 from graphserver.graphdb import GraphDatabase
 
+from graphserver_tools.utils import utils
+
 
 class Proccessing():
     def get_gs_vertex(self, point_id):
@@ -258,20 +260,56 @@ def create_db_tables(connection):
 
 
 def print_status(connection):
+
+    def calc_calculation_time(routes_previously_wating, routes_waiting, all_routes, time_finished):
+        if routes_previously_wating != routes_waiting:
+
+            if (not routes_previously_wating) or (all_routes - routes_previously_wating == 0):
+                return None, routes_waiting
+
+            routes_processed = all_routes - routes_previously_wating
+            routes_previously_wating = routes_waiting
+
+            routes_per_second = (time.time() - time_started) / routes_processed
+            time_finished = (all_routes - routes_processed) * routes_per_second
+
+        return time_finished, routes_previously_wating
+
+
+    time_started = time.time()
+    time_finished = None
+    routes_previously_wating = None
+    routes_waiting = None
+
     cursor = connection.cursor()
+
+    cursor.execute('SELECT origin FROM cal_routes')
+    all_routes = len(cursor.fetchall())
+
 
     finished = False
     while not finished:
-        time.sleep(5.0)
+        time.sleep(1.0)
         cursor.execute('SELECT origin FROM cal_routes WHERE done=false')
 
         if not cursor.fetchone():
-            sys.stdout.write('\rThe last routes getting processed. Please wait ...                                                        \n')
-            sys.stdout.flush()
-
             finished = True
-            cursor.close()
-        else:
-            sys.stdout.write('\r%s routes waiting to be processed. Please wait ...              ' % len(cursor.fetchall()))
-            sys.stdout.flush()
 
+        else:
+            routes_waiting = len(cursor.fetchall())
+
+            if time_finished:
+                sys.stdout.write('\r%s routes waiting to be processed. Finished in about %s              ' % (routes_waiting,
+                                                                                                          utils.seconds_time_string(time_finished)))
+                sys.stdout.flush()
+
+            else:
+                sys.stdout.write('\r%s routes waiting to be processed. Please wait ...              ' % routes_waiting)
+                sys.stdout.flush()
+
+        time_finished, routes_previously_wating = calc_calculation_time(routes_previously_wating, routes_waiting, all_routes, time_finished)
+
+    cursor.close()
+
+    sys.stdout.write('\rThe last routes getting processed. Please wait ...                                                                      \n')
+    sys.stdout.flush()
