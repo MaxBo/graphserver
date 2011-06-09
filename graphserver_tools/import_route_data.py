@@ -11,7 +11,8 @@ import sys
 import math
 import thread
 import time
-import sqlite3
+
+from termcolor import colored
 
 from graphserver.graphdb import GraphDatabase
 from graphserver.core import State
@@ -50,9 +51,9 @@ def read_times(f, conn):
 
     cursor.execute('DROP TABLE IF EXISTS cal_times CASCADE')
     cursor.execute('''CREATE TABLE cal_times ( id INTEGER PRIMARY KEY,
-                                           start_time TIMESTAMP NOT NULL,
-                                           end_time TIMESTAMP NOT NULL,
-                                           is_arrival_time BOOLEAN NOT NULL  )''')
+                                               start_time TIMESTAMP NOT NULL,
+                                               end_time TIMESTAMP NOT NULL,
+                                               is_arrival_time BOOLEAN NOT NULL  )''')
 
     reader = utf8csv.UnicodeReader(open(f))
 
@@ -67,6 +68,9 @@ def read_times(f, conn):
         start_date = string_to_datetime(line[start_column])
         end_date = string_to_datetime(line[end_column])
 
+        if (end_date - start_date).total_seconds() < 1:
+            print(colored('WARNING: invalid time window at id: %s' % line[id_column], 'yellow'))
+
         cursor.execute('INSERT INTO cal_times VALUES (%s,%s,%s,%s)',
                             ( line[id_column], start_date, end_date, line[is_arrival_column] ))
 
@@ -79,10 +83,10 @@ def read_routes(f, conn):
 
     cursor.execute('DROP TABLE IF EXISTS cal_routes CASCADE')
     cursor.execute('''CREATE TABLE cal_routes ( id INTEGER PRIMARY KEY,
-                                            origin INTEGER REFERENCES cal_points,
-                                            destination INTEGER REFERENCES cal_points,
-                                            time INTEGER REFERENCES cal_times,
-                                            done BOOLEAN )''')
+                                                origin INTEGER REFERENCES cal_points,
+                                                destination INTEGER REFERENCES cal_points,
+                                                time INTEGER REFERENCES cal_times,
+                                                done BOOLEAN )''')
     reader = utf8csv.UnicodeReader(open(f))
 
     header = reader.next()
@@ -191,12 +195,11 @@ def calc_corresponding_vertices(graph, db_conn_string):
 
     # write the stuff into the database
     c.execute('DROP TABLE IF EXISTS cal_corres_vertices')
-    #c.execute('CREATE TABLE cal_corres_vertices ( point_id INTEGER PRIMARY KEY REFERENCES cal_points, vertex_label TEXT REFERENCES graph_vertices ( label ) ) ')
     c.execute('CREATE TABLE cal_corres_vertices ( point_id INTEGER PRIMARY KEY REFERENCES cal_points, vertex_label TEXT NOT NULL ) ')
 
     for id, cv in set(corres_vertices):
         if not cv:
-            print "\tERROR: point with id %s cannot be linked into graph!" % id
+            print(colored("ERROR: point with id %s cannot be linked into graph!" % id, "red"))
             cv = graph.vertices[0].label
         c.execute('INSERT INTO cal_corres_vertices VALUES (%s,%s)', ( id, cv ))
 
