@@ -5,7 +5,7 @@ import socket
 import sys
 import time
 
-from termcolor import colored
+from termcolor import colored, cprint
 from pyproj import Proj
 
 from graphserver.graphdb import GraphDatabase
@@ -22,16 +22,14 @@ DEBUG = False
 
 
 def build_base_data(db_conn_string, osm_xml_filename, gtfs_filename):
-
-
     import_base_data.create_gs_datbases(osm_xml_filename, gtfs_filename, db_conn_string)
 
     import_base_data.add_missing_stops(db_conn_string)
 
-    print('deleting orphan nodes...')
+    print('Deleting orphan nodes...')
     import_base_data.delete_orphan_nodes(db_conn_string)
 
-    print('linking transit to osm data...')
+    print('Linking transit to osm data...')
     import_base_data.link_osm_gtfs(db_conn_string)
 
 
@@ -52,7 +50,8 @@ def calculate_routes(graph, psql_connect_string, options, num_processes=4):
     process_routes.create_db_tables(conn)
     conn.commit()
 
-    prefixes = ( 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P' )
+    prefixes = ( 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
+                 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z' )
     processes = []
 
     for i in range(4):
@@ -106,15 +105,13 @@ def read_config(file_path):
 
     if not os.path.exists(file_path): raise Exception()
 
-    config = utils.read_config(file_path, defaults)
+    config = utils.read_config(file_path, defaults, True)
 
     psql_connect_string = 'dbname=%s user=%s password=%s host=%s port=%s' % ( config['psql-database'],
                                                                               config['psql-user'],
                                                                               config['psql-password'],
                                                                               config['psql-host'],
                                                                               config['psql-port']       )
-
-    if DEBUG: print(config)
 
     config['routes'] = os.path.join(os.path.dirname(file_path), config['routes'])
     config['times'] = os.path.join(os.path.dirname(file_path), config['times'])
@@ -140,23 +137,28 @@ def validate_input(configuration, psql_connect_string, options):
     if options.import_base or options.import_all:
         if not os.path.exists(configuration['osm-data']):
             print(colored('ERROR: could not find osm-data', 'red'))
+            print('looked at: %s' % configuration['osm-data'])
             valide = False
 
         if not os.path.exists(configuration['transit-feed']):
             print(colored('ERROR: could not find transit-feed', 'red'))
+            print('looked at: %s' % configuration['transit-feed'])
             valide = False
 
     if options.import_routes or options.import_all:
         if not os.path.exists(configuration['routes']):
             print(colored('ERROR: could not find routes.csv', 'red'))
+            print('looked at: %s' % configuration['routes'])
             valide = False
 
         if not os.path.exists(configuration['times']):
             print(colored('ERROR: could not find times.csv', 'red'))
+            print('looked at: %s' % configuration['times'])
             valide = False
 
         if not os.path.exists(configuration['points']):
             print(colored('ERROR: could not find points.csv', 'red'))
+            print('looked at: %s' % configuration['points'])
             valide = False
 
     # check database
@@ -167,7 +169,7 @@ def validate_input(configuration, psql_connect_string, options):
 
     route_tables = ( 'cal_corres_vertices', 'cal_points', 'cal_routes', 'cal_times' )
 
-    path_tables = ( 'cal_paths', 'cal_path_details' )
+    path_tables = ( 'cal_paths', 'cal_paths_details' )
 
 
     try:
@@ -192,7 +194,7 @@ def validate_input(configuration, psql_connect_string, options):
                     valide = False
                     error = True
             if error:
-                print(colored('ERROR: base data not in database', 'red'))
+                print(colored('ERROR: base data not in database - please import base data first', 'red'))
 
         if not options.import_routes and not options.import_all:
             error = False
@@ -201,7 +203,7 @@ def validate_input(configuration, psql_connect_string, options):
                     valide = False
                     error = True
             if error:
-                print(colored('ERROR: route data not in database', 'red'))
+                print(colored('ERROR: route data not in database - please import route data first', 'red'))
 
         if options.export and not options.calculate:
             error = False
@@ -210,16 +212,31 @@ def validate_input(configuration, psql_connect_string, options):
                     valide = False
                     error = True
             if error:
-                print(colored('ERROR: path data not in database', 'red'))
+                print(colored('ERROR: path data not in database - please calculate shortest paths first', 'red'))
 
-    if not valide:
-        exit(-1)
+
+        if options.calculate and ((not options.import_all) and (not options.import_routes)):
+            c.execute('SELECT id FROM cal_routes WHERE done=false')
+
+            if len(c.fetchall()) == 0:
+                print(colored('It looks like all routes have already been calculated. Do you want to start the calculation again? [ y/n ]', 'yellow'))
+                input = sys.stdin.read(1)
+
+                if input == 'y' or input == 'Y':
+                    c.execute('UPDATE cal_routes SET done=false')
+                else:
+                    options.calculate = False
+
+        c.close()
+        conn.commit()
+
+    return valide
 
 
 def main():
     from optparse import OptionParser
 
-    usage = """usage: python gst_process <configuration file>
+    usage = """Usage: python gst_process <configuration file>
                See the documentation for layout of the config file."""
 
     parser = OptionParser(usage=usage)
@@ -232,6 +249,7 @@ def main():
 
     (options, args) = parser.parse_args()
 
+    if DEBUG: print(options)
 
     if len(args) != 1:
         parser.print_help()
@@ -240,49 +258,53 @@ def main():
     try:
         configuration, psql_connect_string = read_config(args[0])
     except:
-        print(colored('ERROR: failed reading configuration file', 'red'))
+        print(colored('ERROR: failed reading the configuration file', 'red'))
         if DEBUG: raise
         parser.print_help()
         exit(-1)
 
-    validate_input(configuration, psql_connect_string, options)
+    valide = validate_input(configuration, psql_connect_string, options)
+
+    if not valide:
+        parser.print_help()
+        exit(-1)
 
 
 
     graph = None
 
     if options.import_base or options.import_all:
-        print('importing base data...')
+        print('Importing base data...')
         build_base_data(psql_connect_string, configuration['osm-data'], configuration['transit-feed'])
 
 
     if options.import_routes or options.import_all:
-        print('importing routes...')
+        print('Importing routing data...')
 
         if not graph: graph = GraphDatabase(psql_connect_string).incarnate()
 
-        build_route_data(graph, psql_connect_string, times_filename, points_filename, routes_filename)
+        build_route_data(graph, psql_connect_string, configuration['times'], configuration['points'], configuration['routes'])
 
 
     if options.calculate:
-        print('calculation shortest paths...')
+        print('Calculating shortest paths...')
 
         if not graph: graph = GraphDatabase(psql_connect_string).incarnate()
 
         start = time.time()
-        calculate_routes(graph, psql_connect_string, config, num_processes=configuration['parallel-calculations'])
-        print('total calculation time: %s' % utils.seconds_time_string(time.time() - start))
+        calculate_routes(graph, psql_connect_string, configuration, num_processes=configuration['parallel-calculations'])
+        cprint('total calculation time: %s' % utils.seconds_time_string(time.time() - start), attrs=['bold'])
 
 
     try:
-        g.destroy
+        graph.destroy
     except:
         pass
 
 
     if options.export:
-        print('writing results...')
-        export_results(psql_connect_string, results_filename, result_details_filename)
+        print('Exporting paths...')
+        export_results(psql_connect_string, configuration['results'], configuration['result-details'])
 
 
     print('DONE')
