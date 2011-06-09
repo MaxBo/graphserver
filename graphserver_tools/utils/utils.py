@@ -23,11 +23,12 @@ def read_config(filename, defaults, raise_exception=False):
         f = open(filename)
 
         for line in f:
-            if line[0] not in ( '#', '\n' ):
+            if line[0] not in ( '#', '\n' ) or line == '\r\n':
+                line = line.relace('\r\n', '').replace('\n', '')
                 stuff = line.split('=')
 
                 if stuff[0] in config:
-                    config[stuff[0]] = stuff[1][:-1]
+                    config[stuff[0]] = stuff[1]
     except:
         if raise_exception:
             raise
