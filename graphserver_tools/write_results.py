@@ -67,7 +67,12 @@ def get_lat_lon(conn, gs_osm_vertex):
     cursor = conn.cursor()
 
     cursor.execute('SELECT lat, lon FROM osm_nodes WHERE id=%s', ( gs_osm_vertex[4:], ))
-    lat, lon = cursor.fetchone()
+
+    try: # bad hack for weired error - hope it works
+        lat, lon = cursor.fetchone()
+    except:
+        print("Error fetching lat,lon from database ( ID=%s ). Retrying ..." % gs_osm_vertex)
+        return get_lat_lon(conn, gs_osm_vertex)
 
     cursor.close()
     return '%.4f, %.4f' % ( lat, lon )
