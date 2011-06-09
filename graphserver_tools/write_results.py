@@ -191,8 +191,11 @@ def humanize_details(route_id, details, conn):
 def create_indices(conn):
     c = conn.cursor()
 
+    c.execute('DROP INDEX IF EXISTS IDX_route_id')
     c.execute('CREATE INDEX IDX_route_id ON cal_paths ( route_id )')
+    c.execute('DROP INDEX IF EXISTS IDX_total_time')
     c.execute('CREATE INDEX IDX_total_time ON cal_paths ( total_time )')
+    c.execute('DROP INDEX IF EXISTS IDX_path_id')
     c.execute('CREATE INDEX IDX_path_id ON cal_paths_details ( path_id )')
 
     c.close()
