@@ -9,6 +9,8 @@ import sys
 import psycopg2
 from rtree import Rtree
 
+from termcolor import colored
+
 from graphserver.graphdb import GraphDatabase
 from graphserver.ext.gtfs.gtfsdb import GTFSDatabase
 from graphserver.core import Street
@@ -22,8 +24,6 @@ from graphserver_tools.utils.utils import read_config, distance
 
 def create_gs_datbases(osm_xml_filename, gtfs_filename, db_conn_string):
     osmdb = osm_to_osmdb( osm_xml_filename, db_conn_string )
-
-    print 'number edges in osm-tables: %s' % len(list(osmdb.edges()))
 
     gtfsdb = GTFSDatabase( db_conn_string, overwrite=True )
     gtfsdb.load_gtfs( gtfs_filename )
@@ -74,7 +74,7 @@ def link_osm_gtfs(db_conn_string, max_link_dist=150):
 
 
         if not dists:
-            print('\tWARNING: failed linking %s! (%s, %s)' % (s_label, s_lat, s_lon))
+            print(colored('WARNING: failed linking %s! (%s, %s)' % (s_label, s_lat, s_lon), 'yellow'))
 
     gdb.commit()
     conn.commit()
