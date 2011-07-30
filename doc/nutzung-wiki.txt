@@ -67,29 +67,59 @@ Die Angabe von osm-output ist optional.
 
 
 == Berechnung kürzester Wege ==
-Um Berechnungen durchführen zu können, müssen die benötigten Daten in einem Ordner eingefügt werden. Benötigt werden follgende Dateien:
-^ Name (muss exakt stimmen) ^ Beschreibung ^
-| streets.osm | OpenStreetMap Daten im XML-Format |
-| transit_data.zip | GTFS-Feed mit den Verkehrsdaten |
-| times.csv | CSV-Datei mit Zeiten für die Berechnug (siehe Dateiformate) |
-| points.csv | CSV-Datei mit Koordinaten für die Berechnug (siehe Dateiformate) |
-| routes.csv | CSV-Datei mit Punkte-Zeit-Kombinationen für die Berechnug (siehe Dateiformate) |
-| config.txt | Konfigurationsdatei (siehe Konfigurationdatei) |
+Um Berechnungen durchführen zu können, wird folgendes Skript benötigt:
+<code>$ gst_process [Optionen] <Konfigurationsdatei></code>
 
-Die Berechnung selbst wird wie folgt durchgeführt:
-<code>$ gst_process <Berchnungsordner></code>
+Optionen
+^ kurz ^ lang ^ Beschreibung ^
+| -h | --help | show the help message and exit |
+| -b | --import-base | imports GTFS and OSM data into the database |
+| -r | --import-routes | imports routing data into the database |
+| -i | --import-all | imports GTFS, OSM and routing data into the database |
+| -c | --calculate | calculates shortest paths |
+| -e | --export | exports the calculted paths as CSV-files |
 
-**Achtung:** Sollten bereits OSM- und GTFS- Daten in die Datenbank geladen worden sein, werden diese nicht erneut geladen. Um diese erneut zu laden steht die //force//-Option bereit:
-<code>$ gst_process -f <Berchnungsordner></code>
+Beispiel:
+    * Importieren aller Daten, berechnen und exportieren: <code>$ gst_process -ice config.txt</code>
+    * Berechnung durchführen: <code>gst_process -c config.txt</code>
 
-Nach erfolgreichem Durchlaufen der Berechnungen sollten folgende Dateien im //Berechnungsordner// angelegt worden sein:
-^ Name ^Beschreibung ^
-| results.csv | Ergebnis der berechneten Routen (Start, Ende, benötigte Zeit)|
-| result-details.csv | Verlauf der berechneten Routen (Fußwege, Wartezeiten, Linien)|
+Der Inhalt der Konfigurationsdatei wird im folgenden Abschnitt beschrieben.
+
+
+== Konfigurationsdatei ==
+Diese Datei enthält Name-Wert Paare, die durch das ‚=’-Zeichen getrennt werden. Pro Zeile darf maximal ein Paar vorhanden sein. Einträge können, wenn diese nicht benötigt werden, einfach weggelassen werden.
+
+Beispiel:
+<code>
+link-dist=150
+time-step=240
+max-walk=1080
+</code>
+
+
+^ Mögliche Einstellungen ^^^
+| **Name** | **Erklärung** |
+| walking-speed | Geschwindigkeit, in der sich Fußgänger fortbewegen. Einheit: m/s. Punkt statt Komma verwenden |
+| time-step | Zeitabstand, in dem innerhalb der definierten Zeitfenster Berechnungen durchgeführt werden sollen. Je kleiner der Wert, desto genauer, aber auch zeitintensiver die Berechnungen. |
+| max-walk | Entfernung in Metern, wie weit der max. Fußweg pro Berechnung sein darf. **Achtung: Soft-Limit** |
+| walking-reluctance | Faktor um den der ‚virtuelle Fahrgast’ lieber fährt als läuft. 1 – Fahren und Laufen wird als gleich lang empfunden. 2 – Laufen dauert gefühlt doppelt so lange. |
+| psql-host | IP oder Domain des Datenbankservers |
+| psql-port | Port des Datenbankservers |
+| psql-user | Datenbankbenutzer |
+| psql-password | Passwort des Datenbankbenutzers |
+| psql-database | Datenbankname, in die Daten geschrieben werden sollen |
+| parallel-calculations | Anzahl der von System parallel durchgeführten Berechnungen. **Beachte:** je höher der Wert ist, desto mehr Arbeitsspeicher wird benötigt! |
+| routes | Pfad zur CSV-Datei, die die zu berechnenden Routen enthält. Relativ zur Konfigurationsdatei |
+| times| Pfad zur CSV-Datei, die die zu berechnenden Zeiten passend zu den Routen enthält. Relativ zur Konfigurationsdatei |
+| points | Pfad zur CSV-Datei, die die zu berechnenden Punkte passend zu den Routen enthält. Relativ zur Konfigurationsdatei |
+| transit-feed | Pfad zum GTFS-Feed, der die Transitdaten enthält. Relativ zur Konfigurationsdatei |
+| osm-data | Pfad zu den OSM-XML Daten. Relativ zur Konfigurationsdatei |
+| results | Pfad, an dem die Ergebnisse der Berechnung abgespeichert werden. Überschreibt bereits vorhandene Daten. Relativ zur Konfigurationsdatei |
+| result-details | Pfad, an dem die Details der Ergebnisse der Berechnung abgespeichert werden. Überschreibt bereits vorhandene Daten. Relativ zur Konfigurationsdatei |
+
 
 == Dateiformate ==
 Die Zeiten, Punkte und Routen müssen als CSV-Dateien vorliegen. Als Trennzeichen muss das Komma verwendet werden. Bei Zahlen, die ein Komma enthalten, muss diese durch eine Punkt ersetzt werden. Die CSV-Resultat-Dateien werden im gleichen Format erzeugt.
-
 
 
 ^ times.csv (Zeitfenster) ^^
@@ -115,29 +145,6 @@ Die Zeiten, Punkte und Routen müssen als CSV-Dateien vorliegen. Als Trennzeiche
 | time_id | id des Zeitfensters (aus times.csv) |
 
 
-
-== Konfigurationsdatei ==
-Diese Datei enthält Name-Wert Paare, die durch das ‚=’-Zeichen getrennt werden. Pro Zeile darf maximal ein Paar vorhanden sein. Einträge können, wenn diese nicht benötigt werden, einfach weggelassen werden.
-
-Beispiel:
-<code>
-link-dist=150
-time-step=240
-max-walk=1080
-</code>
-
-
-^ Mögliche Einstallungen ^^^
-| **Name** | **Erklärung** |
-| walking-speed | Geschwindigkeit, in der sich Fußgänger fortbewegen. Einheit: m/s. Punkt statt Komma verwenden |
-| time-step | Zeitabstand, in dem innerhalb der definierten Zeitfenster Berechnungen durchgeführt werden sollen. Je kleiner der Wert, desto genauer, aber auch zeitintensiver die Berechnungen. |
-| max-walk | Entfernung in Metern, wie weit der max. Fußweg pro Berechnung sein darf. **Achtung: Soft-Limit** |
-| walking-reluctance | Faktor um den der ‚virtuelle Fahrgast’ lieber fährt als läuft. 1 – Fahren und Laufen wird als gleich lang empfunden. 2 – Laufen dauert gefühlt doppelt so lange. |
-| psql-host | IP oder Domain des Datenbankservers |
-| psql-port | Port des Datenbankservers |
-| psql-user | Datenbankbenutzer |
-| psql-password | Passwort des Datenbankbenutzers |
-| psql-database | Datenbankname, in die Daten geschrieben werden sollen |
 
 
 === Bekannte Fehler ===
