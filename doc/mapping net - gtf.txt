@@ -10,13 +10,13 @@ __Reihenfolge der Tabellen__
                               (enthalten Stops)                 - _write_stations
     HALTESTELLENBEREICH     - Stops / stops                     - _write_stops
     HALTEPUNKT              - konkreter Haltepunkt / stop_point
-                              (nur zum mappen auf 
+                              (nur zum mappen auf
                               Haltestellenberich verwendet)     - _process_stop_points
     LINIE                   - Linien / Routes                   - _write_routes
     LINIENROUTENELEMENT     - Informationen zu einzelnen
                               Haltestellen innerhalb einer
                               Linie / eines Trips               - _process_stop_id_mapper
-    FAHRZEITPROFILELEMENT   - Verlauf von Trips, 
+    FAHRZEITPROFILELEMENT   - Verlauf von Trips,
                               ohne konkrete Abfahrtszeiten      - _process_raw_stop_times
     FZGFAHRT                - Abfahrtszeitpunkt von Trips       - _write_stop_times_and_tripes
 
@@ -24,33 +24,35 @@ __Mapping__ (z.Z. nur 'required' Felder)
 	agency.txt - $BETREIBER
 		agency_id		- 	NR
 		agency_name		-	NAME
-		agency_url		-	??? 
+		agency_url		-	???
 		agency_timezone	-	CET (?)
-	
+
 	stops.txt - $HALTEPUNKT
 		stop_id 	- 	NR
-		stop_name 	-	NAME 
+		stop_name 	-	NAME
 		stop_lat	-	XKOORD via $KNOTNR
 		stop_lon	- 	YKOORD via $KNOTNR
-		
+
 	routes.txt - $LINIE
 		route_id			-	NAME
 		route_short_name	-	NAME
-		route_long_name		-	empty string
+		route_long_name		-	empty
 		route_type			-	VSysCode/VSysName	(mit $VSYS) 		(einheitlich: NEIN)
-		
+
 	tripes.txt - $FZGFAHRT
-		route_id	-	LinName
-		service_id	-	???
-		trip_id		-	NR
-	
+		route_id	    -	LinName
+		service_id	    -	???
+		trip_id		    -	NR
+		trip_short_name -   NAME (TODO!!!!)
+		direction_id    -   RICHTUNGSCODE (mapping) (TODO!!!!)
+
 	stop_times.txt - $FAHRZEITPROFILELEMENT, $FZGFAHRT
 		trip_id			- NR aus $FZGFAHRT
 		arrival_time	- ANKUNFT Berechnung!
 		departure_time	- ABFAHRT Berechnung!
-		stop_id			- HPUNKTNR via $LINIENROUTENELEMENT (LRELEMINDEX)
+		stop_id			- HPUNKTNR via $LINIENROUTENELEMENT (LRELEMINDEX) (TODO!!!!!!!!!! VONFZPELEMINDEX & NACHFZPELEMINDEX prüfen)
 		stop_sequence	- INDEX
-	
+
 	calendar.txt - $VERKEHRSTAG ???
 		service_id	- NR
 		monday		- evt. Abbildung Code
@@ -61,7 +63,6 @@ __Mapping__ (z.Z. nur 'required' Felder)
 		saturday	- evt. Abbildung Code
 		sunday		- evt. Abbildung Code
 		start_date	- evt. $KALENDERPERIODE
-		end_date	- evt. $KALENDERPERIODE 
-		
-		
-	
+		end_date	- evt. $KALENDERPERIODE
+
+
