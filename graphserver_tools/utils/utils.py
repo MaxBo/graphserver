@@ -75,9 +75,10 @@ def seconds_time_string(seconds):
 
 
 
-""" Converts a string with a format like this DD:MM:YYYY:HH:MM into a datetime object
-"""
+
 def string_to_datetime(s):
+    ''' Converts a string with a format like this DD:MM:YYYY:HH:MM into a datetime object
+    '''
     sl = [int(x) for x in s.split(':')]
     return datetime.datetime(sl[2],sl[1], sl[0], sl[3], sl[4])
 
