@@ -125,8 +125,9 @@ streetWalkGeneral(EdgePayload* superthis, State* state, WalkOptions* options, in
   // max_walk overage considerations
   double end_dist = state->dist_walked + this->length;
   if(end_dist > options->max_walk)
-    delta_w += (end_dist - options->max_walk)*options->walking_overage*delta_t;
-  
+    //delta_w += (end_dist - options->max_walk)*options->walking_overage*delta_t;
+    ret->weight = MAX_LONG; // making the max_walk option a hard limit
+
   // turning considerations
   if( state->prev_edge &&
       state->prev_edge->type == PL_STREET &&
