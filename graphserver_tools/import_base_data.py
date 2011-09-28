@@ -9,7 +9,7 @@ import sys
 import psycopg2
 from rtree import Rtree
 
-from termcolor import colored
+from termcolor import colored, cprint
 
 from graphserver.graphdb import GraphDatabase
 from graphserver.ext.gtfs.gtfsdb import GTFSDatabase
@@ -22,12 +22,12 @@ from graphserver.ext.osm.osmfilters import DeleteOrphanNodesFilter
 from graphserver_tools.utils.utils import read_config, distance
 
 
+
 def create_gs_datbases(osm_xml_filename, gtfs_filename, db_conn_string):
     osmdb = osm_to_osmdb( osm_xml_filename, db_conn_string )
 
     gtfsdb = GTFSDatabase( db_conn_string, overwrite=True )
     gtfsdb.load_gtfs( gtfs_filename )
-
 
     gdb = GraphDatabase( db_conn_string, overwrite=True )
 

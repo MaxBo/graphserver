@@ -87,6 +87,15 @@ def read_routes(f, conn):
                                                 destination INTEGER REFERENCES cal_points,
                                                 time INTEGER REFERENCES cal_times,
                                                 done BOOLEAN )''')
+
+
+    cursor.execute('CREATE INDEX IDX_time ON cal_routes ( time )')
+    cursor.execute('CREATE INDEX IDX_origin ON cal_routes ( origin )')
+    cursor.execute('CREATE INDEX IDX_destination ON cal_routes ( destination )')
+    cursor.execute('CREATE INDEX IDX_done ON cal_routes ( done )')
+
+
+
     reader = utf8csv.UnicodeReader(open(f))
 
     header = reader.next()
@@ -96,14 +105,21 @@ def read_routes(f, conn):
     dest_column = header.index(u'destination')
     time_id_column = header.index(u'time_id')
 
-    for line in reader:
-        cursor.execute('INSERT INTO cal_routes VALUES (%s,%s,%s,%s,%s)', ( line[id_column],
-                                                                  line[origin_column],
-                                                                  line[dest_column],
-                                                                  line[time_id_column],
-                                                                  False                 ))
-    cursor.close()
-    conn.commit()
+    try:
+        for i, line in enumerate(reader):
+
+            cursor.execute('INSERT INTO cal_routes VALUES (%s,%s,%s,%s,%s)', ( line[id_column],
+                                                                      line[origin_column],
+                                                                      line[dest_column],
+                                                                      line[time_id_column],
+                                                                      False                 ))
+
+    except:
+        print(colored("ERROR: time, origin or desitionation could not be found on route %s!" % i, "red"))
+        raise
+    finally:
+        cursor.close()
+        conn.commit()
 
 def calc_corresponding_vertices(graph, db_conn_string):
 

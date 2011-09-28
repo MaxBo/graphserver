@@ -97,6 +97,7 @@ class Proccessing():
 
             # extract the actual routes and write them into the database
             for dest in routes['destinations']:
+
                 try:
                     vertices, edges = spt.path(dest[0])
 
@@ -166,10 +167,8 @@ class Proccessing():
         ''' in retro_paths the walking distance is counted in the wrong direction.
             this method corrects this.
         '''
-        total_dist_walked = vertices[0].state.dist_walked
 
-        for v in vertices:
-            v.state.dist_walked = total_dist_walked - v.state.dist_walked
+        # now done in write_results
 
         self.write_trip(vertices, route_id)
 
@@ -225,35 +224,39 @@ class Proccessing():
         self.graph.destroy()
 
 
-def create_db_tables(connection):
+def create_db_tables(connection, recreate=False):
     cursor = connection.cursor()
 
-    cursor.execute('DROP TABLE IF EXISTS cal_paths CASCADE')
-    cursor.execute('''CREATE TABLE cal_paths ( id TEXT PRIMARY KEY,
-                                           route_id INTEGER REFERENCES cal_routes,
-                                           start_time TIMESTAMP NOT NULL,
-                                           end_time TIMESTAMP NOT NULL,
-                                           total_time INTEGER NOT NULL )''')
+    cursor.execute("select tablename from pg_tables where schemaname='public'" )
+    tables = cursor.fetchall()
 
-    cursor.execute('DROP TABLE IF EXISTS cal_paths_details CASCADE')
-    cursor.execute('''CREATE TABLE cal_paths_details ( path_id TEXT REFERENCES cal_paths,
-                                                       counter INTEGER NOT NULL,
-                                                       label TEXT NOT NULL,
-                                                       time TIMESTAMP NOT NULL,
-                                                       weight INTEGER NOT NULL,
-                                                       dist_walked REAL NOT NULL,
-                                                       num_transfers INTEGER NOT NULL,
-                                                       gtfs_trip_id TEXT,
-                                                    UNIQUE (path_id, counter)) ''')
 
-    cursor.execute('DROP INDEX IF EXISTS IDX_time')
-    cursor.execute('CREATE INDEX IDX_time ON cal_routes ( time )')
-    cursor.execute('DROP INDEX IF EXISTS IDX_origin')
-    cursor.execute('CREATE INDEX IDX_origin ON cal_routes ( origin )')
-    cursor.execute('DROP INDEX IF EXISTS IDX_destination')
-    cursor.execute('CREATE INDEX IDX_destination ON cal_routes ( destination )')
-    cursor.execute('DROP INDEX IF EXISTS IDX_done')
-    cursor.execute('CREATE INDEX IDX_done ON cal_routes ( done )')
+    if ( 'cal_paths', ) not in tables or recreate:
+
+        if recreate:
+            cursor.execute('DROP TABLE IF EXISTS cal_paths CASCADE')
+
+        cursor.execute('''CREATE TABLE cal_paths ( id TEXT PRIMARY KEY,
+                                               route_id INTEGER REFERENCES cal_routes,
+                                               start_time TIMESTAMP NOT NULL,
+                                               end_time TIMESTAMP NOT NULL,
+                                               total_time INTEGER NOT NULL )''')
+
+
+    if ( 'cal_paths_details', ) not in tables or recreate:
+
+        if recreate:
+            cursor.execute('DROP TABLE IF EXISTS cal_paths_details CASCADE')
+
+        cursor.execute('''CREATE TABLE cal_paths_details ( path_id TEXT REFERENCES cal_paths,
+                                                           counter INTEGER NOT NULL,
+                                                           label TEXT NOT NULL,
+                                                           time TIMESTAMP NOT NULL,
+                                                           weight INTEGER NOT NULL,
+                                                           dist_walked REAL NOT NULL,
+                                                           num_transfers INTEGER NOT NULL,
+                                                           gtfs_trip_id TEXT,
+                                                        UNIQUE (path_id, counter)) ''')
 
     connection.commit()
     cursor.close()

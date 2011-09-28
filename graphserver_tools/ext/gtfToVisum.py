@@ -9,10 +9,13 @@
 import transitfeed
 import psycopg2
 import datetime
+import os
+
+from graphserver_tools.utils import utils
 
 
 
-class GtfsToNet(object):
+class GtfsVisum(object):
 
     route_type_mapper = {   0 : 'Tram/Light rail',
                             1 : 'Subway',
@@ -29,8 +32,9 @@ class GtfsToNet(object):
                        }
 
 
-    def __init__(self, db_connect_string, create_tables=False):
+    def __init__(self, db_connect_string, date='20110101', create_tables=False):
         self.db_connect_string = db_connect_string
+        self.date = date
 
         if create_tables:
             self._createDbTables()
@@ -61,8 +65,8 @@ class GtfsToNet(object):
     # other public methods
     #
     def transform(self):
-    ''' Converts the feed associated with this object into a data for a visum database.
-    '''
+        ''' Converts the feed associated with this object into a data for a visum database.
+        '''
         self._processKnoten()
 
         self._processHaltestelle()
@@ -650,19 +654,40 @@ class GtfsToNet(object):
 
             for id in trip_ids:
                 trip = self._schedule.GetTrip(id)
-                departure = datetime.datetime.fromtimestamp(trip.GetStartTime() - 2209165200)
-                name = trip.trip_headsign if trip.trip_headsign else None
 
-                fahrten.append({    'nr' : trip.trip_id,
-                                    'name' : name,
-                                    'abfahrt' : departure,
-                                    'linname' : linname,
-                                    'linroutename' : linroutename,
-                                    'richtungscode' : direction,
-                                    'fzprofilname' : fzprofilname,
-                                    'vonfzpelemindex' : 1,
-                                    'nachfzpelemindex' : trip.GetCountStopTimes()
-                              })
+                # only put trips into visum that which are valid on the selected date
+                if self.date in trip.service_period.ActiveDates():
+
+                    departure = datetime.datetime.fromtimestamp(trip.GetStartTime() - 2209165200)
+                    name = trip.trip_headsign if trip.trip_headsign else None
+
+                    fahrten.append({    'nr' : trip.trip_id,
+                                        'name' : name,
+                                        'abfahrt' : departure,
+                                        'linname' : linname,
+                                        'linroutename' : linroutename,
+                                        'richtungscode' : direction,
+                                        'fzprofilname' : fzprofilname,
+                                        'vonfzpelemindex' : 1,
+                                        'nachfzpelemindex' : trip.GetCountStopTimes()
+                                  })
+
+                    # add frequency trips
+                    for i, st in enumerate(trip.GetFrequencyStartTimes()):
+                        st_departure = datetime.datetime.fromtimestamp(st - 2209165200)
+
+                        if st_departure != departure:
+
+                            fahrten.append({    'nr' : trip.trip_id + '-' + str(i),
+                                                'name' : name,
+                                                'abfahrt' : st_departure,
+                                                'linname' : linname,
+                                                'linroutename' : linroutename,
+                                                'richtungscode' : direction,
+                                                'fzprofilname' : fzprofilname,
+                                                'vonfzpelemindex' : 1,
+                                                'nachfzpelemindex' : trip.GetCountStopTimes()
+                                          })
 
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
@@ -680,23 +705,35 @@ class GtfsToNet(object):
 
 def main():
     from optparse import OptionParser
-    usage = """usage: python netToGtf.py [options] input_file output_file"""
+    usage = """usage: python netToVisum.py config_file gtfs_feed"""
     parser = OptionParser(usage=usage)
-    parser.add_option("-d", "--debug", action="store_true", help="print debug information", dest="debug", default=False)
-    parser.add_option("-p", "--proj_code", help="set the corresponding proj-init code for the coordinates inside the .net file. See http://code.google.com/p/pyproj/source/browse/trunk/lib/pyproj/data/epsg for all possiblities. If option is not set WGS84 will be used.",
-                        dest="proj_code", default="4326")
-
     (options, args) = parser.parse_args()
 
-    feed = args[0]
 
-    db_connect_string = 'dbname=dev host=localhost password=dev user=dev'
+    defaults = { 'psql-host':'localhost',
+                 'psql-port':'5432',
+                 'psql-user':'postgres',
+                 'psql-password':'',
+                 'psql-database':'graphserver',
+                 'date':'2011.01.01' }
 
-    transformer = GtfsToNet(db_connect_string, create_tables=True)
+    if not os.path.exists(args[0]): raise Exception()
+
+    config = utils.read_config(args[0], defaults, True)
+
+    psql_connect_string = 'dbname=%s user=%s password=%s host=%s port=%s' % ( config['psql-database'],
+                                                                              config['psql-user'],
+                                                                              config['psql-password'],
+                                                                              config['psql-host'],
+                                                                              config['psql-port']       )
+
+    feed = args[1]
+
+    transformer = GtfsToVisum(psql_connect_string, create_tables=True)
     transformer.feed = feed
+    transformer.date = config['date'].replace('.','')
 
     transformer.transform()
-
 
     print 'done'
 

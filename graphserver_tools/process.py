@@ -33,12 +33,23 @@ def build_base_data(db_conn_string, osm_xml_filename, gtfs_filename):
     import_base_data.link_osm_gtfs(db_conn_string)
 
 
+    # recreate all calculation tables
+    conn = psycopg2.connect(db_conn_string)
+
+    process_routes.create_db_tables(conn, True)
+
+    conn.commit()
+
+
 def build_route_data(graph, psql_connect_string, times_filename, points_filename, routes_filename):
     conn = psycopg2.connect(psql_connect_string)
 
     import_route_data.read_times(times_filename, conn)
     import_route_data.read_points(points_filename, conn)
     import_route_data.read_routes(routes_filename, conn)
+
+    # recreate all calculation tables
+    process_routes.create_db_tables(conn, True)
 
     conn.commit()
 
@@ -47,14 +58,19 @@ def build_route_data(graph, psql_connect_string, times_filename, points_filename
 
 def calculate_routes(graph, psql_connect_string, options, num_processes=4):
     conn = psycopg2.connect(psql_connect_string)
-    process_routes.create_db_tables(conn)
+
+
+    process_routes.create_db_tables(conn, False)
+
     conn.commit()
 
     prefixes = ( 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
-                 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z' )
+                 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'BB', 'CC', 'DD', 'EE',
+                 'FF', 'GG', 'HH', 'II', 'JJ', 'KK', 'LL', 'MM', 'NN', 'OO', 'PP', 'QQ', 'RR',
+                 'SS', 'TT', 'UU', 'VV', 'WW', 'XX', 'YY', 'ZZ' )
     processes = []
 
-    for i in range(4):
+    for i in range(int(num_processes)):
         p = multiprocessing.Process(target=process_routes.Proccessing, args=(graph,
                                                                              psql_connect_string,
                                                                              int(options['time-step']),
@@ -224,6 +240,7 @@ def validate_input(configuration, psql_connect_string, options):
 
                 if input == 'y' or input == 'Y':
                     c.execute('UPDATE cal_routes SET done=false')
+                    process_routes.create_db_tables(conn, True)
                 else:
                     options.calculate = False
 
@@ -281,7 +298,7 @@ def main():
     if options.import_routes or options.import_all:
         print('Importing routing data...')
 
-        if not graph: graph = GraphDatabase(psql_connect_string).incarnate()
+        graph = GraphDatabase(psql_connect_string).incarnate()
 
         build_route_data(graph, psql_connect_string, configuration['times'], configuration['points'], configuration['routes'])
 
@@ -289,15 +306,17 @@ def main():
     if options.calculate:
         print('Calculating shortest paths...')
 
+        # only create tables if some importing was done
+        create_tables = options.import_all or options.import_base or options.import_routes
+
         if not graph: graph = GraphDatabase(psql_connect_string).incarnate()
 
         start = time.time()
         calculate_routes(graph, psql_connect_string, configuration, num_processes=configuration['parallel-calculations'])
         cprint('total calculation time: %s' % utils.seconds_time_string(time.time() - start), attrs=['bold'])
 
-
     try:
-        graph.destroy
+        graph.destroy()
     except:
         pass
 

@@ -28,7 +28,8 @@ def write_details(conn, filename):
 
         c.execute('''SELECT counter, label, time, dist_walked, num_transfers, gtfs_trip_id
                      FROM cal_paths_details
-                     WHERE path_id=%s''', ( id, ))
+                     WHERE path_id=%s
+                     ORDER BY counter''', ( id, ))
         details = c.fetchall()
 
         if details: # there will be no details if there is no path between origin and destination at this trip
@@ -71,8 +72,8 @@ def get_lat_lon(conn, gs_osm_vertex):
     try: # bad hack for weired error - hope it works
         lat, lon = cursor.fetchone()
     except:
-        print("Error fetching lat,lon from database ( ID=%s ). Retrying ..." % gs_osm_vertex)
-        return get_lat_lon(conn, gs_osm_vertex)
+        print("Error fetching lat,lon from database ( ID=%s ). Result will not be human readable!" % gs_osm_vertex)
+        return str(gs_osm_vertex)
 
     cursor.close()
     return '%.4f, %.4f' % ( lat, lon )
@@ -140,6 +141,24 @@ def humanize_details(route_id, details, conn):
 
 
     hum_details = []
+
+    for x in details:
+        print x
+    print '*********\n\n\n*********'
+
+
+    # correct the upside down walking distances caused by retro trips
+    if details[0][3] > details[-1][3]:
+
+        details = list(details)
+
+        total_dist_walked = details[0][3]
+
+        for i, d in enumerate(details):
+            details[i] = list(d)
+            d = details[i]
+            d[3] = total_dist_walked - d[3]
+
 
     if details[0][1][:4] == 'osm-':
         add_osm_node(details[0], hum_details)
