@@ -2,26 +2,64 @@
 
 === Installation ===
 
-Um Graphserver, Graphserver Tools sowie die Transitfeed Tools nutzen zu können müssen diese installiert werden. Grundsätzliche sollte die Installation auf jedem unixoiden Betriebssystem möglich sein.
+Um Graphserver, Graphserver Tools sowie die Transitfeed Tools nutzen zu können müssen diese installiert werden. Grundsätzliche sollte die Installation auf jedem unixoiden Betriebssystem möglich sein. Im folgenden wird jedoch die Installation auf Ubuntu (Linux) beschrieben.
 
-    * graphserver_v*.zip entpacken, in den Ordner //graphserver_v*/pygs// wechseln und mit dem Aufruf <code>$ sudo python setup.py install</code> Graphserver installieren.
+    *Installation nötiger Pakete via apt-get: <code>sudo apt-get install python-dev python-setuptools python-psycopg2 </code>
 
-    * graphserver_tools_v*.zip entpacken, in den Ordner //graphserver_tools_v*// wechseln und ebenfalls mit <code>$ sudo python setup.py install</code> Graphserver Tools installieren.
+    *Installation von **libspatialindex** (http://download.osgeo.org/libspatialindex/spatialindex-src-1.6.1.tar.bz2):
+        * Archiv entpacken
+        * In den entpackten Ordner wechseln
+        * Folgende Befehle ausführen:
+        * <code>./configure</code>
+        * <code>make</code>
+        * <code>sudo make install</code>
+        * <code>sudo /sbin/ldconfig</code>
 
-    * Die aktuelle Version von transitfeed (http://code.google.com/p/googletransitdatafeed/) herunterladen, entpacken und im entsprechenden Ordner  mit <code>$ sudo python setup.py install</code> installieren.
+    *Installation von **Rtree** (http://pypi.python.org/packages/source/R/Rtree/Rtree-0.6.0.tar.gz#md5=5edbb1bd9923fcaeae05a678fd74c9a1):
+        * Archiv entpacken.
+        * In den entpackten Ordner wechseln
+        * Mit folgenden Befehl installieren: <code>sudo python setup.py install</code>
 
-    * Um OpenStreetMap Daten zuschneiden zu können, wird osmosis (http://dev.openstreetmap.org/~bretth/osmosis-build/osmosis-latest.zip) benötigt. Das Tool osmosis muss in Pfad liegen - Informationen dazu befinden sich in der readme.txt von osmosis.
+    *Installation **GraphServer**:
+        * Archiv entpacken
+        * In den Unterordner //pygs// wechseln
+        * Mit folgenden Befehl installieren: <code>sudo python setup.py install</code>
+
+    *Installation **GraphServer Tools**:
+        * Archiv entpacken.
+        * In den entpackten Ordner wechseln
+        * Mit folgenden Befehl installieren: <code>sudo python setup.py install</code>
+
+    * Installation **osmosis** (http://dev.openstreetmap.org/~bretth/osmosis-build/osmosis-latest.zip):
+        * Archiv entpacken
+        * In den Ordner wechseln, in dem der entpackte Ordner liegt
+        * //Osmosis// an die richtige Stelle kopieren:
+        * <code>sudo mkdir /etc/osmosis</code>
+        * <code>sudo cp -R osmosis-0.39/* /etc/osmosis/</code> wobei die Versionsnummer evt. angepasst werden muss
+        * //Osmosis// selbst ausführbar machen:
+        * <code>sudo chmod +x /etc/osmosis/bin/osmosis</code>
+        * Dem System bekannt machen, wo sich //osmosis// befindet:
+          * Die versteckte Datei //~/.profile// öffnen
+          * Follgende Zeilen am Ende der Datei hinzufügen:
+          * <code>
+# osmosis
+PATH="/etc/osmosis/bin:${PATH}"
+export PATH </code>
+          * Anschließend den Rechner neu starten
 
 
 
 === Nutzung ===
 
-Folgende Funktionalitäten werden bereitgestellt:
+Folgende Funktionen werden bereitgestellt:
     * Erstellen eines GTFS-Feeds aus einer Netzdatei (Visum)
     * Erstellen eines GTFS-Feeds aus einer Hafas-Export-Datei
     * Überprüfung von GTFS-Feeds auf (grobe) Fehler
     * Ansicht eines GTFS-Feeds als Layer über Google Maps
-    * Das Berechnen von kürzesten Wegen innerhalb eines GTFS-Feeds bzw. Netzdatei mit Hilfe von OpenStreetMap Daten
+    * Das Berechnen von kürzesten Wegen innerhalb eines GTFS-Feeds mit Hilfe von OpenStreetMap Daten
+    * Zusschneiden einer OpenStreetMap XML Datei
+    * Umwandeln von IVU Ascii Exportdaten in ein von Visum lesbares Format (in Arbeit)
+    * Umwandeln eines GTFS-Feeds in ein von Visum lesbares Format (in Arbeit)
 
 
 
@@ -61,7 +99,7 @@ Feed ist der anzuzeigende Feed. Nach kurzem Laden, stellt das Skript unter der e
 == Zusschneiden einer OpenStreetMap XML Datei ==
 Um Berechnungen schneller durchführen zu können, kann eine OpenStreetMap XML Datei exakt auf die Größe des verwendeten GTFS-Feeds zugeschnitten werden. Das dazu benötigte Tool nennt sich gst_cropOSM. Nutzung:
 
-<code>$ gst_cropOSM <gtfs-feed> <osm-input> <osm-output></code>
+<code>$ gst_cropOSM <gtfs-feed> <osm-input> [<osm-output>]</code>
 
 Die Angabe von osm-output ist optional.
 
@@ -72,12 +110,12 @@ Um Berechnungen durchführen zu können, wird folgendes Skript benötigt:
 
 Optionen
 ^ kurz ^ lang ^ Beschreibung ^
-| -h | --help | show the help message and exit |
-| -b | --import-base | imports GTFS and OSM data into the database |
-| -r | --import-routes | imports routing data into the database |
-| -i | --import-all | imports GTFS, OSM and routing data into the database |
-| -c | --calculate | calculates shortest paths |
-| -e | --export | exports the calculted paths as CSV-files |
+| -h | ---help | show the help message and exit |
+| -b | ---import-base | imports GTFS and OSM data into the database |
+| -r | ---import-routes | imports routing data into the database |
+| -i | ---import-all | imports GTFS, OSM and routing data into the database |
+| -c | ---calculate | calculates shortest paths |
+| -e | ---export | exports the calculted paths as CSV-files |
 
 Beispiel:
     * Importieren aller Daten, berechnen und exportieren: <code>$ gst_process -ice config.txt</code>
@@ -101,7 +139,7 @@ max-walk=1080
 | **Name** | **Erklärung** |
 | walking-speed | Geschwindigkeit, in der sich Fußgänger fortbewegen. Einheit: m/s. Punkt statt Komma verwenden |
 | time-step | Zeitabstand, in dem innerhalb der definierten Zeitfenster Berechnungen durchgeführt werden sollen. Je kleiner der Wert, desto genauer, aber auch zeitintensiver die Berechnungen. |
-| max-walk | Entfernung in Metern, wie weit der max. Fußweg pro Berechnung sein darf. **Achtung: Soft-Limit** |
+| max-walk | Entfernung in Metern, wie weit der max. Fußweg pro Berechnung sein darf. |
 | walking-reluctance | Faktor um den der ‚virtuelle Fahrgast’ lieber fährt als läuft. 1 – Fahren und Laufen wird als gleich lang empfunden. 2 – Laufen dauert gefühlt doppelt so lange. |
 | psql-host | IP oder Domain des Datenbankservers |
 | psql-port | Port des Datenbankservers |
@@ -116,6 +154,7 @@ max-walk=1080
 | osm-data | Pfad zu den OSM-XML Daten. Relativ zur Konfigurationsdatei |
 | results | Pfad, an dem die Ergebnisse der Berechnung abgespeichert werden. Überschreibt bereits vorhandene Daten. Relativ zur Konfigurationsdatei |
 | result-details | Pfad, an dem die Details der Ergebnisse der Berechnung abgespeichert werden. Überschreibt bereits vorhandene Daten. Relativ zur Konfigurationsdatei |
+| date | Tag, an dem die Umwandlung stattfinden soll (IVU, GTFS, … nach Visum oder umgekehrt), Format: YYYY.MM.TT (Bsp.: 2011.01.30) |
 
 
 == Dateiformate ==
