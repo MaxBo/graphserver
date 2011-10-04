@@ -146,8 +146,8 @@ class ivuToVisum(object):
                                 "CODE" varchar(255),
                                 "NAME" varchar(255),
                                 "TYPNR" integer,
-                                "XKOORD" float,
-                                "YKOORD" float
+                                "XKOORD" float NOT NULL,
+                                "YKOORD" float NOT NULL
                             )''')
 
         cursor.execute('''CREATE TABLE "HALTESTELLENBEREICH"
@@ -157,14 +157,14 @@ class ivuToVisum(object):
                                 "NAME" varchar(255),
                                 "KNOTNR" integer,
                                 "TYPNR" integer,
-                                "XKOORD" float,
-                                "YKOORD" float
+                                "XKOORD" float NOT NULL,
+                                "YKOORD" float NOT NULL
                             )''')
 
         cursor.execute('''CREATE TABLE "KNOTEN"
                             (   "NR" integer,
-                                "XKOORD" float,
-                                "YKOORD" float
+                                "XKOORD" float NOT NULL,
+                                "YKOORD" float NOT NULL
                             )''')
 
         cursor.execute('''CREATE TABLE "LINIE"
@@ -204,8 +204,8 @@ class ivuToVisum(object):
                             (   "VONKNOTNR" integer,
                                 "NACHKNOTNR" integer,
                                 "INDEX" integer,
-                                "XKOORD" float,
-                                "YKOORD" float
+                                "XKOORD" float NOT NULL,
+                                "YKOORD" float NOT NULL
                             )''')
 
         cursor.execute('''CREATE TABLE "VERSION"
@@ -283,10 +283,13 @@ class ivuToVisum(object):
         haltestellen = self._session.query(Haltestelle).all()
 
         for h in haltestellen:
-            if h.x_koordinate and h.y_koordinate:
+
+                x_koordinate = h.x_koordinate if h.x_koordinate else 0
+                y_koordinate = h.y_koordinate if h.y_koordinate else 0
+
                 vertices.append({   'id':h.id,
-                                    'xkoord':h.x_koordinate,
-                                    'ykoord':h.y_koordinate
+                                    'xkoord':x_koordinate,
+                                    'ykoord':y_koordinate
                                 })
 
 
@@ -329,12 +332,16 @@ class ivuToVisum(object):
         haltestellen = []
 
         for h in haltestellen_ivu:
+
+            x_koordinate = h.x_koordinate if h.x_koordinate else 0
+            y_koordinate = h.y_koordinate if h.y_koordinate else 0
+
             haltestellen.append({   'nr': h.id,
                                     'code': h.haltestellenkuerzel,
                                     'name': h.haltestellennummer,
                                     'typnr': 1,
-                                    'xkoord': h.x_koordinate,
-                                    'ykoord': h.y_koordinate
+                                    'xkoord': x_koordinate,
+                                    'ykoord': y_koordinate
                                 })
 
         conn = psycopg2.connect(self.db_connect_string)
@@ -360,14 +367,17 @@ class ivuToVisum(object):
 
             hstnr = h.referenzhaltestelle.id if h.referenzhaltestelle else h.id
 
+            x_koordinate = h.x_koordinate if h.x_koordinate else 0
+            y_koordinate = h.y_koordinate if h.y_koordinate else 0
+
             hatestellenbereiche.append({    'nr': h.id,
                                             'hstnr': hstnr,
                                             'code': h.haltestellenkuerzel,
                                             'name': h.haltestellenlangname,
                                             'knotnr': h.id,
                                             'typnr': 1,
-                                            'xkoord': h.x_koordinate,
-                                            'ykoord': h.y_koordinate
+                                            'xkoord': x_koordinate,
+                                            'ykoord': y_koordinate
                                         })
 
         conn = psycopg2.connect(self.db_connect_string)
