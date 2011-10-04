@@ -4,10 +4,13 @@ import psycopg2
 import sys
 
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import scoped_session
 
 from graphserver_tools.ext.ivu.models import *
 from graphserver_tools.ext.ivu.read_ivu import read as readIvuToDb
 from graphserver_tools.utils import utils
+
+
 
 
 
@@ -27,15 +30,8 @@ class ivuToVisum(object):
     def setIvuData(self, ivu_data):
         self._ivu_data = ivu_data
 
-        #engine = create_engine('sqlite:///:memory:', echo=False)
-        engine = create_engine('sqlite:///ivu.db', echo=False)
-
-        Base.metadata.create_all(engine) # Base has been imported from ivu.models
-
-        Session = sessionmaker(bind=engine)
-        self._session = Session()
-
-        readIvuToDb(ivu_data, self._session)
+        self._session = self._getNewSession()
+        readIvuToDb(ivu_data, self.db_connect_string)
 
 
     def getIvuData(self):
@@ -78,6 +74,21 @@ class ivuToVisum(object):
     #
     # private methods
     #
+    def _getNewSession(self):
+        # this is not nice but won't break any other code
+        user = self.db_connect_string.split()[1].split('=')[1]
+        pwd = self.db_connect_string.split()[2].split('=')[1]
+        host = self.db_connect_string.split()[3].split('=')[1]
+        dbname = self.db_connect_string.split()[0].split('=')[1]
+        port = self.db_connect_string.split()[4].split('=')[1]
+
+        engine = create_engine('postgresql://'+user+':'+pwd+'@'+host+':'+port+'/'+dbname, echo=False)
+
+        Session = scoped_session(sessionmaker(bind=engine))
+
+        return Session()
+
+
     def _createDbTables(self):
 
         connection = psycopg2.connect(self.db_connect_string)
@@ -285,12 +296,12 @@ class ivuToVisum(object):
         c.executemany('''INSERT INTO "KNOTEN" VALUES (%(id)s, %(xkoord)s, %(ykoord)s)''', vertices)
 
         vertices = []
-
+        '''
         zwischenpunkte = self._session.query(Zwischenpunkt).all()
 
         self.zwischenpunkt_id_mapper = { } # maps between a zwischenpunkt and its id/NR in the visum database
 
-        c.execute('''SELECT MAX("NR") FROM "KNOTEN"''')
+        c.execute('SELECT MAX("NR") FROM "KNOTEN"')
         visum_id = c.fetchone()[0]
 
         for z in zwischenpunkte:
@@ -303,8 +314,8 @@ class ivuToVisum(object):
             self.zwischenpunkt_id_mapper[z] = visum_id
 
 
-        c.executemany('''INSERT INTO "KNOTEN" VALUES (%(id)s, %(xkoord)s, %(ykoord)s)''', vertices)
-
+        c.executemany('INSERT INTO "KNOTEN" VALUES (%(id)s, %(xkoord)s, %(ykoord)s)', vertices)
+        '''
         c.close()
         conn.commit()
 

@@ -1,55 +1,45 @@
 import codecs
 import datetime
+import sys
 import time
-import thread
 import os
+
+from multiprocessing import Process
 
 from sqlalchemy import create_engine
 from sqlalchemy import and_
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import scoped_session
 
 from graphserver_tools.ext.ivu.models import *
+
+
+
+def getSession(db_connect_string, create_tables=False):
+
+    # this is not nice but won't break any other code
+    user = db_connect_string.split()[1].split('=')[1]
+    pwd = db_connect_string.split()[2].split('=')[1]
+    host = db_connect_string.split()[3].split('=')[1]
+    dbname = db_connect_string.split()[0].split('=')[1]
+    port = db_connect_string.split()[4].split('=')[1]
+
+    engine = create_engine('postgresql://'+user+':'+pwd+'@'+host+':'+port+'/'+dbname, echo=False)
+
+    if create_tables:
+        Base.metadata.create_all(engine) # Base has been imported from ivu.models
+
+    Session = scoped_session(sessionmaker(bind=engine))
+
+    return Session()
+
+
+
 
 
 '''
 TODO:   'umst4.asc' : read_umstieg4
 '''
-
-
-# bool values indicating the start of corresponding files
-reading_koorsys = False
-reading_lieferan = False
-reading_bitfeld = False
-reading_verkehrsm = False
-reading_halteste = False
-reading_betreiber = False
-reading_versione = False
-reading_fusswege = False
-reading_zwischenpunkte = False
-reading_linien = False
-reading_fahrten = False
-reading_umst1 = False
-reading_umst2 = False
-reading_umst3 = False
-reading_umst4 = False
-
-# bool values indicating the finish of reading of corresponding files
-finished_koorsys = False
-finished_lieferan = False
-finished_bitfeld = False
-finished_verkehrsm = False
-finished_halteste = False
-finished_betreiber = False
-finished_versione = False
-finished_fusswege = False
-finished_zwischenpunkte = False
-finished_linien = False
-finished_fahrten = False
-finished_umst1 = False
-finished_umst2 = False
-finished_umst3 = False
-finished_umst4 = False
-
-
 
 
 def fileToTuples(file):
@@ -82,7 +72,8 @@ def int_or_None(s):
         return int(s)
 
 
-def read_lieferanten(lieferanten_file, session):
+def read_lieferanten(lieferanten_file, db_connect_string):
+    session = getSession(db_connect_string)
 
     for ln, line in fileToTuples(lieferanten_file):
         lieferant = Lieferant(  lieferantenkuerzel=line[0],
@@ -91,9 +82,11 @@ def read_lieferanten(lieferanten_file, session):
         session.add(lieferant)
 
     session.commit()
+    print '		finished reading lieferanten'
 
 
-def read_verkehrsmittel(verkehrsmittel_file, session):
+def read_verkehrsmittel(verkehrsmittel_file, db_connect_string):
+    session = getSession(db_connect_string)
 
     for ln, line in fileToTuples(verkehrsmittel_file):
         v_mittel = Verkehrsmittel(  verkehrsmittelkuerzel=line[0],
@@ -103,9 +96,11 @@ def read_verkehrsmittel(verkehrsmittel_file, session):
         session.add(v_mittel)
 
     session.commit()
+    print '		finished reading verkehrsmittel'
 
 
-def read_betriebe(betriebe_file, session):
+def read_betriebe(betriebe_file, db_connect_string):
+    session = getSession(db_connect_string)
 
     for ln, line in fileToTuples(betriebe_file):
         betrieb = Betrieb(  betriebsnummer=int_or_None(line[0]),
@@ -124,9 +119,11 @@ def read_betriebe(betriebe_file, session):
         session.add(betrieb)
 
     session.commit()
+    print '		finished reading betriebe'
 
 
-def read_bitfeld(bitfeld_file, session):
+def read_bitfeld(bitfeld_file, db_connect_string):
+    session = getSession(db_connect_string)
 
     for ln, line in fileToTuples(bitfeld_file):
 
@@ -137,9 +134,11 @@ def read_bitfeld(bitfeld_file, session):
         session.add(bitfeld)
 
     session.commit()
+    print '		finished reading bitfelder'
 
 
-def read_haltestelle(haltestellen_file, session):
+def read_haltestelle(haltestellen_file, db_connect_string):
+    session = getSession(db_connect_string)
     haltestellen_failed = [] # contains haltestellen where referenzhaltestelle has not been added to session
 
     for ln, line in fileToTuples(haltestellen_file):
@@ -199,9 +198,11 @@ def read_haltestelle(haltestellen_file, session):
             pass
 
     session.commit()
+    print '		finished reading haltestellen'
 
 
-def read_koordinatensystem(koordinatensystem_file, session):
+def read_koordinatensystem(koordinatensystem_file, db_connect_string):
+    session = getSession(db_connect_string)
 
     ln, line = fileToTuples(koordinatensystem_file)[0]
 
@@ -211,9 +212,11 @@ def read_koordinatensystem(koordinatensystem_file, session):
 
     session.add(koord)
     session.commit()
+    print '		finished reading koordinatensystem'
 
 
-def read_versionen(versionen_file, session):
+def read_versionen(versionen_file, db_connect_string):
+    session = getSession(db_connect_string)
 
     def datetime_maker(s):
         return datetime.datetime(int_or_None(s[6:]), int_or_None(s[3:5]), int_or_None(s[:2]))
@@ -230,9 +233,11 @@ def read_versionen(versionen_file, session):
         session.add(version)
 
     session.commit()
+    print '		finished reading versionen'
 
 
-def read_fusswege(fusswege_file, session):
+def read_fusswege(fusswege_file, db_connect_string):
+    session = getSession(db_connect_string)
 
     def time_maker(s):
         return datetime.time(int_or_None(s[3:5]), int_or_None(s[:2]))
@@ -270,9 +275,11 @@ def read_fusswege(fusswege_file, session):
             raise
 
     session.commit()
+    print '		finished reading fusswege'
 
 
-def read_zwischenpunkte(zwischenpunkte_file, session):
+def read_zwischenpunkte(zwischenpunkte_file, db_connect_string):
+    session = getSession(db_connect_string)
     strecke = None
 
     for ln, line in fileToTuples(zwischenpunkte_file):
@@ -311,6 +318,7 @@ def read_zwischenpunkte(zwischenpunkte_file, session):
             raise
 
     session.commit()
+    print '		finished reading zwischenpunkte'
 
 
 def read_linien(linien_file, session):
@@ -395,7 +403,7 @@ def read_linien(linien_file, session):
         pass
 
     except Exception:
-        print 'error in lin %i' % ln
+        print 'linien - error in lin %i' % ln
         raise
 
     session.commit()
@@ -454,7 +462,8 @@ def read_fahrten(fahrten_file, session):
     session.commit()
 
 
-def read_umst1(umst1_file, session):
+def read_umst1(umst1_file, db_connect_string):
+    session = getSession(db_connect_string)
 
     def time_maker(s):
         return datetime.time(int_or_None(s[:2]), int_or_None(s[3:]))
@@ -472,9 +481,11 @@ def read_umst1(umst1_file, session):
         session.add(umst1)
 
     session.commit()
+    print '		finished reading umsteigezeiten1'
 
 
-def read_umst2(umst2_file, session):
+def read_umst2(umst2_file, db_connect_string):
+    session = getSession(db_connect_string)
 
     def time_maker(s):
         return datetime.time(int_or_None(s[:2]), int_or_None(s[3:]))
@@ -498,13 +509,15 @@ def read_umst2(umst2_file, session):
             session.add(umst2)
 
         except Exception:
-            print 'error in line %i - IGNORING' % (int(ln)+1)
+            print 'Umsteigezeiten2 - error in line %i - IGNORING' % (int(ln)+1)
 
 
     session.commit()
+    print '		finished reading umsteigezeiten2'
 
 
-def read_umst3(umst3_file, session):
+def read_umst3(umst3_file, db_connect_string):
+    session = getSession(db_connect_string)
 
     def time_maker(s):
         return datetime.time(int_or_None(s[:2]), int_or_None(s[3:]))
@@ -537,134 +550,204 @@ def read_umst3(umst3_file, session):
         session.add(umst3)
 
     session.commit()
+    print '		finished reading umsteigezeiten3'
 
 
-def read_umst4(umst4_file, session):
-    finished_umst4 = True
+def read_umst4(umst4_file, db_connect_string):
+    print '		finished reading umsteigezeiten4'
 
 
-def read(folder, session):
+def read(folder, db_connect_string):
 
-    def read_linien_wrapper(folder, session):
-        for f in os.listdir(folder):
-            if f[:2] == 'ld':
+    ''' Wrapper methods from multiprocessing '''
+
+    def bitfeldVersionaeWrapper(folder, db_connect_string):
+
+        read_bitfeld(codecs.open(folder+'/bitfeld.asc', encoding='latin-1'), db_connect_string)
+        read_versionen(codecs.open(folder+'/versione.asc', encoding='latin-1'), db_connect_string)
+
+
+    def lieferanHaltesteBetriebeWrapper(folder, db_connect_string):
+
+        read_lieferanten(codecs.open(folder+'/lieferan.asc', encoding='latin-1'), db_connect_string)
+
+        halteste_process = Process(target=read_haltestelle, args=(codecs.open(folder+'/halteste.asc', encoding='latin-1'), db_connect_string))
+        halteste_process.start()
+
+        betriebe_process = Process(target=read_betriebe, args=(codecs.open(folder+'/betriebe.asc', encoding='latin-1'), db_connect_string))
+        betriebe_process.start()
+
+        halteste_process.join()
+        betriebe_process.join()
+
+
+    def linienWrapper(folder, db_connect_string):
+
+        def readManyLinien(linien, db_connect_string):
+            session = getSession(db_connect_string)
+
+            for f in linien:
                 read_linien(codecs.open(folder+'/'+f, encoding='latin-1'), session)
 
-    def read_fahrten_wrapper(folder, session):
+        linien_files = []
+
         for f in os.listdir(folder):
-            if f[:2] == 'fd':
+            if f[:2] == 'ld':
+                linien_files.append(f)
+
+        num_processes = 8
+        num_files_per_process = len(linien_files) / num_processes
+
+        processes = []
+
+        for i in range(num_processes):
+            p = Process(target=readManyLinien, args=(linien_files[i*num_files_per_process:(i+1)*num_files_per_process], db_connect_string))
+            processes.append(p)
+
+        p = Process(target=readManyLinien, args=(linien_files[(i+1)*num_files_per_process:], db_connect_string))
+        processes.append(p)
+
+        for p in processes:
+            p.start()
+
+        for p in processes:
+            p.join()
+
+        print '		finished reading linien'
+
+
+    def fahrtenWrapper(folder, db_connect_string):
+
+        def readManyFahrten(fahrten, db_connect_string):
+            session = getSession(db_connect_string)
+
+            for f in fahrten:
                 read_fahrten(codecs.open(folder+'/'+f, encoding='latin-1'), session)
 
-    reading = ( reading_koorsys, reading_lieferan, reading_bitfeld, reading_verkehrsm,
-                reading_halteste, reading_betreiber, reading_versione, reading_fusswege,
-                reading_zwischenpunkte, reading_linien, reading_fahrten, reading_umst1,
-                reading_umst2, reading_umst3, reading_umst4 )
 
-    finished = ( finished_koorsys, finished_lieferan, finished_bitfeld, finished_verkehrsm,
-                 finished_halteste, finished_betreiber, finished_versione, finished_fusswege,
-                 finished_zwischenpunkte, finished_linien, finished_fahrten, finished_umst1,
-                 finished_umst2, finished_umst3, finished_umst4 )
+        fahrten_files = []
+
+        for f in os.listdir(folder):
+            if f[:2] == 'fd':
+                fahrten_files.append(f)
+
+        num_processes = 8
+        num_files_per_process = len(fahrten_files) / num_processes
+
+        processes = []
+
+        for i in range(num_processes):
+            p = Process(target=readManyFahrten, args=(fahrten_files[i*num_files_per_process:(i+1)*num_files_per_process], db_connect_string))
+            processes.append(p)
+
+        p = Process(target=readManyFahrten, args=(fahrten_files[(i+1)*num_files_per_process:], db_connect_string))
+        processes.append(p)
+
+        for p in processes:
+            p.start()
+
+        for p in processes:
+            p.join()
+
+        print '		finished reading fahrten'
 
 
-    while False in reading:
+    # setup
+    zwischenpunkte_process = None
+    fusswege_process = None
+    umst1_process = None
+    umst2_process = None
+    umst3_process = None
+    umst4_process = None
 
-        if not reading_bitfeld:
-            print 'reading bitfelder'
-            reading_bitfeld = True
-            thread.start_new_thread(read_bitfeld, (codecs.open(folder+'/bitfeld.asc', encoding='latin-1'), session))
+    # create tables
+    session = getSession(db_connect_string, create_tables=True)
+    session.commit()
 
-        if not reading_lieferan:
-            print 'reading lieferanten'
-            reading_lieferan = True
-            thread.start_new_thread(read_lieferanten, (codecs.open(folder+'/lieferan.asc', encoding='latin-1'), session))
 
-        if not reading_koorsys:
-            print 'reading koordinatensystem'
-            reading_koorsys = True
-            thread.start_new_thread(read_koordinatensystem, (codecs.open(folder+'/koordsys.asc', encoding='latin-1'), session))
+    print 'started reading: Bitfelder, Verionen, Koordinatensystem, Lieferanten, Haltestellen, Betriebe, Verkehrsmittel'
 
-        if not reading_verkehrsm:
-            print 'reading verkehrsmittel'
-            reading_verkehrsm = True
-            thread.start_new_thread(read_verkehrsmittel, (codecs.open(folder+'/verkehrm.asc', encoding='latin-1'), session))
+    bitfeld_versionae_process = Process(target=bitfeldVersionaeWrapper, args=(folder, db_connect_string))
+    bitfeld_versionae_process.start()
 
-        if (not reading_versione) and finished_bitfeld:
-            print 'reading versionen'
-            reading_versione = True
-            thread.start_new_thread(read_versionen, (codecs.open(folder+'/versione.asc', encoding='latin-1'), session))
+    koordsys_process = Process(target=read_koordinatensystem, args=(codecs.open(folder+'/koordsys.asc', encoding='latin-1'), db_connect_string))
+    koordsys_process.start()
 
-        if (not reading_halteste) and finished_lieferan:
-            print 'reading haltestellen'
-            reading_halteste = True
-            thread.start_new_thread(read_haltestelle, (codecs.open(folder+'/halteste.asc', encoding='latin-1'), session))
+    lieferan_halteste_betriebe_process = Process(target=lieferanHaltesteBetriebeWrapper, args=(folder, db_connect_string))
+    lieferan_halteste_betriebe_process.start()
 
-        if (not reading_betreiber) and finished_lieferan:
-            print 'reading betreiber'
-            reading_betreiber = True
-            thread.start_new_thread(read_betriebe, (codecs.open(folder+'/betriebe.asc', encoding='latin-1'), session))
+    verkehrsm_process = Process(target=read_verkehrsmittel, args=(codecs.open(folder+'/verkehrm.asc', encoding='latin-1'), db_connect_string))
+    verkehrsm_process.start()
 
-        if (not reading_fusswege) and finished_halteste:
-            reading_fusswege = True
 
-            if os.path.exists(folder+'/fussweg.asc'):
-                print 'reading fusswege'
-                thread.start_new_thread(read_fusswege, (codecs.open(folder+'/fussweg.asc', encoding='latin-1'), session))
-            else:
-                finished_fusswege = True
+    bitfeld_versionae_process.join()
+    lieferan_halteste_betriebe_process.join()
+    verkehrsm_process.join()
 
-        if (not reading_zwischenpunkte) and finished_halteste and finished_versione:
-            reading_zwischenpunkte = True
 
-            if os.path.exists(folder+'/strecken.asc'):
-                print 'reading zwischenpunkte'
-                thread.start_new_thread(read_zwischenpunkte, (codecs.open(folder+'/strecken.asc', encoding='latin-1'), session))
-            else:
-                finished_zwischenpunkte = True
+    print 'started reading: Linien, Strecken, Fusswege, Umsteigezeiten1, Umsteigezeiten2'
 
-        if (not reading_linien) and finished_betreiber and finished_halteste and finished_versione and finished_verkehrsm:
-            reading_linien = True
-            print 'reading linien'
-            thread.start_new_thread(read_linien_wrapper, (folder, session))
+    linien_process = Process(target=linienWrapper, args=(folder, db_connect_string))
+    linien_process.start()
 
-        if (not reading_fahrten) and finished_linien:
-            reading_fahrten = True
-            print 'reading fahrten'
-            thread.start_new_thread(read_fahrten_wrapper, (folder, session))
+    if os.path.exists(folder+'/strecken.asc'):
+        zwischenpunkte_process = Process(target=read_zwischenpunkte, args=(codecs.open(folder+'/strecken.asc', encoding='latin-1'), db_connect_string))
+        zwischenpunkte_process.start()
 
-        if (not reading_umst1) and finished_betreiber:
-            reading_umst1 = True
-            if os.path.exists(folder+'/umst1.asc'):
-                print 'reading umsteigezeiten1'
-                thread.start_new_thread(read_umst1, (codecs.open(folder+'/umst1.asc', encoding='latin-1'), session))
-            else:
-                finished_umst1 = True
+    if os.path.exists(folder+'/fussweg.asc'):
+        fusswege_process = Process(target=read_fusswege, args=(codecs.open(folder+'/fussweg.asc', encoding='latin-1'), db_connect_string))
+        fusswege_process.start()
 
-        if (not reading_umst2) and finished_betreiber and finished_halteste:
-            reading_umst2 = True
-            if os.path.exists(folder+'/umst2.asc'):
-                print 'reading umsteigezeiten2'
-                thread.start_new_thread(read_umst2, (codecs.open(folder+'/umst2.asc', encoding='latin-1'), session))
-            else:
-                finished_umst2 = True
+    if os.path.exists(folder+'/umst1.asc'):
+        umst1_process = Process(target=read_umst1, args=(codecs.open(folder+'/umst1.asc', encoding='latin-1'), db_connect_string))
+        umst1_process.start()
 
-        if (not reading_umst3) and finished_linien:
-            reading_umst3 = True
-            if os.path.exists(folder+'/umst3.asc'):
-                print 'reading umsteigezeiten2'
-                thread.start_new_thread(read_umst3, (codecs.open(folder+'/umst3.asc', encoding='latin-1'), session))
-            else:
-                finished_umst3 = True
+    if os.path.exists(folder+'/umst2.asc'):
+        umst2_process = Process(target=read_umst2, args=(codecs.open(folder+'/umst2.asc', encoding='latin-1'), db_connect_string))
+        umst2_process.start()
 
-        if (not reading_umst4) and finished_fahrten:
-            reading_umst4 = True
-            if os.path.exists(folder+'/umst4.asc'):
-                thread.start_new_thread(read_umst4, (codecs.open(folder+'/umst4.asc', encoding='latin-1'), session))
-            else:
-                finished_umst4 = True
 
-        time.sleep(1)
+    linien_process.join()
 
-    while False in finished:
-        time.sleep(1)
+    print 'started reading: Fahrten, Umsteigezeiten3'
 
-    print 'finished importing'
+    fahrten_process = Process(target=fahrtenWrapper, args=(folder, db_connect_string))
+    fahrten_process.start()
+
+    if os.path.exists(folder+'/umst3.asc'):
+        umst3_process = Process(target=read_umst3, args=(codecs.open(folder+'/umst3.asc', encoding='latin-1'), db_connect_string))
+        umst3_process.start()
+
+
+    fahrten_process.join()
+
+
+    print 'started reading: Umsteigezeiten4'
+
+    if os.path.exists(folder+'/umst4.asc'):
+        umst4_process = Process(target=read_umst4, args=(codecs.open(folder+'/umst4.asc', encoding='latin-1'), db_connect_string))
+        umst4_process.start()
+
+
+    if zwischenpunkte_process:
+        zwischenpunkte_process.join()
+
+    koordsys_process.join()
+
+    if fusswege_process:
+        fusswege_process.join()
+
+    if umst1_process:
+        umst1_process.join()
+
+    if umst2_process:
+        umst2_process.join()
+
+    if umst3_process:
+        umst3_process.join()
+
+    if umst4_process:
+        umst4_process.join()
+
+
+    print '\nfinished reading IVU data'
