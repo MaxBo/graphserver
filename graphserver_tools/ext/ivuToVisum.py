@@ -685,7 +685,7 @@ class ivuToVisum(object):
         conn.commit()
 
 
-    def _processVsysset(self)
+    def _processVsysset(self):
 
         vsyssets_list = []
 
@@ -700,7 +700,7 @@ class ivuToVisum(object):
         c = conn.cursor()
 
         c.executemany('''INSERT INTO "VSYS" VALUES
-                            (%(code)s, %(name)s, %(type)s, %(pkwe)s)''', fahrten)
+                            (%(code)s, %(name)s, %(type)s, %(pkwe)s)''', vsyssets_list)
 
         c.close()
         conn.commit()
