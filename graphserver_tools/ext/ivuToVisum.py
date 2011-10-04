@@ -61,6 +61,7 @@ class ivuToVisum(object):
         self._processHaltepunkt()
 
         print 'converting routes'
+        self._processVsysset()
         self._processLinie()
         self._processLinienroute()
         self._processLinienroutenelement()
@@ -214,6 +215,13 @@ class ivuToVisum(object):
                                 "LANGUAGE" varchar(255)
                             )''')
 
+        cursor.execute('''CREATE TABLE "VSYS"
+                            (   "CODE" varchar(255),
+                                "NAME" varchar(255),
+                                "TYP" varchar(255),
+                                "PKWE" integer
+                            )''')
+
         cursor.execute('INSERT INTO "VERSION" VALUES (%s, %s, %s)', ( 8.1, 'Net', 'DEU' ))
 
         cursor.close()
@@ -259,8 +267,11 @@ class ivuToVisum(object):
 
 
     def _createHaltestellenVsyssetMapper(self):
+        ''' also creates a set containing all availible vsyssets '''
 
         self.haltestellen_vsysset_mapper = { }
+        self.vsyssets = set()
+
         ivu_haltestellen = self._session.query(Haltestelle).all()
 
         num_haltestellen = len(ivu_haltestellen)
@@ -269,7 +280,11 @@ class ivuToVisum(object):
             sys.stdout.write("\r\t%i of %i stops mapped" % ( i, num_haltestellen ))
             sys.stdout.flush()
 
-            self.haltestellen_vsysset_mapper[h] = set([ l.linie.verkehrsmittel for l in h.linienprofile ])
+            vsys = set([ l.linie.verkehrsmittel for l in h.linienprofile ])
+
+            self.haltestellen_vsysset_mapper[h] = vsys
+
+            self.vsyssets.update(vsys)
 
         print ''
 
@@ -669,6 +684,26 @@ class ivuToVisum(object):
         c.close()
         conn.commit()
 
+
+    def _processVsysset(self)
+
+        vsyssets_list = []
+
+        for v in self.vsyssets:
+            vsyssets_list.append({  'code':v,
+                                    'name':v,
+                                    'type':'OV',
+                                    'pkwe':1
+                                })
+
+        conn = psycopg2.connect(self.db_connect_string)
+        c = conn.cursor()
+
+        c.executemany('''INSERT INTO "VSYS" VALUES
+                            (%(code)s, %(name)s, %(type)s, %(pkwe)s)''', fahrten)
+
+        c.close()
+        conn.commit()
 
 
 def main():
