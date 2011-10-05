@@ -8,7 +8,7 @@ from haltestellen import Haltestelle
 from kalender import Version
 
 class Strecke(Base):
-    __tablename__ = 'strecken'
+    __tablename__ = 'ivu_strecken'
 
     id = Column(Integer, primary_key=True)
 
@@ -25,7 +25,7 @@ class Strecke(Base):
 
 
 class Zwischenpunkt(Base):
-    __tablename__ = 'zwischenpunkte'
+    __tablename__ = 'ivu_zwischenpunkte'
     __table_args__ = (  UniqueConstraint('laufende_nummer', 'strecke_id'), )
 
     id = Column(Integer, primary_key=True)

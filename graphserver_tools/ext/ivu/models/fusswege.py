@@ -6,7 +6,7 @@ from __init__ import Base
 from haltestellen import Haltestelle
 
 class Fussweg(Base):
-    __tablename__ = 'fusswege'
+    __tablename__ = 'ivu_fusswege'
     __table_args__ = (  UniqueConstraint('von_haltestelle_id', 'nach_haltestelle_id'), )
 
     id = Column(Integer, primary_key=True)

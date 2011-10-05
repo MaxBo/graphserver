@@ -6,7 +6,7 @@ from __init__ import Base
 
 
 class Verkehrsmittel(Base):
-    __tablename__ = 'verkehrsm'
+    __tablename__ = 'ivu_verkehrsm'
 
     id = Column(Integer, primary_key=True)
 
@@ -16,7 +16,7 @@ class Verkehrsmittel(Base):
 
 
 class Linie(Base):
-    __tablename__ = 'linien'
+    __tablename__ = 'ivu_linien'
     __table_args__ = (
         UniqueConstraint('liniennummer', 'version_id', 'betrieb_id', 'unterliniennummer',
                             'richtungskuerzel' ), )
@@ -56,7 +56,7 @@ class Linie(Base):
 
 
 class Linienprofil(Base):
-    __tablename__ = 'linienprofile'
+    __tablename__ = 'ivu_linienprofile'
     __table_args__ = (  UniqueConstraint('laufende_nummer', 'linie_id'), )
 
     id = Column(Integer, primary_key=True)
@@ -79,7 +79,7 @@ class Linienprofil(Base):
 
 
 class Fahrt(Base):
-    __tablename__ = 'fahrten'
+    __tablename__ = 'ivu_fahrten'
 
     id = Column(Integer, primary_key=True)
 

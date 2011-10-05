@@ -6,7 +6,7 @@ from __init__ import Base
 
 
 class Haltestelle(Base):
-    __tablename__ = 'halteste'
+    __tablename__ = 'ivu_halteste'
     __table_args__ = (  UniqueConstraint('haltestellennummer', 'lieferant_id'), )
 
     id = Column(Integer, primary_key=True)

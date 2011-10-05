@@ -9,7 +9,7 @@ from betriebe import *
 
 
 class BetriebsUmstieg(Base):
-    __tablename__ = 'umst1'
+    __tablename__ = 'ivu_umst1'
     __table_args__ = (  UniqueConstraint('von_betrieb_id', 'nach_betrieb_id'), )
 
     id = Column(Integer, primary_key=True)
@@ -24,7 +24,7 @@ class BetriebsUmstieg(Base):
 
 
 class HaltestelleBetriebUmstieg(Base):
-    __tablename__ = 'umst2'
+    __tablename__ = 'ivu_umst2'
     __table_args__ = (
                 UniqueConstraint('von_betrieb_id', 'nach_betrieb_id', 'haltestelle_id'), )
 
@@ -55,7 +55,7 @@ umst3_nach_association_table = Table('umst3_nach', Base.metadata,
 
 
 class HaltestelleLinieUmstieg(Base):
-    __tablename__ = 'umst3'
+    __tablename__ = 'ivu_umst3'
     #__table_args__ = ( UniqueConstraint('von_linie_id', 'nach_linie_id', 'haltestelle_id'), )
 
     id = Column(Integer, primary_key=True)
@@ -72,7 +72,7 @@ class HaltestelleLinieUmstieg(Base):
 
 
 class FahrtUmstieg(Base):
-    __tablename__ = 'umst4'
+    __tablename__ = 'ivu_umst4'
     __table_args__ = (
                 UniqueConstraint('haltestelle_id', 'von_fahrt_id', 'nach_fahrt_id'), )
 

@@ -6,7 +6,7 @@ from __init__ import Base
 
 
 class Koordinatensystem(Base):
-    __tablename__ = 'koordsys'
+    __tablename__ = 'ivu_koordsys'
 
     id = Column(Integer, primary_key=True)
 

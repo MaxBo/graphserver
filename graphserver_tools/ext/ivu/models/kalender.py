@@ -35,7 +35,7 @@ def hex_to_bool_list(hex_string, verbose=True):
 
 
 class Bitfeld(Base):
-    __tablename__ = 'bitfeld'
+    __tablename__ = 'ivu_bitfeld'
 
     id = Column(Integer, primary_key=True)
 
@@ -59,7 +59,7 @@ class Bitfeld(Base):
 
 
 class Version(Base):
-    __tablename__ = 'versione'
+    __tablename__ = 'ivu_versione'
 
     id = Column(Integer, primary_key=True)
 

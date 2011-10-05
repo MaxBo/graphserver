@@ -6,7 +6,7 @@ from __init__ import Base
 
 
 class Lieferant(Base):
-    __tablename__ = 'liferan'
+    __tablename__ = 'ivu_liferan'
 
     id = Column(Integer, primary_key=True, nullable=False)
 
@@ -15,7 +15,7 @@ class Lieferant(Base):
 
 
 class Betrieb(Base):
-    __tablename__ = 'betriebe'
+    __tablename__ = 'ivu_betriebe'
 
     id = Column(Integer, primary_key=True)
 
