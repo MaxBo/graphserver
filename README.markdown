@@ -1,11 +1,11 @@
 # GRAPHSERVER
 
-## OVERVIEW 
+## OVERVIEW
 
 Graphserver is a multi-modal trip planner. Graphserver supports transit modes
 through GTFS, and street-based modes through OSM.
 
-The core graphserver library has Python bindings which provide easy construction, 
+The core graphserver library has Python bindings which provide easy construction,
 storage, and analysis of graph objects.
 
 Learn more about Graphserver at [http://graphserver.github.com/graphserver/](http://graphserver.github.com/graphserver/)
@@ -21,6 +21,7 @@ Python 2.6+ (or 2.5+ for only graphserver.core)
     $ sudo python2.6 setup.py install
 
 setup.py installs several executables.  On debian these go into /usr/local/bin/*.
+
 On Mac OS X, these go into
 /Library/Frameworks/Python.framework/Versions/2.6/bin/*
 
@@ -58,7 +59,7 @@ Link OSM vertices to GTFS vertices to enable multimodal trip planning
 
 #### gs_osmfilter: run one of the filter classes from graphserver.ext.osm.osmfilters on an OSMDB instance
     $ gs_osmfilter <Filter Name> <run|rerun|visualize> <osmdb_file> [<filter args> ...]
-   
+
 ## Building just the C .dll/.so
 
 Provides the core DLL for routing. It is not necessary to manually build this if
