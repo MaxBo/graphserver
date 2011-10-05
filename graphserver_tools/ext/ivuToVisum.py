@@ -1,6 +1,7 @@
 import datetime
 import os
 import psycopg2
+import threading
 import sys
 
 from sqlalchemy.orm import sessionmaker
@@ -48,28 +49,33 @@ class ivuToVisum(object):
         '''
 
         print 'creating internal data structures'
-        self._createHaltestellenVsyssetMapper()
         self._getValidUnterlinien()
 
 
-        print 'converting vertices'
-        self._processKnoten()
+        print 'converting'
+        threads = []
 
-        print 'converting stops'
-        self._processHaltestelle()
-        self._processHaltestellenbereich()
-        self._processHaltepunkt()
+        for m in (  self._processKnoten,
+                    self._processHaltestelle,
+                    self._processHaltestellenbereich,
+                    self._processHaltepunkt,
+                    self._processVsysset,
+                    self._processLinie,
+                    self._processLinienroute,
+                    self._processLinienroutenelement,
+                    self._processFahrzeitprofil,
+                    self._processFahrzeitprofilelement,
+                    self._processFahrzeugfahrt
+                 ):
 
-        print 'converting routes'
-        self._processVsysset()
-        self._processLinie()
-        self._processLinienroute()
-        self._processLinienroutenelement()
+            t = threading.Thread(target=m)
+            t.start()
 
-        print 'converting trips'
-        self._processFahrzeitprofil()
-        self._processFahrzeitprofilelement()
-        self._processFahrzeugfahrt()
+            threads.append(t)
+
+
+        for t in threads:
+            t.join()
 
 
     #
@@ -95,6 +101,7 @@ class ivuToVisum(object):
         connection = psycopg2.connect(self.db_connect_string)
         cursor = connection.cursor()
 
+        cursor.execute('DROP TABLE IF EXISTS "FAHRZEITPROFIL"')
         cursor.execute('''CREATE TABLE "FAHRZEITPROFIL"
                                 (   "LINNAME" varchar(255),
                                     "LINROUTENAME" varchar(255),
@@ -102,6 +109,7 @@ class ivuToVisum(object):
                                     "NAME" varchar(255)
                                 )''')
 
+        cursor.execute('DROP TABLE IF EXISTS "FAHRZEITPROFILELEMENT"')
         cursor.execute('''CREATE TABLE "FAHRZEITPROFILELEMENT"
                                 (   "LINNAME" varchar(255),
                                     "LINROUTENAME" varchar(255),
@@ -115,6 +123,7 @@ class ivuToVisum(object):
                                     "ABFAHRT" timestamp
                                 )''')
 
+        cursor.execute('DROP TABLE IF EXISTS "FZGFAHRT"')
         cursor.execute('''CREATE TABLE "FZGFAHRT"
                             (   "NR" integer,
                                 "NAME" varchar(255),
@@ -127,6 +136,7 @@ class ivuToVisum(object):
                                 "NACHFZPELEMINDEX" integer
                             )''')
 
+        cursor.execute('DROP TABLE IF EXISTS "HALTEPUNKT"')
         cursor.execute('''CREATE TABLE "HALTEPUNKT"
                             (   "NR" integer,
                                 "HSTBERNR" integer,
@@ -139,18 +149,22 @@ class ivuToVisum(object):
                                 "KNOTNR" integer,
                                 "VONKNOTNR" integer,
                                 "STRNR" integer,
-                                "RELPOS" float
+                                "RELPOS" float,
+                                PRIMARY KEY ("NR")
                             )''')
 
+        cursor.execute('DROP TABLE IF EXISTS "HALTESTELLE"')
         cursor.execute('''CREATE TABLE "HALTESTELLE"
                             (   "NR" integer,
                                 "CODE" varchar(255),
                                 "NAME" varchar(255),
                                 "TYPNR" integer,
                                 "XKOORD" float NOT NULL,
-                                "YKOORD" float NOT NULL
+                                "YKOORD" float NOT NULL,
+                                PRIMARY KEY ("NR")
                             )''')
 
+        cursor.execute('DROP TABLE IF EXISTS "HALTESTELLENBEREICH"')
         cursor.execute('''CREATE TABLE "HALTESTELLENBEREICH"
                             (   "NR" integer,
                                 "HSTNR" integer,
@@ -159,15 +173,19 @@ class ivuToVisum(object):
                                 "KNOTNR" integer,
                                 "TYPNR" integer,
                                 "XKOORD" float NOT NULL,
-                                "YKOORD" float NOT NULL
+                                "YKOORD" float NOT NULL,
+                                PRIMARY KEY ("NR")
                             )''')
 
+        cursor.execute('DROP TABLE IF EXISTS "KNOTEN"')
         cursor.execute('''CREATE TABLE "KNOTEN"
                             (   "NR" integer,
                                 "XKOORD" float NOT NULL,
-                                "YKOORD" float NOT NULL
+                                "YKOORD" float NOT NULL,
+                                PRIMARY KEY ("NR")
                             )''')
 
+        cursor.execute('DROP TABLE IF EXISTS "LINIE"')
         cursor.execute('''CREATE TABLE "LINIE"
                             (   "NAME" varchar(255),
                                 "VSYSCODE" varchar(255),
@@ -175,6 +193,7 @@ class ivuToVisum(object):
                                 "BETREIBERNR" integer
                             )''')
 
+        cursor.execute('DROP TABLE IF EXISTS "LINIENROUTE"')
         cursor.execute('''CREATE TABLE "LINIENROUTE"
                             (   "LINNAME" varchar(255),
                                 "NAME" varchar(255),
@@ -182,6 +201,7 @@ class ivuToVisum(object):
                                 "ISTRINGLINIE" integer
                             )''')
 
+        cursor.execute('DROP TABLE IF EXISTS "LINIENROUTENELEMENT"')
         cursor.execute('''CREATE TABLE "LINIENROUTENELEMENT"
                             (   "LINNAME" varchar(255),
                                 "LINROUTENAME" varchar(255),
@@ -192,6 +212,7 @@ class ivuToVisum(object):
                                 "HPUNKTNR" integer
                             )''')
 
+        cursor.execute('DROP TABLE IF EXISTS "STRECKE"')
         cursor.execute('''CREATE TABLE "STRECKE"
                             (   "NR" integer,
                                 "VONKNOTNR" integer,
@@ -201,6 +222,7 @@ class ivuToVisum(object):
                                 "VSYSSET" varchar(255)
                             )''')
 
+        cursor.execute('DROP TABLE IF EXISTS "STRECKENPOLY"')
         cursor.execute('''CREATE TABLE "STRECKENPOLY"
                             (   "VONKNOTNR" integer,
                                 "NACHKNOTNR" integer,
@@ -209,17 +231,20 @@ class ivuToVisum(object):
                                 "YKOORD" float NOT NULL
                             )''')
 
+        cursor.execute('DROP TABLE IF EXISTS "VERSION"')
         cursor.execute('''CREATE TABLE "VERSION"
                             (   "VERSNR" float,
                                 "FILETYPE" varchar(255),
                                 "LANGUAGE" varchar(255)
                             )''')
 
+        cursor.execute('DROP TABLE IF EXISTS "VSYS"')
         cursor.execute('''CREATE TABLE "VSYS"
                             (   "CODE" varchar(255),
                                 "NAME" varchar(255),
                                 "TYP" varchar(255),
-                                "PKWE" integer
+                                "PKWE" integer,
+                                PRIMARY KEY ("CODE")
                             )''')
 
         cursor.execute('INSERT INTO "VERSION" VALUES (%s, %s, %s)', ( 8.1, 'Net', 'DEU' ))
@@ -266,27 +291,33 @@ class ivuToVisum(object):
         self.unterlinien =  [ ul for ul in unterlinien if ul.version == linien_version_mapper[( ul.liniennummer, ul.betrieb )] ]
 
 
-    def _createHaltestellenVsyssetMapper(self):
-        ''' also creates a set containing all availible vsyssets '''
+    '''def _createHaltestellenVsyssetMapper(self):
+
+        def wrapper(ivu_haltestellen, haltestellen_vsysset_mapper):
+            for h in ivu_haltestellen:
+                haltestellen_vsysset_mapper[h] = set([ l.linie.verkehrsmittel for l in h.linienprofile ])
+
 
         self.haltestellen_vsysset_mapper = { }
-        self.vsyssets = set()
-
         ivu_haltestellen = self._session.query(Haltestelle).all()
 
-        num_haltestellen = len(ivu_haltestellen)
+        num_threads = 32
+        num_haltestellen_per_thread = len(ivu_haltestellen) / num_threads
+        threads = []
 
-        for i, h in enumerate(ivu_haltestellen):
-            sys.stdout.write("\r\t%i of %i stops mapped" % ( i, num_haltestellen ))
-            sys.stdout.flush()
 
-            vsys = set([ l.linie.verkehrsmittel for l in h.linienprofile ])
+        for i in range(num_threads):
+            t = threading.Thread(target=wrapper, args=(ivu_haltestellen[i*num_haltestellen_per_thread:(i+1)*num_haltestellen_per_thread], self.haltestellen_vsysset_mapper))
+            threads.append(t)
 
-            self.haltestellen_vsysset_mapper[h] = vsys
+        t = threading.Thread(target=wrapper, args=(ivu_haltestellen[(i+1)*num_haltestellen_per_thread:], self.haltestellen_vsysset_mapper))
+        threads.append(t)
 
-            self.vsyssets.update(vsys)
+        for t in threads:
+            t.start()
 
-        print ''
+        for t in threads:
+            t.join()'''
 
 
     def _processKnoten(self):
@@ -294,8 +325,9 @@ class ivuToVisum(object):
             in the feed into the visum database.
         '''
         vertices = []
+        session = self._getNewSession()
 
-        haltestellen = self._session.query(Haltestelle).all()
+        haltestellen = session.query(Haltestelle).all()
 
         for h in haltestellen:
 
@@ -337,13 +369,17 @@ class ivuToVisum(object):
         c.close()
         conn.commit()
 
+        print '\tfinished converting Knoten'
+
 
     def _processHaltestelle(self):
         ''' Method will write a Haltestelle for each IVU-Haltestelle with no
             referenzhaltestelle into the visum database.
         '''
+        session = self._getNewSession()
 
-        haltestellen_ivu = self._session.query(Haltestelle).filter(Haltestelle.referenzhaltestelle == None).all()
+
+        haltestellen_ivu = session.query(Haltestelle).filter(Haltestelle.referenzhaltestelle == None).all()
         haltestellen = []
 
         for h in haltestellen_ivu:
@@ -369,13 +405,16 @@ class ivuToVisum(object):
         c.close()
         conn.commit()
 
+        print '\tfinished converting Haltestellen'
+
 
     def _processHaltestellenbereich(self):
         ''' Method will write a Haltestellenbereich for each IVU-Haltestelle with
             unterhaltestellen or no referenzhaltestelle.
         '''
+        session = self._getNewSession()
 
-        haltestellen_ivu = self._session.query(Haltestelle).filter(or_(Haltestelle.referenzhaltestelle == None, Haltestelle.unterhaltestellen != None)).all()
+        haltestellen_ivu = session.query(Haltestelle).filter(or_(Haltestelle.referenzhaltestelle == None, Haltestelle.unterhaltestellen != None)).all()
         hatestellenbereiche = []
 
         for h in haltestellen_ivu:
@@ -405,19 +444,21 @@ class ivuToVisum(object):
         c.close()
         conn.commit()
 
+        print '\tfinished converting Haltestellenbereiche'
+
 
     def _processHaltepunkt(self):
         ''' Method will add a Haltepunkt to the visum database for each IVU-Haltestelle.
         '''
+        session = self._getNewSession()
 
-        haltestellen_ivu = self._session.query(Haltestelle).all()
+        haltestellen_ivu = session.query(Haltestelle).all()
         haltepunkte = []
 
         for h in haltestellen_ivu:
 
             hstbernr = h.referenzhaltestelle.id if h.referenzhaltestelle else h.id
-
-            vsysset = ','.join([ v.verkehrsmittelname for v in self.haltestellen_vsysset_mapper[h] ])
+            vsysset = ','.join(set([ l.linie.verkehrsmittel.verkehrsmittelkuerzel for l in h.linienprofile]))
 
             haltepunkte.append({    'nr' : h.id,
                                     'hstbernr' : hstbernr,
@@ -444,6 +485,8 @@ class ivuToVisum(object):
         c.close()
         conn.commit()
 
+        print '\tfinished converting Haltepunkte'
+
 
     def _processLinie(self):
         ''' Writes a Linie for each IVU-Linie (not Unterlinie) in the feed into the
@@ -455,7 +498,7 @@ class ivuToVisum(object):
         for linie, unterlinien in self.linien_unterlinien_mapper.items():
 
             linien.append({ 'name' : '-'.join(( linie[1].betriebsteilschluessel, linie[0] )),
-                            'vsyscode' : unterlinien[0].verkehrsmittel.verkehrsmittelname,
+                            'vsyscode' : unterlinien[0].verkehrsmittel.verkehrsmittelkuerzel,
                             'tarifsystemmenge' : 1,
                             'betreibernr' : linie[1].id
                           })
@@ -469,6 +512,8 @@ class ivuToVisum(object):
 
         c.close()
         conn.commit()
+
+        print '\tfinished converting Linien'
 
 
     def _processLinienroute(self):
@@ -494,6 +539,8 @@ class ivuToVisum(object):
 
         c.close()
         conn.commit()
+
+        print '\tfinished converting Linienrouten'
 
 
     def _processLinienroutenelement(self):
@@ -526,6 +573,8 @@ class ivuToVisum(object):
         c.close()
         conn.commit()
 
+        print '\tfinished converting Linienroutenelemente'
+
 
     def _processFahrzeitprofil(self):
         ''' Writes a Fahrzeitprofil for each Unterlinie into the visum database.
@@ -552,11 +601,14 @@ class ivuToVisum(object):
         c.close()
         conn.commit()
 
+        print '\tfinished converting Fahrzeitprofile'
+
 
     def _processFahrzeitprofilelement(self):
         ''' Writes Fahrzeitprofilemente for Linienprofile of all valid Unterlinien into
             the visum database.
         '''
+        session = self._getNewSession()
         elements = []
 
         for ul in self.unterlinien:
@@ -564,7 +616,7 @@ class ivuToVisum(object):
             travel_time_min = 0
             travel_time_hours = 0
 
-            for lp in self._session.query(Linienprofil).filter(Linienprofil.linie == ul).all():
+            for lp in session.query(Linienprofil).filter(Linienprofil.linie == ul).all():
 
                 travel_time_hours += lp.fahrzeit.hour
                 travel_time_min += lp.fahrzeit.minute
@@ -621,15 +673,18 @@ class ivuToVisum(object):
         c.close()
         conn.commit()
 
+        print '\tfinished converting Fahrzeitprofilelemente'
+
     def _processFahrzeugfahrt(self):
         ''' Writes a Fahrzeugfahrt for each trip inside the feed into the visum database.
             Uses the pre-defined Fahrzeitprofile (fahrzeitprofil_mapper).
         '''
+        session = self._getNewSession()
         fahrten = []
 
         for ul in self.unterlinien:
 
-            for f in self._session.query(Fahrt).filter(Fahrt.linie == ul).all():
+            for f in session.query(Fahrt).filter(Fahrt.linie == ul).all():
 
                 if f.isValidOnDate(self.date):
 
@@ -684,14 +739,16 @@ class ivuToVisum(object):
         c.close()
         conn.commit()
 
+        print '\tfinished converting Fahrzeugfahrten'
 
     def _processVsysset(self):
-
+        session = self._getNewSession()
         vsyssets_list = []
 
-        for v in self.vsyssets:
-            vsyssets_list.append({  'code':v,
-                                    'name':v,
+        for v in session.query(Verkehrsmittel).all():
+
+            vsyssets_list.append({  'code':v.verkehrsmittelkuerzel,
+                                    'name':v.verkehrsmittelname,
                                     'type':'OV',
                                     'pkwe':1
                                 })
@@ -704,6 +761,8 @@ class ivuToVisum(object):
 
         c.close()
         conn.commit()
+
+        print '\tfinished converting Verkehrssysteme'
 
 
 def main():

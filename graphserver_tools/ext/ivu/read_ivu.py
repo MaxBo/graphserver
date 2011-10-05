@@ -27,7 +27,8 @@ def getSession(db_connect_string, create_tables=False):
     engine = create_engine('postgresql://'+user+':'+pwd+'@'+host+':'+port+'/'+dbname, echo=False)
 
     if create_tables:
-        Base.metadata.create_all(engine) # Base has been imported from ivu.models
+        Base.metadata.drop_all(engine) # Base has been imported from ivu.models
+        Base.metadata.create_all(engine)
 
     Session = scoped_session(sessionmaker(bind=engine))
 
