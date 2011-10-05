@@ -16,10 +16,10 @@ class BetriebsUmstieg(Base):
 
     zeit = Column(Time, nullable=False)
 
-    von_betrieb_id = Column(Integer, ForeignKey('betriebe.id'), nullable=False)
+    von_betrieb_id = Column(Integer, ForeignKey('ivu_betriebe.id'), nullable=False)
     von_betrieb = relationship("Betrieb", backref=backref('umsteigezeiten_betrieb_aus'), primaryjoin=von_betrieb_id==Betrieb.id)
 
-    nach_betrieb_id = Column(Integer, ForeignKey('betriebe.id'), nullable=False)
+    nach_betrieb_id = Column(Integer, ForeignKey('ivu_betriebe.id'), nullable=False)
     nach_betrieb = relationship("Betrieb", backref=backref('umsteigezeiten_betrieb_ein'), primaryjoin=nach_betrieb_id==Betrieb.id)
 
 
@@ -32,25 +32,25 @@ class HaltestelleBetriebUmstieg(Base):
 
     zeit = Column(Time, nullable=False)
 
-    haltestelle_id = Column(Integer, ForeignKey('halteste.id'), nullable=False)
+    haltestelle_id = Column(Integer, ForeignKey('ivu_halteste.id'), nullable=False)
     haltestelle = relationship("Haltestelle", backref=backref('umsteigezeiten_betrieb'))
 
-    von_betrieb_id = Column(Integer, ForeignKey('betriebe.id'), nullable=False)
+    von_betrieb_id = Column(Integer, ForeignKey('ivu_betriebe.id'), nullable=False)
     von_betrieb = relationship("Betrieb", backref=backref('umsteigezeiten_haltestelle_betrieb_aus'), primaryjoin=von_betrieb_id==Betrieb.id)
 
-    nach_betrieb_id = Column(Integer, ForeignKey('betriebe.id'), nullable=False)
+    nach_betrieb_id = Column(Integer, ForeignKey('ivu_betriebe.id'), nullable=False)
     nach_betrieb = relationship("Betrieb", backref=backref('umsteigezeiten_haltestelle_betrieb_ein'), primaryjoin=nach_betrieb_id==Betrieb.id)
 
 
 
 umst3_von_association_table = Table('umst3_von', Base.metadata,
-    Column('umst3_id', Integer, ForeignKey('umst3.id')),
-    Column('linien_id', Integer, ForeignKey('linien.id'))
+    Column('umst3_id', Integer, ForeignKey('ivu_umst3.id')),
+    Column('linien_id', Integer, ForeignKey('ivu_linien.id'))
 )
 
 umst3_nach_association_table = Table('umst3_nach', Base.metadata,
-    Column('umst3_id', Integer, ForeignKey('umst3.id')),
-    Column('linien_id', Integer, ForeignKey('linien.id'))
+    Column('umst3_id', Integer, ForeignKey('ivu_umst3.id')),
+    Column('linien_id', Integer, ForeignKey('ivu_linien.id'))
 )
 
 
@@ -63,7 +63,7 @@ class HaltestelleLinieUmstieg(Base):
     zeit = Column(Time, nullable=False)
     gesichert = Column(Boolean, nullable=False)
 
-    haltestelle_id = Column(Integer, ForeignKey('halteste.id'), nullable=False)
+    haltestelle_id = Column(Integer, ForeignKey('ivu_halteste.id'), nullable=False)
     haltestelle = relationship("Haltestelle", backref=backref('umsteigezeiten_linie'))
 
     von_linien = relationship("Linie", backref=backref('umsteigezeiten_aus'), secondary=umst3_von_association_table)
@@ -81,12 +81,12 @@ class FahrtUmstieg(Base):
     zeit = Column(Time, nullable=False)
     gesichert = Column(Boolean, nullable=False)
 
-    haltestelle_id = Column(Integer, ForeignKey('halteste.id'), nullable=False)
+    haltestelle_id = Column(Integer, ForeignKey('ivu_halteste.id'), nullable=False)
     haltestelle = relationship("Haltestelle", backref=backref('umsteigezeiten_fahrt'))
 
-    von_fahrt_id = Column(Integer, ForeignKey('fahrten.id'))
+    von_fahrt_id = Column(Integer, ForeignKey('ivu_fahrten.id'))
     von_fahrt = relationship("Fahrt", backref=backref('umsteigezeiten_aus'), primaryjoin=von_fahrt_id==Fahrt.id)
 
-    nach_fahrt_id = Column(Integer, ForeignKey('fahrten.id'))
+    nach_fahrt_id = Column(Integer, ForeignKey('ivu_fahrten.id'))
     nach_fahrt = relationship("Fahrt", backref=backref('umsteigezeiten_ein'), primaryjoin=nach_fahrt_id==Fahrt.id)
 

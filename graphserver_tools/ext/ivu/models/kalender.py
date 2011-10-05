@@ -68,7 +68,7 @@ class Version(Base):
     anfang = Column(Date, nullable=False)
     ende = Column(Date, nullable=False)
 
-    bitfeld_id = Column(Integer, ForeignKey('bitfeld.id'))
+    bitfeld_id = Column(Integer, ForeignKey('ivu_bitfeld.id'))
     bitfeld = relationship("Bitfeld", backref=backref('versionen'))
 
 

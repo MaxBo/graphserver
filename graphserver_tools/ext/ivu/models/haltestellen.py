@@ -26,10 +26,10 @@ class Haltestelle(Base):
     bfpriowert = Column(Integer)
     aliasname = Column(String(60))
 
-    lieferant_id = Column(Integer, ForeignKey('liferan.id'), nullable=False)
+    lieferant_id = Column(Integer, ForeignKey('ivu_liferan.id'), nullable=False)
     lieferant = relationship("Lieferant", backref=backref('haltestellen'))
 
-Haltestelle.referenzhaltestelle_id = Column(Integer, ForeignKey('halteste.id'))
+Haltestelle.referenzhaltestelle_id = Column(Integer, ForeignKey('ivu_halteste.id'))
 Haltestelle.referenzhaltestelle = relationship('Haltestelle', backref=backref('unterhaltestellen'), remote_side=Haltestelle.id)
 
 

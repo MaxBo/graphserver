@@ -29,7 +29,7 @@ class Betrieb(Base):
     betriebsteilschluessel = Column(String(6), unique=True, index=True)
     verkehrsmittelgattung = Column(String(8), nullable=False)
 
-    lieferant_id = Column(Integer, ForeignKey('liferan.id'), nullable=False)
+    lieferant_id = Column(Integer, ForeignKey('ivu_liferan.id'), nullable=False)
     lieferant = relationship("Lieferant", backref=backref('betriebe'))
 
     #verkehrsmittel_id = Column(Integer, ForeignKey('verkehrsm.id'), nullable=False)

@@ -29,16 +29,16 @@ class Linie(Base):
     richtungskuerzel = Column(String(2), nullable=False)
     oeffentlicher_linienname = Column(String(8), nullable=False)
 
-    version_id = Column(Integer, ForeignKey('versione.id'), nullable=False)
+    version_id = Column(Integer, ForeignKey('ivu_versione.id'), nullable=False)
     version = relationship("Version", backref=backref('linien'))
 
-    betrieb_id = Column(Integer, ForeignKey('betriebe.id'), nullable=False)
+    betrieb_id = Column(Integer, ForeignKey('ivu_betriebe.id'), nullable=False)
     betrieb = relationship("Betrieb", backref=backref('linien'))
 
-    verkehrsmittel_id = Column(Integer, ForeignKey('verkehrsm.id'), nullable=False)
+    verkehrsmittel_id = Column(Integer, ForeignKey('ivu_verkehrsm.id'), nullable=False)
     verkehrsmittel = relationship("Verkehrsmittel", backref=backref('linien'))
 
-    bitfeld_id = Column(Integer, ForeignKey('bitfeld.id'))
+    bitfeld_id = Column(Integer, ForeignKey('ivu_bitfeld.id'))
     bitfeld = relationship("Bitfeld", backref=backref('linien'))
 
 
@@ -71,10 +71,10 @@ class Linienprofil(Base):
     aussteigeverbot = Column(Boolean)
     bedarfshalt = Column(Boolean)
 
-    linie_id = Column(Integer, ForeignKey('linien.id'))
+    linie_id = Column(Integer, ForeignKey('ivu_linien.id'))
     linie = relationship("Linie", backref=backref('profile'))
 
-    haltestelle_id = Column(Integer, ForeignKey('halteste.id'))
+    haltestelle_id = Column(Integer, ForeignKey('ivu_halteste.id'))
     haltestelle = relationship("Haltestelle", backref=backref('linienprofile'))
 
 
@@ -92,13 +92,13 @@ class Fahrt(Base):
     anzahl_folgefahrten = Column(Integer, nullable=False)
     zeitspanne = Column(Time, nullable=True)
 
-    verkehrsmittel_id = Column(Integer, ForeignKey('verkehrsm.id'), nullable=True)
+    verkehrsmittel_id = Column(Integer, ForeignKey('ivu_verkehrsm.id'), nullable=True)
     verkehrsmittel = relationship("Verkehrsmittel", backref=backref('fahrtenprofile'))
 
-    bitfeld_id = Column(Integer, ForeignKey('bitfeld.id'), nullable=True)
+    bitfeld_id = Column(Integer, ForeignKey('ivu_bitfeld.id'), nullable=True)
     bitfeld = relationship("Bitfeld")
 
-    linie_id = Column(Integer, ForeignKey('linien.id'), nullable=False)
+    linie_id = Column(Integer, ForeignKey('ivu_linien.id'), nullable=False)
     linie = relationship("Linie", backref=backref('fahrten'))
 
 

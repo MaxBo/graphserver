@@ -14,13 +14,13 @@ class Strecke(Base):
 
     laenge = Column(Integer)
 
-    von_haltestelle_id = Column(Integer, ForeignKey('halteste.id'), nullable=False)
+    von_haltestelle_id = Column(Integer, ForeignKey('ivu_halteste.id'), nullable=False)
     von_haltestelle = relationship("Haltestelle", backref=backref('strecken_aus'), primaryjoin=von_haltestelle_id==Haltestelle.id)
 
-    nach_haltestelle_id = Column(Integer, ForeignKey('halteste.id'), nullable=False)
+    nach_haltestelle_id = Column(Integer, ForeignKey('ivu_halteste.id'), nullable=False)
     nach_haltestelle = relationship("Haltestelle", backref=backref('strecken_ein'), primaryjoin=nach_haltestelle_id==Haltestelle.id)
 
-    version_id = Column(Integer, ForeignKey('versione.id'))
+    version_id = Column(Integer, ForeignKey('ivu_versione.id'))
     version = relationship("Version", backref=backref('strecken'))
 
 
@@ -34,5 +34,5 @@ class Zwischenpunkt(Base):
     x_koordinate = Column(Integer)
     y_koordinate = Column(Integer)
 
-    strecke_id = Column(Integer, ForeignKey('strecken.id'), nullable=False)
+    strecke_id = Column(Integer, ForeignKey('ivu_strecken.id'), nullable=False)
     strecke = relationship("Strecke", backref=backref('zwischenpunkte'))
