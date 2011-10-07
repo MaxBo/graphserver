@@ -162,11 +162,11 @@ class Proccessing():
                 self.process_paths(routes)
 
             routes = self.get_route_dict()
-            i += 1
             if not i%1000:
                 self.conn.commit()
             if not i%100000:
                 print i , ' routes calculated by ', self.trip_prefix
+            i += 1
 
     def write_retro_trip(self, vertices, route_id):
         ''' in retro_paths the walking distance is counted in the wrong direction.

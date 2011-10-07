@@ -82,7 +82,8 @@ def calculate_routes(graph, psql_connect_string, options, num_processes=4):
         p.start()
         processes.append(p)
 
-    status_printer = multiprocessing.Process(target=process_routes.print_status, args=(conn, ))
+    logfile = open('log.txt','w')
+    status_printer = multiprocessing.Process(target=process_routes.print_status, args=(conn,logfile ))
     status_printer.start()
     processes.append(status_printer)
 
