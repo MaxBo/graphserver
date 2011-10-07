@@ -153,6 +153,7 @@ class Proccessing():
         associated with this object.
         [only routes with the processed flag not set will be processed]
         '''
+        i=0
         routes = self.get_route_dict()
         while ( routes ):
             if routes['arrival']:
@@ -161,7 +162,10 @@ class Proccessing():
                 self.process_paths(routes)
 
             routes = self.get_route_dict()
-
+            i += 1
+            if not i%10000:
+                self.conn.commit()
+                print i , ' routes calculated by ', self.trip_prefix
 
     def write_retro_trip(self, vertices, route_id):
         ''' in retro_paths the walking distance is counted in the wrong direction.
