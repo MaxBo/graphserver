@@ -162,10 +162,7 @@ class Proccessing():
                 self.process_paths(routes)
 
             routes = self.get_route_dict()
-            if not self.trips_calculated%10000:
-                self.logfile.write('%s routes calculated by %s' %(self.trips_calculated,self.trip_prefix))
-                self.logfile.flush()
-            self.trips_calculated += 1
+            
 
     def write_retro_trip(self, vertices, route_id):
         ''' in retro_paths the walking distance is counted in the wrong direction.
@@ -190,10 +187,11 @@ class Proccessing():
             time = datetime.datetime.fromtimestamp(v.state.time)
 
             self.cursor.execute('INSERT INTO cal_paths_details VALUES (%s,%s,%s,%s,%s,%s,%s,%s)', ( self.trip_prefix + current_trip_id, c, v.label, time, v.state.weight, v.state.dist_walked, v.state.num_transfers, v.state.trip_id ))
-        if not self.trips_calculated % 10000:
+        if not self.trips_calculated % 1000:
             self.conn.commit()
             self.logfile.write('%s routes calculated by %s, last route: %s \n' %(self.trips_calculated, self.trip_prefix, route_id))
             self.logfile.flush()
+        self.trips_calculated += 1
 
 
     ''' this method will write a very long trip into the database. '''

@@ -83,7 +83,7 @@ def calculate_routes(graph, psql_connect_string, options, num_processes=4):
                                                                              logfile))
         p.start()
         sys.stdout.write('started thread %s \n' %i)
-        time.sleep(1) #workaround for duplicate calculations - should be temporary
+        time.sleep(10) #workaround for duplicate calculations - should be temporary
         processes.append(p)
 
     status_printer = multiprocessing.Process(target=process_routes.print_status, args=(conn,logfile ))
