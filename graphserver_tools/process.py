@@ -64,7 +64,7 @@ def calculate_routes(graph, psql_connect_string, options, num_processes=4):
     process_routes.create_db_tables(conn, False)
 
     conn.commit()
-    sys.stdout.write('created db_tables')
+    sys.stdout.write('created db_tables\n')
 
     prefixes = ( 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
                  'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'BB', 'CC', 'DD', 'EE',
