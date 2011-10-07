@@ -166,7 +166,8 @@ class Proccessing():
             if not i%1000:
                 self.conn.commit()
             if not i%100000:
-                print i , ' routes calculated by ', self.trip_prefix
+                sys.stdout.write('%s routes calculated by %s' %(i,self.trip_prefix))
+                sys.stdout.flush()
 
     def write_retro_trip(self, vertices, route_id):
         ''' in retro_paths the walking distance is counted in the wrong direction.
