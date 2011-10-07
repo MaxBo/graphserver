@@ -57,12 +57,14 @@ def build_route_data(graph, psql_connect_string, times_filename, points_filename
 
 
 def calculate_routes(graph, psql_connect_string, options, num_processes=4):
+    logfile = open('log.txt','w')
     conn = psycopg2.connect(psql_connect_string)
 
 
     process_routes.create_db_tables(conn, False)
 
     conn.commit()
+    sys.stdout.write('created db_tables')
 
     prefixes = ( 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
                  'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'BB', 'CC', 'DD', 'EE',
@@ -81,8 +83,8 @@ def calculate_routes(graph, psql_connect_string, options, num_processes=4):
         time.sleep(1) #workaround for duplicate calculations - should be temporary
         p.start()
         processes.append(p)
+        sys.stdout.write('started thread %s' %i)
 
-    logfile = open('log.txt','w')
     status_printer = multiprocessing.Process(target=process_routes.print_status, args=(conn,logfile ))
     status_printer.start()
     processes.append(status_printer)

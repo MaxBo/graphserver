@@ -268,7 +268,7 @@ def create_db_tables(connection, recreate=False):
     cursor.close()
 
 
-def print_status(connection):
+def print_status(connection, logfile=None):
 
     def calc_calculation_time(routes_previously_wating, routes_waiting, all_routes, time_finished):
         if routes_previously_wating != routes_waiting:
@@ -306,15 +306,22 @@ def print_status(connection):
 
         else:
             routes_waiting = len(cursor.fetchall())
-
+            text = '\r%s routes waiting to be processed. Finished in about %s              ' % (routes_waiting,
+                                                                                                utils.seconds_time_string(time_finished))
             if time_finished:
-                sys.stdout.write('\r%s routes waiting to be processed. Finished in about %s              ' % (routes_waiting,
-                                                                                                          utils.seconds_time_string(time_finished)))
+                sys.stdout.write(text)
                 sys.stdout.flush()
+                if logfile:
+                    logfile.write(text)
+                    logfile.flush()
 
             else:
-                sys.stdout.write('\r%s routes waiting to be processed. Please wait ...              ' % routes_waiting)
+                text = '\r%s routes waiting to be processed. Please wait ...              ' % routes_waiting
+                sys.stdout.write(text)
                 sys.stdout.flush()
+                if logfile:
+                    logfile.write(text)
+                    logfile.flush()
 
         time_finished, routes_previously_wating = calc_calculation_time(routes_previously_wating, routes_waiting, all_routes, time_finished)
 
