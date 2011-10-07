@@ -153,7 +153,6 @@ class Proccessing():
         associated with this object.
         [only routes with the processed flag not set will be processed]
         '''
-        i=0
         routes = self.get_route_dict()
         while ( routes ):
             if routes['arrival']:
@@ -162,12 +161,10 @@ class Proccessing():
                 self.process_paths(routes)
 
             routes = self.get_route_dict()
-            i += 1
-            if not i%1000:
-                self.conn.commit()
-            if not i%100000:
-                sys.stdout.write('%s routes calculated by %s' %(i,self.trip_prefix))
-                sys.stdout.flush()
+            if not self.trips_calculated%10000:
+                self.logfile.write('%s routes calculated by %s' %(self.trips_calculated,self.trip_prefix))
+                self.logfile.flush()
+            self.trips_calculated += 1
 
     def write_retro_trip(self, vertices, route_id):
         ''' in retro_paths the walking distance is counted in the wrong direction.
@@ -192,6 +189,7 @@ class Proccessing():
             time = datetime.datetime.fromtimestamp(v.state.time)
 
             self.cursor.execute('INSERT INTO cal_paths_details VALUES (%s,%s,%s,%s,%s,%s,%s,%s)', ( self.trip_prefix + current_trip_id, c, v.label, time, v.state.weight, v.state.dist_walked, v.state.num_transfers, v.state.trip_id ))
+        self.conn.commit()
 
 
     ''' this method will write a very long trip into the database. '''
@@ -205,7 +203,7 @@ class Proccessing():
         self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', (self.trip_prefix + current_trip_id, route_id, start_date_time, end_time, (time.mktime(end_time.timetuple()) - start_time ) ))
 
 
-    def __init__(self, graph, db_connection_string, time_step=240, walking_speed=1.2, max_walk=1080, walking_reluctance=2, trip_prefix=''):
+    def __init__(self, graph, db_connection_string, time_step=240, walking_speed=1.2, max_walk=1080, walking_reluctance=2, trip_prefix='', logfile = None):
 
         self.trip_prefix = trip_prefix
         self.time_step = time_step
@@ -219,6 +217,8 @@ class Proccessing():
         self.conn = psycopg2.connect(db_connection_string)
         self.cursor = self.conn.cursor()
         self.trip_id = 0
+        self.trips_calculated = 0
+        self.logfile = logfile
 
         self.run()
 

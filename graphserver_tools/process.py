@@ -79,11 +79,12 @@ def calculate_routes(graph, psql_connect_string, options, num_processes=4):
                                                                              float(options['walking-speed']),
                                                                              int(options['max-walk']),
                                                                              int(options['walking-reluctance']),
-                                                                             socket.gethostname() + prefixes[i]))
+                                                                             socket.gethostname() + prefixes[i],
+                                                                             logfile))
         time.sleep(1) #workaround for duplicate calculations - should be temporary
         p.start()
         processes.append(p)
-        sys.stdout.write('started thread %s' %i)
+        sys.stdout.write('started thread %s \n' %i)
 
     status_printer = multiprocessing.Process(target=process_routes.print_status, args=(conn,logfile ))
     status_printer.start()
