@@ -306,9 +306,9 @@ def print_status(connection, logfile=None):
 
         else:
             routes_waiting = len(cursor.fetchall())
-            text = '\r%s routes waiting to be processed. Finished in about %s              ' % (routes_waiting,
-                                                                                                utils.seconds_time_string(time_finished))
             if time_finished:
+                text = '\r%s routes waiting to be processed. Finished in about %s              ' % (routes_waiting,
+                                                                                                    utils.seconds_time_string(time_finished))
                 sys.stdout.write(text)
                 sys.stdout.flush()
                 if logfile:
