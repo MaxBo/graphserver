@@ -253,7 +253,6 @@ def create_db_tables(connection, recreate=False):
                                                total_time INTEGER NOT NULL )''')
 
         cursor.execute('UPDATE public.cal_routes SET done = FALSE;')
-        cursor.execute('VACUUM public.cal_routes;')
 
 
     if ( 'cal_paths_details', ) not in tables or recreate:
@@ -298,6 +297,8 @@ def print_status(connection, logfile=None):
     routes_waiting = None
 
     cursor = connection.cursor()
+    cursor.execute('SELECT count(*) FROM cal_routes')
+    all_routes = cursor.fetchone()[0]
 
     finished = False
     while not finished:
