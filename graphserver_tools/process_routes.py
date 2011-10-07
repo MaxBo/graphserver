@@ -163,8 +163,9 @@ class Proccessing():
 
             routes = self.get_route_dict()
             i += 1
-            if not i%10000:
+            if not i%1000:
                 self.conn.commit()
+            if not i%100000:
                 print i , ' routes calculated by ', self.trip_prefix
 
     def write_retro_trip(self, vertices, route_id):
