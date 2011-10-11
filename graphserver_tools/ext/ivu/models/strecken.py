@@ -24,6 +24,14 @@ class Strecke(Base):
     version = relationship("Version", backref=backref('strecken'))
 
 
+    def isValidOnDate(self, date):
+
+        if self.version:
+            return self.version.isValidOnDate(date)
+        else
+            return True
+
+
 class Zwischenpunkt(Base):
     __tablename__ = 'ivu_zwischenpunkte'
     __table_args__ = (  UniqueConstraint('laufende_nummer', 'strecke_id'), )
