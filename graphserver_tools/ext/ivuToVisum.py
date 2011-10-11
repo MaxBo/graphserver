@@ -53,12 +53,13 @@ class ivuToVisum(object):
 
 
         print 'converting'
+        self._processRichtung()
+        self._processBetreiber()
+
         threads = []
 
         for m in (  self._processKnoten,
-                    self._processHaltestelle,
-                    self._processHaltestellenbereich,
-                    self._processHaltepunkt,
+                    self._processHstHstBereichHstPunkt,
                     self._processVsysset,
                     self._processLinie,
                     self._processLinienroute,
@@ -101,7 +102,18 @@ class ivuToVisum(object):
         connection = psycopg2.connect(self.db_connect_string)
         cursor = connection.cursor()
 
-        cursor.execute('DROP TABLE IF EXISTS "FAHRZEITPROFIL"')
+
+        cursor.execute('DROP TABLE IF EXISTS "BETREIBER" CASCADE')
+        cursor.execute('''CREATE TABLE "FAHRZEITPROFIL"
+                                (   "NR" integer,
+                                    "NAME" varchar(255),
+                                    "KOSTENSATZ1" float,
+                                    "KOSTENSATZ2" float,
+                                    "KOSTENSATZ3",
+                                    PRIMARY KEY ("NR")
+                                )''')
+
+        cursor.execute('DROP TABLE IF EXISTS "FAHRZEITPROFIL" CASCADE')
         cursor.execute('''CREATE TABLE "FAHRZEITPROFIL"
                                 (   "LINNAME" varchar(255),
                                     "LINROUTENAME" varchar(255),
@@ -109,7 +121,7 @@ class ivuToVisum(object):
                                     "NAME" varchar(255)
                                 )''')
 
-        cursor.execute('DROP TABLE IF EXISTS "FAHRZEITPROFILELEMENT"')
+        cursor.execute('DROP TABLE IF EXISTS "FAHRZEITPROFILELEMENT" CASCADE')
         cursor.execute('''CREATE TABLE "FAHRZEITPROFILELEMENT"
                                 (   "LINNAME" varchar(255),
                                     "LINROUTENAME" varchar(255),
@@ -123,7 +135,7 @@ class ivuToVisum(object):
                                     "ABFAHRT" timestamp
                                 )''')
 
-        cursor.execute('DROP TABLE IF EXISTS "FZGFAHRT"')
+        cursor.execute('DROP TABLE IF EXISTS "FZGFAHRT" CASCADE')
         cursor.execute('''CREATE TABLE "FZGFAHRT"
                             (   "NR" integer,
                                 "NAME" varchar(255),
@@ -136,10 +148,34 @@ class ivuToVisum(object):
                                 "NACHFZPELEMINDEX" integer
                             )''')
 
-        cursor.execute('DROP TABLE IF EXISTS "HALTEPUNKT"')
+        cursor.execute('DROP TABLE IF EXISTS "HALTESTELLE" CASCADE')
+        cursor.execute('''CREATE TABLE "HALTESTELLE"
+                            (   "NR" integer,
+                                "CODE" varchar(255),
+                                "NAME" varchar(255),
+                                "TYPNR" integer,
+                                "XKOORD" float NOT NULL,
+                                "YKOORD" float NOT NULL,
+                                PRIMARY KEY ("NR")
+                            )''')
+
+        cursor.execute('DROP TABLE IF EXISTS "HALTESTELLENBEREICH" CASCADE')
+        cursor.execute('''CREATE TABLE "HALTESTELLENBEREICH"
+                            (   "NR" integer,
+                                "HSTNR" integer REFERENCES "HALTESTELLE",
+                                "CODE" varchar(255),
+                                "NAME" varchar(255),
+                                "KNOTNR" integer,
+                                "TYPNR" integer,
+                                "XKOORD" float NOT NULL,
+                                "YKOORD" float NOT NULL,
+                                PRIMARY KEY ("NR")
+                            )''')
+
+        cursor.execute('DROP TABLE IF EXISTS "HALTEPUNKT" CASCADE')
         cursor.execute('''CREATE TABLE "HALTEPUNKT"
                             (   "NR" integer,
-                                "HSTBERNR" integer,
+                                "HSTBERNR" integer REFERENCES "HALTESTELLENBEREICH",
                                 "CODE" varchar(255),
                                 "NAME" varchar(255),
                                 "TYPNR" integer,
@@ -153,31 +189,7 @@ class ivuToVisum(object):
                                 PRIMARY KEY ("NR")
                             )''')
 
-        cursor.execute('DROP TABLE IF EXISTS "HALTESTELLE"')
-        cursor.execute('''CREATE TABLE "HALTESTELLE"
-                            (   "NR" integer,
-                                "CODE" varchar(255),
-                                "NAME" varchar(255),
-                                "TYPNR" integer,
-                                "XKOORD" float NOT NULL,
-                                "YKOORD" float NOT NULL,
-                                PRIMARY KEY ("NR")
-                            )''')
-
-        cursor.execute('DROP TABLE IF EXISTS "HALTESTELLENBEREICH"')
-        cursor.execute('''CREATE TABLE "HALTESTELLENBEREICH"
-                            (   "NR" integer,
-                                "HSTNR" integer,
-                                "CODE" varchar(255),
-                                "NAME" varchar(255),
-                                "KNOTNR" integer,
-                                "TYPNR" integer,
-                                "XKOORD" float NOT NULL,
-                                "YKOORD" float NOT NULL,
-                                PRIMARY KEY ("NR")
-                            )''')
-
-        cursor.execute('DROP TABLE IF EXISTS "KNOTEN"')
+        cursor.execute('DROP TABLE IF EXISTS "KNOTEN" CASCADE')
         cursor.execute('''CREATE TABLE "KNOTEN"
                             (   "NR" integer,
                                 "XKOORD" float NOT NULL,
@@ -185,15 +197,33 @@ class ivuToVisum(object):
                                 PRIMARY KEY ("NR")
                             )''')
 
-        cursor.execute('DROP TABLE IF EXISTS "LINIE"')
-        cursor.execute('''CREATE TABLE "LINIE"
-                            (   "NAME" varchar(255),
-                                "VSYSCODE" varchar(255),
-                                "TARIFSYSTEMMENGE" varchar(255),
-                                "BETREIBERNR" integer
+        cursor.execute('DROP TABLE IF EXISTS "RICHTUNG" CASCADE')
+        cursor.execute('''CREATE TABLE "RICHTUNG"
+                            (   "NR" integer,
+                                "CODE" varchar(255),
+                                "NAME" varchar(255),
+                                PRIMARY KEY ("CODE")
                             )''')
 
-        cursor.execute('DROP TABLE IF EXISTS "LINIENROUTE"')
+        cursor.execute('DROP TABLE IF EXISTS "VSYS" CASCADE')
+        cursor.execute('''CREATE TABLE "VSYS"
+                            (   "CODE" varchar(255),
+                                "NAME" varchar(255),
+                                "TYP" varchar(255),
+                                "PKWE" integer,
+                                PRIMARY KEY ("CODE")
+                            )''')
+
+        cursor.execute('DROP TABLE IF EXISTS "LINIE" CASCADE')
+        cursor.execute('''CREATE TABLE "LINIE"
+                            (   "NAME" varchar(255),
+                                "VSYSCODE" varchar(255) REFERENCES "VSYS",
+                                "TARIFSYSTEMMENGE" varchar(255),
+                                "BETREIBERNR" integer REFERENCES "BETREIBER",
+                                PRIMARY KEY ("NAME")
+                            )''')
+
+        cursor.execute('DROP TABLE IF EXISTS "LINIENROUTE" CASCADE')
         cursor.execute('''CREATE TABLE "LINIENROUTE"
                             (   "LINNAME" varchar(255),
                                 "NAME" varchar(255),
@@ -201,7 +231,7 @@ class ivuToVisum(object):
                                 "ISTRINGLINIE" integer
                             )''')
 
-        cursor.execute('DROP TABLE IF EXISTS "LINIENROUTENELEMENT"')
+        cursor.execute('DROP TABLE IF EXISTS "LINIENROUTENELEMENT" CASCADE')
         cursor.execute('''CREATE TABLE "LINIENROUTENELEMENT"
                             (   "LINNAME" varchar(255),
                                 "LINROUTENAME" varchar(255),
@@ -212,7 +242,7 @@ class ivuToVisum(object):
                                 "HPUNKTNR" integer
                             )''')
 
-        cursor.execute('DROP TABLE IF EXISTS "STRECKE"')
+        cursor.execute('DROP TABLE IF EXISTS "STRECKE" CASCADE')
         cursor.execute('''CREATE TABLE "STRECKE"
                             (   "NR" integer,
                                 "VONKNOTNR" integer,
@@ -222,7 +252,7 @@ class ivuToVisum(object):
                                 "VSYSSET" varchar(255)
                             )''')
 
-        cursor.execute('DROP TABLE IF EXISTS "STRECKENPOLY"')
+        cursor.execute('DROP TABLE IF EXISTS "STRECKENPOLY" CASCADE')
         cursor.execute('''CREATE TABLE "STRECKENPOLY"
                             (   "VONKNOTNR" integer,
                                 "NACHKNOTNR" integer,
@@ -231,20 +261,11 @@ class ivuToVisum(object):
                                 "YKOORD" float NOT NULL
                             )''')
 
-        cursor.execute('DROP TABLE IF EXISTS "VERSION"')
+        cursor.execute('DROP TABLE IF EXISTS "VERSION" CASCADE')
         cursor.execute('''CREATE TABLE "VERSION"
                             (   "VERSNR" float,
                                 "FILETYPE" varchar(255),
                                 "LANGUAGE" varchar(255)
-                            )''')
-
-        cursor.execute('DROP TABLE IF EXISTS "VSYS"')
-        cursor.execute('''CREATE TABLE "VSYS"
-                            (   "CODE" varchar(255),
-                                "NAME" varchar(255),
-                                "TYP" varchar(255),
-                                "PKWE" integer,
-                                PRIMARY KEY ("CODE")
                             )''')
 
         cursor.execute('INSERT INTO "VERSION" VALUES (%s, %s, %s)', ( 8.1, 'Net', 'DEU' ))
@@ -372,6 +393,12 @@ class ivuToVisum(object):
         print '\tfinished converting Knoten'
 
 
+    def _processHstHstBereichHstPunkt(self):
+        self._processHaltestelle()
+        self._processHaltestellenbereich()
+        self._processHaltepunkt()
+
+
     def _processHaltestelle(self):
         ''' Method will write a Haltestelle for each IVU-Haltestelle with no
             referenzhaltestelle into the visum database.
@@ -389,7 +416,7 @@ class ivuToVisum(object):
 
             haltestellen.append({   'nr': h.id,
                                     'code': h.haltestellenkuerzel,
-                                    'name': h.haltestellennummer,
+                                    'name': h.haltestellenlangname,
                                     'typnr': 1,
                                     'xkoord': x_koordinate,
                                     'ykoord': y_koordinate
@@ -419,7 +446,13 @@ class ivuToVisum(object):
 
         for h in haltestellen_ivu:
 
-            hstnr = h.referenzhaltestelle.id if h.referenzhaltestelle else h.id
+            # find the referenzhaltestelle
+            ref_hst = h
+
+            while ref_hst.referenzhaltestelle:
+                ref_hst = ref_hst.referenzhaltestelle
+
+            hstnr = ref_hst.id
 
             x_koordinate = h.x_koordinate if h.x_koordinate else 0
             y_koordinate = h.y_koordinate if h.y_koordinate else 0
@@ -487,6 +520,57 @@ class ivuToVisum(object):
 
         print '\tfinished converting Haltepunkte'
 
+    def _processBetreiber(self):
+
+        session = self._getNewSession()
+        betreiber = []
+
+        for b in session.query(Betrieb).all():
+
+            betreiber.append({  'nr':b.betriebsnummer,
+                                'name':b.betriebsname,
+                                'ksatz1:'0.0,
+                                'ksatz2:'0.0,
+                                'ksatz3:'0.0
+                            })
+
+        conn = psycopg2.connect(self.db_connect_string)
+        c = conn.cursor()
+
+        c.executemany('''INSERT INTO "BETREIBER" VALUES
+                            (%(nr)s, %(name)s, %(ksatz1)s, %(ksatz2)s, %(ksatz3)s)''', betreiber)
+
+        c.close()
+        conn.commit()
+
+        print '\tfinished converting Betreiber'
+
+
+    def _processRichtung(self):
+
+        session = self._getNewSession()
+
+        richtungen_ivu = set([ l.richtungskuerzel for l in session.query(Linie).all() ])
+
+        richtungen = []
+
+        for i, r in enumerate(richtungen_ivu):
+
+            richtungen.append({ 'nr': i,
+                                'code':r,
+                                'name':''
+                             })
+
+        conn = psycopg2.connect(self.db_connect_string)
+        c = conn.cursor()
+
+        c.executemany('''INSERT INTO "RICHTUNG" VALUES (%(nr)s, %(code)s, %(name)s)''', richtungen)
+
+        c.close()
+        conn.commit()
+
+        print '\tfinished converting Richtungen'
+
 
     def _processLinie(self):
         ''' Writes a Linie for each IVU-Linie (not Unterlinie) in the feed into the
@@ -499,8 +583,8 @@ class ivuToVisum(object):
 
             linien.append({ 'name' : '-'.join(( linie[1].betriebsteilschluessel, linie[0] )),
                             'vsyscode' : unterlinien[0].verkehrsmittel.verkehrsmittelkuerzel,
-                            'tarifsystemmenge' : 1,
-                            'betreibernr' : linie[1].id
+                            'tarifsystemmenge' : None,
+                            'betreibernr' : linie[1].betriebsnummer
                           })
 
         conn = psycopg2.connect(self.db_connect_string)
