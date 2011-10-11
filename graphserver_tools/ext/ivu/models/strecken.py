@@ -28,7 +28,7 @@ class Strecke(Base):
 
         if self.version:
             return self.version.isValidOnDate(date)
-        else
+        else:
             return True
 
 

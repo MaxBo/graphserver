@@ -68,7 +68,8 @@ class ivuToVisum(object):
                     self._processLinienroutenelement,
                     self._processFahrzeitprofil,
                     self._processFahrzeitprofilelement,
-                    self._processFahrzeugfahrt
+                    self._processFahrzeugfahrt,
+                    self._processZwischenpunkte
                  ):
 
             t = threading.Thread(target=m)
@@ -294,15 +295,6 @@ class ivuToVisum(object):
         cursor.execute('INSERT INTO "RICHTUNG" VALUES (%s, %s, %s)', ( 1, '>', ''))
         cursor.execute('INSERT INTO "RICHTUNG" VALUES (%s, %s, %s)', ( 2, '<', ''))
 
-
-
-cursor.execute('''CREATE TABLE "RICHTUNG"
-                            (   "NR" integer,
-                                "CODE" varchar(255),
-                                "NAME" varchar(255),
-                                PRIMARY KEY ("CODE")
-                            )''')
-
         cursor.close()
         connection.commit()
 
@@ -399,27 +391,6 @@ cursor.execute('''CREATE TABLE "RICHTUNG"
 
         c.executemany('''INSERT INTO "KNOTEN" VALUES (%(id)s, %(xkoord)s, %(ykoord)s)''', vertices)
 
-        vertices = []
-        '''
-        zwischenpunkte = self._session.query(Zwischenpunkt).all()
-
-        self.zwischenpunkt_id_mapper = { } # maps between a zwischenpunkt and its id/NR in the visum database
-
-        c.execute('SELECT MAX("NR") FROM "KNOTEN"')
-        visum_id = c.fetchone()[0]
-
-        for z in zwischenpunkte:
-            visum_id += 1
-            vertices.append({   'id':visum_id,
-                                'xkoord':z.x_koordinate,
-                                'ykoord':z.y_koordinate
-                            })
-
-            self.zwischenpunkt_id_mapper[z] = visum_id
-
-
-        c.executemany('INSERT INTO "KNOTEN" VALUES (%(id)s, %(xkoord)s, %(ykoord)s)', vertices)
-        '''
         c.close()
         conn.commit()
 
@@ -433,22 +404,41 @@ cursor.execute('''CREATE TABLE "RICHTUNG"
         strecken = []
         strecken_poly = []
 
-        '''self.zwischenpunkt_id_mapper = { } # maps between a zwischenpunkt and its id/NR in the visum database
 
-        c.execute('SELECT MAX("NR") FROM "KNOTEN"')
-        visum_id = c.fetchone()[0]
+        for s in strecken_ivu:
 
-        for z in zwischenpunkte:
-            visum_id += 1
-            vertices.append({   'id':visum_id,
-                                'xkoord':z.x_koordinate,
-                                'ykoord':z.y_koordinate
-                            })
+            strecken.append({   'nr':s.id,
+                                'von_knoten':s.von_haltestelle.id,
+                                'nach_knoten':s.nach_haltestelle.id,
+                                'name':None,
+                                'typnr':None,
+                                'vysyset':None
+                           })
 
-            self.zwischenpunkt_id_mapper[z] = visum_id
+            for zp in s.zwischenpunkte:
+
+                strecken_poly.appedn({  'von_knoten':s.von_haltestelle.id,
+                                        'nach_konten':s.nach_haltestelle.id,
+                                        'index':zp.laufende_nummer,
+                                        'x_koord':zp.x_koordinate,
+                                        'y_koord':zp.y_koordinate
+                                    })
 
 
-        c.executemany('INSERT INTO "KNOTEN" VALUES (%(id)s, %(xkoord)s, %(ykoord)s)', vertices)'''
+        conn = psycopg2.connect(self.db_connect_string)
+        c = conn.cursor()
+
+        c.executemany('''INSERT INTO "STRECKEN" VALUES
+                            (%(nr)s, %(von_knoten)s, %(nach_knoten)s, %(name)s, %(typnr)s,
+                             %(vsysset)s )''', strecken)
+
+        c.executemany('''INSERT INTO "STRECKENPOLY" VALUES
+                            (%(von_knoten)s, %(nach_knoten)s, %(index)s, %(x_koord)s,
+                             %(y_koord)s )''', strecken_poly)
+
+        c.close()
+        conn.commit()
+
 
     def _processHstHstBereichHstPunkt(self):
         self._processHaltestelle()
@@ -639,8 +629,8 @@ cursor.execute('''CREATE TABLE "RICHTUNG"
 
         for ul in self.unterlinien:
 
-            linienrouten.append({   'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
-                                    'name' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname ))),
+            linienrouten.append({   'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer, richtungskuerzel) ))),
+                                    'name' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, richtungskuerzel ))),
                                     'richtungscode' : '>',
                                     'istringlinie' : 0
                                 })
@@ -668,8 +658,8 @@ cursor.execute('''CREATE TABLE "RICHTUNG"
 
             for lp in self._session.query(Linienprofil).filter(Linienprofil.linie == ul).all():
 
-                linienroutenelemente.append({   'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
-                                                'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname ))),
+                linienroutenelemente.append({   'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer, richtungskuerzel) ))),
+                                                'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, richtungskuerzel ))),
                                                 'richtungscode' : '>',
                                                 'index' : lp.laufende_nummer,
                                                 'istroutenpunkt' : 1,
@@ -699,8 +689,8 @@ cursor.execute('''CREATE TABLE "RICHTUNG"
 
         for ul in self.unterlinien:
 
-            fahrzeitprofile.append({    'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
-                                        'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname ))),
+            fahrzeitprofile.append({    'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer, richtungskuerzel) ))),
+                                        'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, richtungskuerzel ))),
                                         'richtungscode' : '>',
                                         'name' : ul.unterliniennummer
                                    })
@@ -762,8 +752,8 @@ cursor.execute('''CREATE TABLE "RICHTUNG"
                 arrival = datetime.datetime(1899, 12, day, travel_time_hours, travel_time_min)
                 departure = datetime.datetime(1899, 12, departure_day, departure_time_hour, departure_time_min )
 
-                elements.append({   'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
-                                    'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname ))),
+                elements.append({   'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer, richtungskuerzel) ))),
+                                    'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, richtungskuerzel ))),
                                     'richtungscode' : '>',
                                     'fzprofilname' : ul.unterliniennummer,
                                     'index' : lp.laufende_nummer,
@@ -815,8 +805,8 @@ cursor.execute('''CREATE TABLE "RICHTUNG"
                     fahrten.append({    'nr' : f.id,
                                         'name' : removepSecialCharacter(ul.oeffentlicher_linienname),
                                         'abfahrt' : departure,
-                                        'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
-                                        'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname ))),
+                                        'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer, richtungskuerzel) ))),
+                                        'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, richtungskuerzel ))),
                                         'richtungscode' : '>',
                                         'fzprofilname' : ul.unterliniennummer,
                                         'vonfzpelemindex' : f.start_pos,
@@ -834,8 +824,8 @@ cursor.execute('''CREATE TABLE "RICHTUNG"
                             fahrten.append({    'nr' : f.id,
                                                 'name' : removepSecialCharacter(ul.oeffentlicher_linienname),
                                                 'abfahrt' : departure,
-                                                'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
-                                                'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname ))),
+                                                'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer, richtungskuerzel) ))),
+                                                'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, richtungskuerzel ))),
                                                 'richtungscode' : '>',
                                                 'fzprofilname' : ul.unterliniennummer,
                                                 'vonfzpelemindex' : f.start_pos,
