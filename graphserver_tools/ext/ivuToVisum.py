@@ -55,7 +55,6 @@ class ivuToVisum(object):
 
 
         print 'converting'
-        self._processRichtung()
         self._processBetreiber()
 
         threads = []
