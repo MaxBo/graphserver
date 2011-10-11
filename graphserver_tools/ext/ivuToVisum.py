@@ -628,8 +628,8 @@ class ivuToVisum(object):
 
         for ul in self.unterlinien:
 
-            linienrouten.append({   'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer, richtungskuerzel) ))),
-                                    'name' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, richtungskuerzel ))),
+            linienrouten.append({   'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer), ul.richtungskuerzel ))),
+                                    'name' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, ul.richtungskuerzel ))),
                                     'richtungscode' : '>',
                                     'istringlinie' : 0
                                 })
@@ -657,8 +657,8 @@ class ivuToVisum(object):
 
             for lp in self._session.query(Linienprofil).filter(Linienprofil.linie == ul).all():
 
-                linienroutenelemente.append({   'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer, richtungskuerzel) ))),
-                                                'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, richtungskuerzel ))),
+                linienroutenelemente.append({   'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer), ul.richtungskuerzel ))),
+                                                'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, ul.richtungskuerzel ))),
                                                 'richtungscode' : '>',
                                                 'index' : lp.laufende_nummer,
                                                 'istroutenpunkt' : 1,
@@ -688,8 +688,8 @@ class ivuToVisum(object):
 
         for ul in self.unterlinien:
 
-            fahrzeitprofile.append({    'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer, richtungskuerzel) ))),
-                                        'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, richtungskuerzel ))),
+            fahrzeitprofile.append({    'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer), ul.richtungskuerzel ))),
+                                        'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, ul.richtungskuerzel ))),
                                         'richtungscode' : '>',
                                         'name' : ul.unterliniennummer
                                    })
@@ -751,8 +751,8 @@ class ivuToVisum(object):
                 arrival = datetime.datetime(1899, 12, day, travel_time_hours, travel_time_min)
                 departure = datetime.datetime(1899, 12, departure_day, departure_time_hour, departure_time_min )
 
-                elements.append({   'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer, richtungskuerzel) ))),
-                                    'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, richtungskuerzel ))),
+                elements.append({   'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer), ul.richtungskuerzel ))),
+                                    'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, ul.richtungskuerzel ))),
                                     'richtungscode' : '>',
                                     'fzprofilname' : ul.unterliniennummer,
                                     'index' : lp.laufende_nummer,
@@ -804,8 +804,8 @@ class ivuToVisum(object):
                     fahrten.append({    'nr' : f.id,
                                         'name' : removepSecialCharacter(ul.oeffentlicher_linienname),
                                         'abfahrt' : departure,
-                                        'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer, richtungskuerzel) ))),
-                                        'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, richtungskuerzel ))),
+                                        'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer), ul.richtungskuerzel ))),
+                                        'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, ul.richtungskuerzel ))),
                                         'richtungscode' : '>',
                                         'fzprofilname' : ul.unterliniennummer,
                                         'vonfzpelemindex' : f.start_pos,
@@ -823,8 +823,8 @@ class ivuToVisum(object):
                             fahrten.append({    'nr' : f.id,
                                                 'name' : removepSecialCharacter(ul.oeffentlicher_linienname),
                                                 'abfahrt' : departure,
-                                                'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer, richtungskuerzel) ))),
-                                                'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, richtungskuerzel ))),
+                                                'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer), ul.richtungskuerzel ))),
+                                                'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, ul.richtungskuerzel ))),
                                                 'richtungscode' : '>',
                                                 'fzprofilname' : ul.unterliniennummer,
                                                 'vonfzpelemindex' : f.start_pos,
