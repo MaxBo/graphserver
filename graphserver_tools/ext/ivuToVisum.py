@@ -109,7 +109,7 @@ class ivuToVisum(object):
                                     "NAME" varchar(255),
                                     "KOSTENSATZ1" float,
                                     "KOSTENSATZ2" float,
-                                    "KOSTENSATZ3",
+                                    "KOSTENSATZ3" float,
                                     PRIMARY KEY ("NR")
                                 )''')
 
