@@ -56,12 +56,12 @@ class ivuToVisum(object):
 
         print 'converting'
         self._processBetreiber()
+        self._processVsysset()
 
         threads = []
 
         for m in (  self._processKnoten,
                     self._processHstHstBereichHstPunkt,
-                    self._processVsysset,
                     self._processLinie,
                     self._processLinienroute,
                     self._processLinienroutenelement,
