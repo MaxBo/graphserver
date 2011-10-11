@@ -529,9 +529,9 @@ class ivuToVisum(object):
 
             betreiber.append({  'nr':b.betriebsnummer,
                                 'name':b.betriebsname,
-                                'ksatz1:'0.0,
-                                'ksatz2:'0.0,
-                                'ksatz3:'0.0
+                                'ksatz1':0.0,
+                                'ksatz2':0.0,
+                                'ksatz3':0.0
                             })
 
         conn = psycopg2.connect(self.db_connect_string)
