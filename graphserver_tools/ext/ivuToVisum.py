@@ -416,7 +416,7 @@ class ivuToVisum(object):
 
             for zp in s.zwischenpunkte:
 
-                strecken_poly.appedn({  'von_knoten':s.von_haltestelle.id,
+                strecken_poly.append({  'von_knoten':s.von_haltestelle.id,
                                         'nach_konten':s.nach_haltestelle.id,
                                         'index':zp.laufende_nummer,
                                         'x_koord':zp.x_koordinate,
