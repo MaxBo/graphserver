@@ -411,13 +411,14 @@ class ivuToVisum(object):
                                 'nach_knoten':s.nach_haltestelle.id,
                                 'name':None,
                                 'typnr':None,
-                                'vysysset':None
+                                'vsysset':None
                            })
+
 
             for zp in s.zwischenpunkte:
 
                 strecken_poly.append({  'von_knoten':s.von_haltestelle.id,
-                                        'nach_konten':s.nach_haltestelle.id,
+                                        'nach_knoten':s.nach_haltestelle.id,
                                         'index':zp.laufende_nummer,
                                         'x_koord':zp.x_koordinate,
                                         'y_koord':zp.y_koordinate
@@ -427,9 +428,9 @@ class ivuToVisum(object):
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
 
-        c.executemany('''INSERT INTO "STRECKEN" VALUES
+        c.executemany('''INSERT INTO "STRECKE" VALUES
                             (%(nr)s, %(von_knoten)s, %(nach_knoten)s, %(name)s, %(typnr)s,
-                             %(vysysset)s )''', strecken)
+                             %(vsysset)s)''', strecken)
 
         c.executemany('''INSERT INTO "STRECKENPOLY" VALUES
                             (%(von_knoten)s, %(nach_knoten)s, %(index)s, %(x_koord)s,
