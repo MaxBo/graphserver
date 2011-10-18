@@ -435,7 +435,9 @@ class ivuToVisum(object):
             strecken.append(visum_strecke)
 
 
-            for zp in s.zwischenpunkte:
+            for zp in sorted(s.zwischenpunkte, key=lambda zp: zp.index):
+
+                print zp.index
 
                 strecken_poly.append({  'von_knoten':s.von_haltestelle.id,
                                         'nach_knoten':s.nach_haltestelle.id,
