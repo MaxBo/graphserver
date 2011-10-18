@@ -414,13 +414,25 @@ class ivuToVisum(object):
 
         for s in strecken_ivu:
 
-            strecken.append({   'nr':s.id,
-                                'von_knoten':s.von_haltestelle.id,
-                                'nach_knoten':s.nach_haltestelle.id,
+            visum_strecke = {   'nr':s.id,
+                                'von_knoten':s.nach_haltestelle.id,
+                                'nach_knoten':s.von_haltestelle.id,
                                 'name':None,
                                 'typnr':1,
                                 'vsysset':vsysset
-                           })
+                           }
+
+            if visum_strecke in strecken:
+                continue
+
+            visum_strecke['von_knoten'] = s.von_haltestelle.id
+            visum_strecke['nach_knoten'] = s.nach_haltestelle.id
+
+            if visum_strecke in strecken:
+                continue
+
+
+            strecken.append(visum_strecke)
 
 
             for zp in s.zwischenpunkte:
@@ -447,7 +459,7 @@ class ivuToVisum(object):
         c.close()
         conn.commit()
 
-        print 'finished converting Strecken'
+        print '\tfinished converting Strecken'
 
 
     def _processHstHstBereichHstPunkt(self):
@@ -738,7 +750,7 @@ class ivuToVisum(object):
             travel_time_min = 0
             travel_time_hours = 0
 
-            for lp in session.query(Linienprofil).filter(Linienprofil.linie == ul).all():
+            for lp in session.query(Linienprofil).filter(Linienprofil.linie == ul).order_by(Linienprofil.laufende_nummer).all():
 
                 travel_time_hours += lp.fahrzeit.hour
                 travel_time_min += lp.fahrzeit.minute
