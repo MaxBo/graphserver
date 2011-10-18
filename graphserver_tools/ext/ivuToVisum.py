@@ -293,6 +293,12 @@ class ivuToVisum(object):
         cursor.execute('INSERT INTO "RICHTUNG" VALUES (%s, %s, %s)', ( 1, '>', ''))
         cursor.execute('INSERT INTO "RICHTUNG" VALUES (%s, %s, %s)', ( 2, '<', ''))
 
+        c.execute( """CREATE OR REPLACE RULE ignore_duplicate_linien
+                      AS ON INSERT TO "LINIE"
+                      WHERE "NAME" IN ( SELECT "NAME" FROM "LINIE")
+                      DO INSTEAD NOTHING""" )
+
+
         cursor.close()
         connection.commit()
 
