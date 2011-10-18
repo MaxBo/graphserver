@@ -43,10 +43,11 @@ class Proccessing():
 
 
     def get_route_dict(self):
-        try:
-            self.cursor.execute('SELECT origin, destination, time FROM cal_routes WHERE done=%s LIMIT 1', ( False, ))
-            origin, destination, time = self.cursor.fetchone()
-        except: # there are no routes to Compute
+        self.cursor.execute('SELECT origin, destination, time FROM cal_routes WHERE NOT done LIMIT 1')
+        row = self.cursor.fetchone()
+        if row:
+            origin, destination, time = row
+        else: # there are no routes to Compute
             return None
 
         self.cursor.execute('SELECT start_time, end_time, is_arrival_time FROM cal_times WHERE id=%s', ( time, ))
@@ -153,7 +154,6 @@ class Proccessing():
         associated with this object.
         [only routes with the processed flag not set will be processed]
         '''
-        i=0
         routes = self.get_route_dict()
         while ( routes ):
             if routes['arrival']:
@@ -162,11 +162,7 @@ class Proccessing():
                 self.process_paths(routes)
 
             routes = self.get_route_dict()
-            i += 1
-            if not i%1000:
-                self.conn.commit()
-            if not i%100000:
-                print i , ' routes calculated by ', self.trip_prefix
+            
 
     def write_retro_trip(self, vertices, route_id):
         ''' in retro_paths the walking distance is counted in the wrong direction.
@@ -191,6 +187,11 @@ class Proccessing():
             time = datetime.datetime.fromtimestamp(v.state.time)
 
             self.cursor.execute('INSERT INTO cal_paths_details VALUES (%s,%s,%s,%s,%s,%s,%s,%s)', ( self.trip_prefix + current_trip_id, c, v.label, time, v.state.weight, v.state.dist_walked, v.state.num_transfers, v.state.trip_id ))
+        if not self.trips_calculated % 1000:
+            self.conn.commit()
+            self.logfile.write('%s routes calculated by %s, last route: %s \n' %(self.trips_calculated, self.trip_prefix, route_id))
+            self.logfile.flush()
+        self.trips_calculated += 1
 
 
     ''' this method will write a very long trip into the database. '''
@@ -204,7 +205,7 @@ class Proccessing():
         self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', (self.trip_prefix + current_trip_id, route_id, start_date_time, end_time, (time.mktime(end_time.timetuple()) - start_time ) ))
 
 
-    def __init__(self, graph, db_connection_string, time_step=240, walking_speed=1.2, max_walk=1080, walking_reluctance=2, trip_prefix=''):
+    def __init__(self, graph, db_connection_string, time_step=240, walking_speed=1.2, max_walk=1080, walking_reluctance=2, trip_prefix='', logfile = None):
 
         self.trip_prefix = trip_prefix
         self.time_step = time_step
@@ -218,6 +219,8 @@ class Proccessing():
         self.conn = psycopg2.connect(db_connection_string)
         self.cursor = self.conn.cursor()
         self.trip_id = 0
+        self.trips_calculated = 0
+        self.logfile = logfile
 
         self.run()
 
@@ -247,6 +250,8 @@ def create_db_tables(connection, recreate=False):
                                                end_time TIMESTAMP NOT NULL,
                                                total_time INTEGER NOT NULL )''')
 
+        cursor.execute('UPDATE public.cal_routes SET done = FALSE;')
+
 
     if ( 'cal_paths_details', ) not in tables or recreate:
 
@@ -267,7 +272,7 @@ def create_db_tables(connection, recreate=False):
     cursor.close()
 
 
-def print_status(connection):
+def print_status(connection, logfile=None):
 
     def calc_calculation_time(routes_previously_wating, routes_waiting, all_routes, time_finished):
         if routes_previously_wating != routes_waiting:
@@ -290,34 +295,38 @@ def print_status(connection):
     routes_waiting = None
 
     cursor = connection.cursor()
-
-    cursor.execute('SELECT origin FROM cal_routes')
-    all_routes = len(cursor.fetchall())
-
+    cursor.execute('SELECT count(*) FROM cal_routes')
+    all_routes = cursor.fetchone()[0]
 
     finished = False
     while not finished:
         time.sleep(1.0)
-        cursor.execute('SELECT origin FROM cal_routes WHERE done=false')
-
-        if not cursor.fetchone():
+        cursor.execute('SELECT count(*) FROM cal_routes WHERE NOT done')
+        routes_waiting = cursor.fetchone()[0]
+        if not all_routes:
             finished = True
 
         else:
-            routes_waiting = len(cursor.fetchall())
-
             if time_finished:
-                sys.stdout.write('\r%s routes waiting to be processed. Finished in about %s              ' % (routes_waiting,
-                                                                                                          utils.seconds_time_string(time_finished)))
+                text = '\r%s routes waiting to be processed. Finished in about %s              ' % (routes_waiting,
+                                                                                                    utils.seconds_time_string(time_finished))
+                sys.stdout.write(text)
                 sys.stdout.flush()
+##                if logfile:
+##                    logfile.write(text)
+##                    logfile.flush()
 
             else:
-                sys.stdout.write('\r%s routes waiting to be processed. Please wait ...              ' % routes_waiting)
+                text = '\r%s routes waiting to be processed. Please wait ...              ' % routes_waiting
+                sys.stdout.write(text)
                 sys.stdout.flush()
+##                if logfile:
+##                    logfile.write(text)
+##                    logfile.flush()
 
         time_finished, routes_previously_wating = calc_calculation_time(routes_previously_wating, routes_waiting, all_routes, time_finished)
 
-    cursor.close()
+    connection.close()
 
     sys.stdout.write('\rThe last routes getting processed. Please wait ...                                                                      \n')
     sys.stdout.flush()

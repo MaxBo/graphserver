@@ -57,12 +57,14 @@ def build_route_data(graph, psql_connect_string, times_filename, points_filename
 
 
 def calculate_routes(graph, psql_connect_string, options, num_processes=4):
+    logfile = open('log.txt','w')
     conn = psycopg2.connect(psql_connect_string)
 
 
     process_routes.create_db_tables(conn, False)
 
     conn.commit()
+    sys.stdout.write('created db_tables\n')
 
     prefixes = ( 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
                  'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'BB', 'CC', 'DD', 'EE',
@@ -77,12 +79,14 @@ def calculate_routes(graph, psql_connect_string, options, num_processes=4):
                                                                              float(options['walking-speed']),
                                                                              int(options['max-walk']),
                                                                              int(options['walking-reluctance']),
-                                                                             socket.gethostname() + prefixes[i]))
-        time.sleep(1) #workaround for duplicate calculations - should be temporary
+                                                                             socket.gethostname() + prefixes[i],
+                                                                             logfile))
         p.start()
+        sys.stdout.write('started thread %s \n' %i)
+        time.sleep(10) #workaround for duplicate calculations - should be temporary
         processes.append(p)
 
-    status_printer = multiprocessing.Process(target=process_routes.print_status, args=(conn, ))
+    status_printer = multiprocessing.Process(target=process_routes.print_status, args=(conn,logfile ))
     status_printer.start()
     processes.append(status_printer)
 
