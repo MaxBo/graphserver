@@ -403,11 +403,14 @@ class ivuToVisum(object):
 
     def _processZwischenpunkte(self):
 
-        strecken_ivu = [ s for s in self._session.query(Strecke).all() if s.isValidOnDate(self.date) ]
+        session = self._getNewSession()
+
+        strecken_ivu = [ s for s in session.query(Strecke).all() if s.isValidOnDate(self.date) ]
 
         strecken = []
         strecken_poly = []
 
+        vsysset = ','.join(set([ v.verkehrsmittelkuerzel for v in session.query(Verkehrsmittel).all()]))
 
         for s in strecken_ivu:
 
@@ -416,7 +419,7 @@ class ivuToVisum(object):
                                 'nach_knoten':s.nach_haltestelle.id,
                                 'name':None,
                                 'typnr':1,
-                                'vsysset':None
+                                'vsysset':vsysset
                            })
 
 
