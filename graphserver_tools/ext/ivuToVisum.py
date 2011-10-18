@@ -662,12 +662,13 @@ class ivuToVisum(object):
     def _processLinienroutenelement(self):
         ''' Writes all Linienprofile of all valid Unterlinien to the visum database
         '''
+        session = self._getNewSession()
 
         linienroutenelemente = []
 
         for ul in self.unterlinien:
 
-            for lp in self._session.query(Linienprofil).filter(Linienprofil.linie == ul).all():
+            for lp in session.query(Linienprofil).filter(Linienprofil.linie == ul).all():
 
                 linienroutenelemente.append({   'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
                                                 'linroutename' : removepSecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))),
