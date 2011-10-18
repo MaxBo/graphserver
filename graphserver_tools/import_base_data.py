@@ -9,6 +9,7 @@ import sys
 import psycopg2
 from rtree import Rtree
 import multiprocessing
+import time
 
 from termcolor import colored, cprint
 
@@ -26,13 +27,17 @@ from graphserver_tools.utils.utils import read_config, distance
 
 def create_gs_datbases(osm_xml_filename, gtfs_filename, db_conn_string):
 
-    def importOsmWrapper(osm_xml_filename, db_conn_string, gdb):
+    def importOsmWrapper(osm_xml_filename, db_conn_string):
+
+        gdb = GraphDatabase( db_conn_string, overwrite=True )
 
         osmdb = osm_to_osmdb( osm_xml_filename, db_conn_string )
         gdb_import_osm(gdb, osmdb, 'osm', {}, None)
 
 
-    def importGtfsWrapper(gtfs_filename, db_conn_string, gdb):
+    def importGtfsWrapper(gtfs_filename, db_conn_string):
+
+        gdb = GraphDatabase( db_conn_string, overwrite=False )
 
         gtfsdb = GTFSDatabase( db_conn_string, overwrite=True )
         gtfsdb.load_gtfs( gtfs_filename )
@@ -40,12 +45,12 @@ def create_gs_datbases(osm_xml_filename, gtfs_filename, db_conn_string):
         gdb_load_gtfsdb( gdb, 1, gtfsdb, gdb.get_cursor())
 
 
-    gdb = GraphDatabase( db_conn_string, overwrite=True )
-
-    osm_process = multiprocessing.Process(target=importOsmWrapper, args=(osm_xml_filename, db_conn_string, gdb))
+    osm_process = multiprocessing.Process(target=importOsmWrapper, args=(osm_xml_filename, db_conn_string))
     osm_process.start()
 
-    gtfs_process = multiprocessing.Process(target=importGtfsWrapper, args=(gtfs_filename, db_conn_string, gdb))
+    time.sleep(1)
+
+    gtfs_process = multiprocessing.Process(target=importGtfsWrapper, args=(gtfs_filename, db_conn_string))
     gtfs_process.start()
 
     osm_process.join()
