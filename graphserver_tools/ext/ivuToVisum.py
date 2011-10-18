@@ -62,9 +62,7 @@ class ivuToVisum(object):
 
         for m in (  self._processKnoten,
                     self._processHstHstBereichHstPunkt,
-                    self._processLinie,
-                    self._processLinienroute,
-                    self._processLinienroutenelement,
+                    self._processLinieRouteElement,
                     self._processFahrzeitprofil,
                     self._processFahrzeitprofilelement,
                     self._processFahrzeugfahrt,
@@ -227,16 +225,17 @@ class ivuToVisum(object):
 
         cursor.execute('DROP TABLE IF EXISTS "LINIENROUTE" CASCADE')
         cursor.execute('''CREATE TABLE "LINIENROUTE"
-                            (   "LINNAME" varchar(255),
+                            (   "LINNAME" varchar(255) REFERENCES "LINIE",
                                 "NAME" varchar(255),
                                 "RICHTUNGCODE" varchar(255),
-                                "ISTRINGLINIE" integer
+                                "ISTRINGLINIE" integer,
+                                PRIMARY KEY ("NAME")
                             )''')
 
         cursor.execute('DROP TABLE IF EXISTS "LINIENROUTENELEMENT" CASCADE')
         cursor.execute('''CREATE TABLE "LINIENROUTENELEMENT"
                             (   "LINNAME" varchar(255),
-                                "LINROUTENAME" varchar(255),
+                                "LINROUTENAME" varchar(255) REFERENCES "LINIENROUTE",
                                 "RICHTUNGCODE" varchar(255),
                                 "INDEX" integer,
                                 "ISTROUTENPUNKT" integer,
@@ -410,7 +409,7 @@ class ivuToVisum(object):
                                 'von_knoten':s.von_haltestelle.id,
                                 'nach_knoten':s.nach_haltestelle.id,
                                 'name':None,
-                                'typnr':None,
+                                'typnr':1,
                                 'vsysset':None
                            })
 
@@ -593,6 +592,12 @@ class ivuToVisum(object):
         print '\tfinished converting Betreiber'
 
 
+    def _processLinieRouteElement(self):
+        self._processLinie()
+        self._processLinienroute()
+        self._processLinienroutenelement()
+
+
     def _processLinie(self):
         ''' Writes a Linie for each IVU-Linie (not Unterlinie) in the feed into the
             visum database.
@@ -602,7 +607,7 @@ class ivuToVisum(object):
 
         for linie, unterlinien in self.linien_unterlinien_mapper.items():
 
-            linien.append({ 'name' : removepSecialCharacter('-'.join(( linie[1].betriebsteilschluessel, linie[0] ))),
+            linien.append({ 'name' : removepSecialCharacter('-'.join(( linie[1].betriebsteilschluessel, str(linie[0]) ))),
                             'vsyscode' : unterlinien[0].verkehrsmittel.verkehrsmittelkuerzel,
                             'tarifsystemmenge' : None,
                             'betreibernr' : linie[1].id
@@ -629,7 +634,7 @@ class ivuToVisum(object):
 
         for ul in self.unterlinien:
 
-            linienrouten.append({   'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer), ul.richtungskuerzel ))),
+            linienrouten.append({   'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
                                     'name' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, ul.richtungskuerzel ))),
                                     'richtungscode' : '>',
                                     'istringlinie' : 0
@@ -658,7 +663,7 @@ class ivuToVisum(object):
 
             for lp in self._session.query(Linienprofil).filter(Linienprofil.linie == ul).all():
 
-                linienroutenelemente.append({   'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer), ul.richtungskuerzel ))),
+                linienroutenelemente.append({   'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
                                                 'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, ul.richtungskuerzel ))),
                                                 'richtungscode' : '>',
                                                 'index' : lp.laufende_nummer,
@@ -689,7 +694,7 @@ class ivuToVisum(object):
 
         for ul in self.unterlinien:
 
-            fahrzeitprofile.append({    'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer), ul.richtungskuerzel ))),
+            fahrzeitprofile.append({    'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
                                         'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, ul.richtungskuerzel ))),
                                         'richtungscode' : '>',
                                         'name' : ul.unterliniennummer
@@ -752,7 +757,7 @@ class ivuToVisum(object):
                 arrival = datetime.datetime(1899, 12, day, travel_time_hours, travel_time_min)
                 departure = datetime.datetime(1899, 12, departure_day, departure_time_hour, departure_time_min )
 
-                elements.append({   'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer), ul.richtungskuerzel ))),
+                elements.append({   'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
                                     'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, ul.richtungskuerzel ))),
                                     'richtungscode' : '>',
                                     'fzprofilname' : ul.unterliniennummer,
@@ -805,7 +810,7 @@ class ivuToVisum(object):
                     fahrten.append({    'nr' : f.id,
                                         'name' : removepSecialCharacter(ul.oeffentlicher_linienname),
                                         'abfahrt' : departure,
-                                        'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer), ul.richtungskuerzel ))),
+                                        'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
                                         'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, ul.richtungskuerzel ))),
                                         'richtungscode' : '>',
                                         'fzprofilname' : ul.unterliniennummer,
@@ -824,7 +829,7 @@ class ivuToVisum(object):
                             fahrten.append({    'nr' : f.id,
                                                 'name' : removepSecialCharacter(ul.oeffentlicher_linienname),
                                                 'abfahrt' : departure,
-                                                'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer), ul.richtungskuerzel ))),
+                                                'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
                                                 'linroutename' : removepSecialCharacter('-'.join(( str(ul.unterliniennummer), ul.oeffentlicher_linienname, ul.richtungskuerzel ))),
                                                 'richtungscode' : '>',
                                                 'fzprofilname' : ul.unterliniennummer,

@@ -283,6 +283,8 @@ def read_zwischenpunkte(zwischenpunkte_file, db_connect_string):
     session = getSession(db_connect_string)
     strecke = None
 
+    i = 0 # correct the 'laufende_nummer'
+
     for ln, line in fileToTuples(zwischenpunkte_file):
         try:
             if len(line) == 7: # Kopfzeile
@@ -305,9 +307,13 @@ def read_zwischenpunkte(zwischenpunkte_file, db_connect_string):
 
                 session.add(strecke)
 
+                i = 0
+
             else:
 
-                zwischenpunkt = Zwischenpunkt(  laufende_nummer=int_or_None(line[0]),
+                i += 1
+
+                zwischenpunkt = Zwischenpunkt(  laufende_nummer=i,
                                                 x_koordinate=int_or_None(line[1]),
                                                 y_koordinate=int_or_None(line[2]),
                                                 strecke=strecke
