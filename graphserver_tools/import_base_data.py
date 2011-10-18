@@ -8,6 +8,7 @@
 import sys
 import psycopg2
 from rtree import Rtree
+import threading
 
 from termcolor import colored, cprint
 
@@ -24,15 +25,31 @@ from graphserver_tools.utils.utils import read_config, distance
 
 
 def create_gs_datbases(osm_xml_filename, gtfs_filename, db_conn_string):
-    osmdb = osm_to_osmdb( osm_xml_filename, db_conn_string )
 
-    gtfsdb = GTFSDatabase( db_conn_string, overwrite=True )
-    gtfsdb.load_gtfs( gtfs_filename )
+    def importOsmWrapper(osm_xml_filename, db_conn_string, gdb):
+
+        osmdb = osm_to_osmdb( osm_xml_filename, db_conn_string )
+        gdb_import_osm(gdb, osmdb, 'osm', {}, None)
+
+
+    def importGtfsWrapper(gtfs_filename, db_conn_string, gdb):
+
+        gtfsdb = GTFSDatabase( db_conn_string, overwrite=True )
+        gtfsdb.load_gtfs( gtfs_filename )
+
+        gdb_load_gtfsdb( gdb, 1, gtfsdb, gdb.get_cursor())
+
 
     gdb = GraphDatabase( db_conn_string, overwrite=True )
 
-    gdb_load_gtfsdb( gdb, 1, gtfsdb, gdb.get_cursor())
-    gdb_import_osm(gdb, osmdb, 'osm', {}, None);
+    osm_thread = threading.Thread(target=importOsmWrapper, args=(osm_xml_filename, db_conn_string, gdb))
+    osm_thread.start()
+
+    gtfs_thread = threading.Thread(target=importGtfsWrapper, args=(gtfs_filename, db_conn_string, gdb))
+    gtfs_thread.start()
+
+    osm_thread.join()
+    gtfs_thread.join()
 
 
 def link_osm_gtfs(db_conn_string, max_link_dist=150):
