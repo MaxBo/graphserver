@@ -411,7 +411,7 @@ class ivuToVisum(object):
                                 'nach_knoten':s.nach_haltestelle.id,
                                 'name':None,
                                 'typnr':None,
-                                'vysyset':None
+                                'vysysset':None
                            })
 
             for zp in s.zwischenpunkte:
@@ -429,7 +429,7 @@ class ivuToVisum(object):
 
         c.executemany('''INSERT INTO "STRECKEN" VALUES
                             (%(nr)s, %(von_knoten)s, %(nach_knoten)s, %(name)s, %(typnr)s,
-                             %(vsysset)s )''', strecken)
+                             %(vysysset)s )''', strecken)
 
         c.executemany('''INSERT INTO "STRECKENPOLY" VALUES
                             (%(von_knoten)s, %(nach_knoten)s, %(index)s, %(x_koord)s,
