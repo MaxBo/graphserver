@@ -34,7 +34,7 @@ class ivuToVisum(object):
         self._ivu_data = ivu_data
 
         self._session = self._getNewSession()
-        readIvuToDb(ivu_data, self.db_connect_string)
+        #readIvuToDb(ivu_data, self.db_connect_string)
 
 
     def getIvuData(self):
