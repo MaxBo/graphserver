@@ -8,7 +8,7 @@
 import sys
 import psycopg2
 from rtree import Rtree
-import threading
+import multiprocessing
 
 from termcolor import colored, cprint
 
@@ -42,14 +42,14 @@ def create_gs_datbases(osm_xml_filename, gtfs_filename, db_conn_string):
 
     gdb = GraphDatabase( db_conn_string, overwrite=True )
 
-    osm_thread = threading.Thread(target=importOsmWrapper, args=(osm_xml_filename, db_conn_string, gdb))
-    osm_thread.start()
+    osm_process = multiprocessing.Process(target=importOsmWrapper, args=(osm_xml_filename, db_conn_string, gdb))
+    osm_process.start()
 
-    gtfs_thread = threading.Thread(target=importGtfsWrapper, args=(gtfs_filename, db_conn_string, gdb))
-    gtfs_thread.start()
+    gtfs_process = multiprocessing.Process(target=importGtfsWrapper, args=(gtfs_filename, db_conn_string, gdb))
+    gtfs_process.start()
 
-    osm_thread.join()
-    gtfs_thread.join()
+    osm_process.join()
+    gtfs_process.join()
 
 
 def link_osm_gtfs(db_conn_string, max_link_dist=150):
