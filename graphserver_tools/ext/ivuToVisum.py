@@ -750,20 +750,9 @@ class ivuToVisum(object):
             travel_time_min = 0
             travel_time_hours = 0
 
+            day = 30
+
             for lp in session.query(Linienprofil).filter(Linienprofil.linie == ul).order_by(Linienprofil.laufende_nummer).all():
-
-                travel_time_hours += lp.fahrzeit.hour
-                travel_time_min += lp.fahrzeit.minute
-                day = 30
-
-                if travel_time_min > 59:
-                    travel_time_min -= 60
-                    travel_time_hours += 1
-
-                if travel_time_hours > 23:
-                    day += 1
-                    travel_time_hours -= 24
-
 
                 departure_time_min = travel_time_min + lp.wartezeit.minute
                 departure_time_hour = travel_time_hours + lp.wartezeit.hour
@@ -792,6 +781,18 @@ class ivuToVisum(object):
                                     'ankunft' : arrival,
                                     'abfahrt' : departure,
                                 })
+
+                travel_time_hours += lp.fahrzeit.hour
+                travel_time_min += lp.fahrzeit.minute
+
+
+                if travel_time_min > 59:
+                    travel_time_min -= 60
+                    travel_time_hours += 1
+
+                if travel_time_hours > 23:
+                    day += 1
+                    travel_time_hours -= 24
 
 
 
