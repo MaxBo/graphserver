@@ -435,7 +435,7 @@ class ivuToVisum(object):
             strecken.append(visum_strecke)
 
 
-            for zp in sorted(s.zwischenpunkte, key=lambda zp: zp.index):
+            for zp in sorted(s.zwischenpunkte, key=lambda zp: zp.laufende_nummer):
 
                 print zp.index
 
