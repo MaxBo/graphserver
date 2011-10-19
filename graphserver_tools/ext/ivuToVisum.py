@@ -341,35 +341,6 @@ class ivuToVisum(object):
         self.unterlinien =  [ ul for ul in unterlinien if ul.version == linien_version_mapper[( ul.liniennummer, ul.betrieb )] ]
 
 
-    '''def _createHaltestellenVsyssetMapper(self):
-
-        def wrapper(ivu_haltestellen, haltestellen_vsysset_mapper):
-            for h in ivu_haltestellen:
-                haltestellen_vsysset_mapper[h] = set([ l.linie.verkehrsmittel for l in h.linienprofile ])
-
-
-        self.haltestellen_vsysset_mapper = { }
-        ivu_haltestellen = self._session.query(Haltestelle).all()
-
-        num_threads = 32
-        num_haltestellen_per_thread = len(ivu_haltestellen) / num_threads
-        threads = []
-
-
-        for i in range(num_threads):
-            t = threading.Thread(target=wrapper, args=(ivu_haltestellen[i*num_haltestellen_per_thread:(i+1)*num_haltestellen_per_thread], self.haltestellen_vsysset_mapper))
-            threads.append(t)
-
-        t = threading.Thread(target=wrapper, args=(ivu_haltestellen[(i+1)*num_haltestellen_per_thread:], self.haltestellen_vsysset_mapper))
-        threads.append(t)
-
-        for t in threads:
-            t.start()
-
-        for t in threads:
-            t.join()'''
-
-
     def _processKnoten(self):
         ''' Method will write a vertex (Knoten) for every Haltestelle and Zwischenpunkt
             in the feed into the visum database.
@@ -557,10 +528,12 @@ class ivuToVisum(object):
         haltestellen_ivu = session.query(Haltestelle).all()
         haltepunkte = []
 
+        vsysset = ','.join(set([ v.verkehrsmittelkuerzel for v in session.query(Verkehrsmittel).all()]))
+
         for h in haltestellen_ivu:
 
             hstbernr = h.referenzhaltestelle.id if h.referenzhaltestelle else h.id
-            vsysset = ','.join(set([ l.linie.verkehrsmittel.verkehrsmittelkuerzel for l in h.linienprofile]))
+            # not working --> vsysset = ','.join(set([ l.linie.verkehrsmittel.verkehrsmittelkuerzel for l in h.linienprofile]))
 
             haltepunkte.append({    'nr' : h.id,
                                     'hstbernr' : hstbernr,
