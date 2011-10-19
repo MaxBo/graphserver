@@ -677,13 +677,13 @@ def read(folder, db_connect_string):
     bitfeld_versionae_process = Process(target=bitfeldVersionaeWrapper, args=(folder, db_connect_string))
     bitfeld_versionae_process.start()
 
-    koordsys_process = Process(target=read_koordinatensystem, args=(codecs.open(folder+'/koordsys.asc', encoding='latin-1'), db_connect_string))
+    koordsys_process = Process(target=read_koordinatensystem, args=(codecs.open(os.path.join(folder, 'koordsys.asc'), encoding='latin-1'), db_connect_string))
     koordsys_process.start()
 
     lieferan_halteste_betriebe_process = Process(target=lieferanHaltesteBetriebeWrapper, args=(folder, db_connect_string))
     lieferan_halteste_betriebe_process.start()
 
-    verkehrsm_process = Process(target=read_verkehrsmittel, args=(codecs.open(folder+'/verkehrm.asc', encoding='latin-1'), db_connect_string))
+    verkehrsm_process = Process(target=read_verkehrsmittel, args=(codecs.open(os.path.join(folder, 'verkehrm.asc'), encoding='latin-1'), db_connect_string))
     verkehrsm_process.start()
 
 
@@ -697,20 +697,20 @@ def read(folder, db_connect_string):
     linien_process = Process(target=linienWrapper, args=(folder, db_connect_string))
     linien_process.start()
 
-    if os.path.exists(folder+'/strecken.asc'):
-        zwischenpunkte_process = Process(target=read_zwischenpunkte, args=(codecs.open(folder+'/strecken.asc', encoding='latin-1'), db_connect_string))
+    if os.path.exists(os.path.join(folder, 'strecken.asc')):
+        zwischenpunkte_process = Process(target=read_zwischenpunkte, args=(codecs.open(os.path.join(folder, 'strecken.asc'), encoding='latin-1'), db_connect_string))
         zwischenpunkte_process.start()
 
-    if os.path.exists(folder+'/fussweg.asc'):
-        fusswege_process = Process(target=read_fusswege, args=(codecs.open(folder+'/fussweg.asc', encoding='latin-1'), db_connect_string))
+    if os.path.exists(os.path.join(folder, 'fussweg.asc')):
+        fusswege_process = Process(target=read_fusswege, args=(codecs.open(os.path.join(folder, 'fussweg.asc'), encoding='latin-1'), db_connect_string))
         fusswege_process.start()
 
-    if os.path.exists(folder+'/umst1.asc'):
-        umst1_process = Process(target=read_umst1, args=(codecs.open(folder+'/umst1.asc', encoding='latin-1'), db_connect_string))
+    if os.path.exists(os.path.join(folder, 'umst1.asc')):
+        umst1_process = Process(target=read_umst1, args=(codecs.open(os.path.join(folder, 'umst1.asc'), encoding='latin-1'), db_connect_string))
         umst1_process.start()
 
-    if os.path.exists(folder+'/umst2.asc'):
-        umst2_process = Process(target=read_umst2, args=(codecs.open(folder+'/umst2.asc', encoding='latin-1'), db_connect_string))
+    if os.path.exists(os.path.join(folder, 'umst2.asc')):
+        umst2_process = Process(target=read_umst2, args=(codecs.open(os.path.join(folder, 'umst2.asc'), encoding='latin-1'), db_connect_string))
         umst2_process.start()
 
 
@@ -721,8 +721,8 @@ def read(folder, db_connect_string):
     fahrten_process = Process(target=fahrtenWrapper, args=(folder, db_connect_string))
     fahrten_process.start()
 
-    if os.path.exists(folder+'/umst3.asc'):
-        umst3_process = Process(target=read_umst3, args=(codecs.open(folder+'/umst3.asc', encoding='latin-1'), db_connect_string))
+    if os.path.exists(os.path.join(folder, 'umst3.asc')):
+        umst3_process = Process(target=read_umst3, args=(codecs.open(os.path.join(folder, 'umst3.asc'), encoding='latin-1'), db_connect_string))
         umst3_process.start()
 
 
@@ -731,8 +731,8 @@ def read(folder, db_connect_string):
 
     print 'started reading: Umsteigezeiten4'
 
-    if os.path.exists(folder+'/umst4.asc'):
-        umst4_process = Process(target=read_umst4, args=(codecs.open(folder+'/umst4.asc', encoding='latin-1'), db_connect_string))
+    if os.path.exists(os.path.join(folder, 'umst4.asc')):
+        umst4_process = Process(target=read_umst4, args=(codecs.open(os.path.join(folder, 'umst4.asc'), encoding='latin-1'), db_connect_string))
         umst4_process.start()
 
 
