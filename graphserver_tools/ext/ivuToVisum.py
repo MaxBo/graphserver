@@ -380,14 +380,21 @@ class ivuToVisum(object):
 
         strecken = []
         strecken_poly = []
+        visum_strecken_ids = {}
 
         vsysset = ','.join(set([ v.verkehrsmittelkuerzel for v in session.query(Verkehrsmittel).all()]))
 
         for s in strecken_ivu:
+            # wenn Strecke in Gegenrichtung schon vorhanden, nimm diese Nummer,
+            visum_strecken_id = visum_strecken_ids.get((s.nach_haltestelle.id, s.von_haltestelle.id))
+            # sonst nimm die ivu-Strecken-ID
+            if not visum_strecken_id:
+                visum_strecken_id = s.id
+                visum_strecken_ids[(s.von_haltestelle.id, s.nach_haltestelle.id)]
 
-            visum_strecke = {   'nr':s.id,
-                                'von_knoten':s.nach_haltestelle.id,
-                                'nach_knoten':s.von_haltestelle.id,
+            visum_strecke = {   'nr':visum_strecken_id,
+                                'von_knoten':s.von_haltestelle.id,
+                                'nach_knoten':s.nach_haltestelle.id,
                                 'name':None,
                                 'typnr':1,
                                 'vsysset':vsysset
@@ -740,8 +747,8 @@ class ivuToVisum(object):
                     departure_time_hour -= 24
 
 
-                arrival = datetime.datetime(1899, 12, day, travel_time_hours, travel_time_min)
-                departure = datetime.datetime(1899, 12, departure_day, departure_time_hour, departure_time_min )
+                arrival = datetime.datetime(2010, 12, day, travel_time_hours, travel_time_min)
+                departure = datetime.datetime(2010, 12, departure_day, departure_time_hour, departure_time_min )
 
                 elements.append({   'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
                                     'linroutename' : removepSecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))),
@@ -755,8 +762,8 @@ class ivuToVisum(object):
                                     'abfahrt' : departure,
                                 })
 
-                travel_time_hours += lp.fahrzeit.hour
-                travel_time_min += lp.fahrzeit.minute
+                departure_time_hour += lp.fahrzeit.hour
+                departure_time_min += lp.fahrzeit.minute
 
 
                 if travel_time_min > 59:
