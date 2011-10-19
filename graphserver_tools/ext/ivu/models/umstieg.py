@@ -43,12 +43,12 @@ class HaltestelleBetriebUmstieg(Base):
 
 
 
-umst3_von_association_table = Table('umst3_von', Base.metadata,
+umst3_von_association_table = Table('ivu_umst3_von', Base.metadata,
     Column('umst3_id', Integer, ForeignKey('ivu_umst3.id')),
     Column('linien_id', Integer, ForeignKey('ivu_linien.id'))
 )
 
-umst3_nach_association_table = Table('umst3_nach', Base.metadata,
+umst3_nach_association_table = Table('ivu_umst3_nach', Base.metadata,
     Column('umst3_id', Integer, ForeignKey('ivu_umst3.id')),
     Column('linien_id', Integer, ForeignKey('ivu_linien.id'))
 )
