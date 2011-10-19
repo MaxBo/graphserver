@@ -342,7 +342,7 @@ class ivuToVisum(object):
 
 
     def _processKnoten(self):
-        ''' Method will write a vertex (Knoten) for every Haltestelle and Zwischenpunkt
+        ''' Method will write a vertex (Knoten) for every Haltestelle
             in the feed into the visum database.
         '''
         vertices = []
@@ -385,12 +385,14 @@ class ivuToVisum(object):
         vsysset = ','.join(set([ v.verkehrsmittelkuerzel for v in session.query(Verkehrsmittel).all()]))
 
         for s in strecken_ivu:
+
             # wenn Strecke in Gegenrichtung schon vorhanden, nimm diese Nummer,
-            visum_strecken_id = visum_strecken_ids.get((s.nach_haltestelle.id, s.von_haltestelle.id))
-            # sonst nimm die ivu-Strecken-ID
-            if not visum_strecken_id:
+            if (s.nach_haltestelle.id, s.von_haltestelle.id) in visum_strecken_ids:
+                visum_strecken_id = visum_strecken_ids[(s.nach_haltestelle.id, s.von_haltestelle.id)]
+            else: # sonst nimm die ivu-Strecken-ID
                 visum_strecken_id = s.id
-                visum_strecken_ids[(s.von_haltestelle.id, s.nach_haltestelle.id)]
+                visum_strecken_ids[(s.von_haltestelle.id, s.nach_haltestelle.id)] = s.id
+
 
             visum_strecke = {   'nr':visum_strecken_id,
                                 'von_knoten':s.von_haltestelle.id,
@@ -404,7 +406,7 @@ class ivuToVisum(object):
             strecken.append(visum_strecke)
 
 
-            for zp in sorted(s.zwischenpunkte, key=lambda zp: zp.laufende_nummer):
+            for zp in s.zwischenpunkte:
 
                 strecken_poly.append({  'von_knoten':s.von_haltestelle.id,
                                         'nach_knoten':s.nach_haltestelle.id,
