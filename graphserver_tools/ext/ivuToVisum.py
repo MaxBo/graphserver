@@ -400,15 +400,6 @@ class ivuToVisum(object):
                                 'vsysset':vsysset
                            }
 
-            if visum_strecke in strecken:
-                continue
-
-            visum_strecke['von_knoten'] = s.von_haltestelle.id
-            visum_strecke['nach_knoten'] = s.nach_haltestelle.id
-
-            if visum_strecke in strecken:
-                continue
-
 
             strecken.append(visum_strecke)
 
