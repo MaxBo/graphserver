@@ -254,7 +254,7 @@ class VisumPuTTables(object):
                       "VERSION"
                       ]
         for TableName in TableNames:
-            cursor.execute('TRUNCATE "%s"' %TableName)
+            cursor.execute('TRUNCATE "%s" CASCADE' %TableName)
 
         cursor.close()
         connection.commit()

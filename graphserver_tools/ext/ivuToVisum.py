@@ -18,7 +18,7 @@ def removepSecialCharacter(s):
 
 
 
-class ivuToVisum(object, VisumPuTTables):
+class ivuToVisum(VisumPuTTables, object):
 
     def __init__(self, db_connect_string, date=datetime.datetime(2011,1,1), create_tables=False):
         self.db_connect_string = db_connect_string

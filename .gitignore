@@ -2,3 +2,4 @@
 build/*
 *.egg
 graphserver_tools.egg-info/*
+/graphserver_tools/ivu
