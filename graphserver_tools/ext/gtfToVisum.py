@@ -15,7 +15,7 @@ from graphserver_tools.utils import utils
 
 
 
-class GtfsVisum(object):
+class GtfsVisum(object, VisumPuTTables):
 
     route_type_mapper = {   0 : 'Tram/Light rail',
                             1 : 'Subway',
@@ -38,6 +38,10 @@ class GtfsVisum(object):
 
         if create_tables:
             self._createDbTables()
+            self.ADD_PKEYS = True
+        else:
+            self._truncateDbTables()
+            self.ADD_PKEYS = False
 
 
     #
@@ -64,157 +68,10 @@ class GtfsVisum(object):
     #
     # other public methods
     #
-    def transform(self):
-        ''' Converts the feed associated with this object into a data for a visum database.
-        '''
-        self._processKnoten()
-
-        self._processHaltestelle()
-        self._processHaltestellenbereich()
-        self._processHaltepunkt()
-
-        self._processLinie()
-        self._processLinienroute()
-        self._processLinienroutenelement()
-
-        self._processFahrzeitprofil()
-        self._processFahrzeitprofilelement()
-        self._processFahrzeugfahrt()
-
 
     #
     # private methods
     #
-    def _createDbTables(self):
-
-        connection = psycopg2.connect(self.db_connect_string)
-        cursor = connection.cursor()
-
-        cursor.execute('''CREATE TABLE "FAHRZEITPROFIL"
-                                (   "LINNAME" varchar(255),
-                                    "LINROUTENAME" varchar(255),
-                                    "RICHTUNGCODE" varchar(255),
-                                    "NAME" varchar(255)
-                                )''')
-
-        cursor.execute('''CREATE TABLE "FAHRZEITPROFILELEMENT"
-                                (   "LINNAME" varchar(255),
-                                    "LINROUTENAME" varchar(255),
-                                    "RICHTUNGCODE" varchar(255),
-                                    "FZPROFILNAME" varchar(255),
-                                    "INDEX" integer,
-                                    "LRELEMINDEX" integer,
-                                    "AUS" integer,
-                                    "EIN" integer,
-                                    "ANKUNFT" timestamp,
-                                    "ABFAHRT" timestamp
-                                )''')
-
-        cursor.execute('''CREATE TABLE "FZGFAHRT"
-                            (   "NR" integer,
-                                "NAME" varchar(255),
-                                "ABFAHRT" timestamp,
-                                "LINNAME" varchar(255),
-                                "LINROUTENAME" varchar(255),
-                                "RICHTUNGCODE" varchar(255),
-                                "FZPROFILNAME" varchar(255),
-                                "VONFZPELEMINDEX" integer,
-                                "NACHFZPELEMINDEX" integer
-                            )''')
-
-        cursor.execute('''CREATE TABLE "HALTEPUNKT"
-                            (   "NR" integer,
-                                "HSTBERNR" integer,
-                                "CODE" varchar(255),
-                                "NAME" varchar(255),
-                                "TYPNR" integer,
-                                "VSYSSET" varchar(255),
-                                "DEPOTFZGKOMBMENGE" varchar(255),
-                                "GERICHTET" integer,
-                                "KNOTNR" integer,
-                                "VONKNOTNR" integer,
-                                "STRNR" integer,
-                                "RELPOS" float
-                            )''')
-
-        cursor.execute('''CREATE TABLE "HALTESTELLE"
-                            (   "NR" integer,
-                                "CODE" varchar(255),
-                                "NAME" varchar(255),
-                                "TYPNR" integer,
-                                "XKOORD" float,
-                                "YKOORD" float
-                            )''')
-
-        cursor.execute('''CREATE TABLE "HALTESTELLENBEREICH"
-                            (   "NR" integer,
-                                "HSTNR" integer,
-                                "CODE" varchar(255),
-                                "NAME" varchar(255),
-                                "KNOTNR" integer,
-                                "TYPNR" integer,
-                                "XKOORD" float,
-                                "YKOORD" float
-                            )''')
-
-        cursor.execute('''CREATE TABLE "KNOTEN"
-                            (   "NR" integer,
-                                "XKOORD" float,
-                                "YKOORD" float
-                            )''')
-
-        cursor.execute('''CREATE TABLE "LINIE"
-                            (   "NAME" varchar(255),
-                                "VSYSCODE" varchar(255),
-                                "TARIFSYSTEMMENGE" varchar(255),
-                                "BETREIBERNR" integer
-                            )''')
-
-        cursor.execute('''CREATE TABLE "LINIENROUTE"
-                            (   "LINNAME" varchar(255),
-                                "NAME" varchar(255),
-                                "RICHTUNGCODE" varchar(255),
-                                "ISTRINGLINIE" integer
-                            )''')
-
-        cursor.execute('''CREATE TABLE "LINIENROUTENELEMENT"
-                            (   "LINNAME" varchar(255),
-                                "LINROUTENAME" varchar(255),
-                                "RICHTUNGCODE" varchar(255),
-                                "INDEX" integer,
-                                "ISTROUTENPUNKT" integer,
-                                "KNOTNR" integer,
-                                "HPUNKTNR" integer
-                            )''')
-
-        cursor.execute('''CREATE TABLE "STRECKE"
-                            (   "NR" integer,
-                                "VONKNOTNR" integer,
-                                "NACHKNOTNR" integer,
-                                "NAME" varchar(255),
-                                "TYPNR" integer,
-                                "VSYSSET" varchar(255)
-                            )''')
-
-        cursor.execute('''CREATE TABLE "STRECKENPOLY"
-                            (   "VONKNOTNR" integer,
-                                "NACHKNOTNR" integer,
-                                "INDEX" integer,
-                                "XKOORD" float,
-                                "YKOORD" float
-                            )''')
-
-        cursor.execute('''CREATE TABLE "VERSION"
-                            (   "VERSNR" float,
-                                "FILETYPE" varchar(255),
-                                "LANGUAGE" varchar(255)
-                            )''')
-
-        cursor.execute('INSERT INTO "VERSION" VALUES (%s, %s, %s)', ( 8.1, 'Net', 'DEU' ))
-
-        cursor.close()
-        connection.commit()
-
 
     def _createStopIdMapper(self):
         ''' The visum id (NR) is integer while gtfs id (stop_id) is string.
@@ -692,7 +549,7 @@ class GtfsVisum(object):
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
 
-        c.executemany('''INSERT INTO "FZGFAHRT" VALUES
+        c.executemany('''INSERT INTO "FAHRPLANFAHRT" VALUES
                             (%(nr)s, %(name)s, %(abfahrt)s, %(linname)s, %(linroutename)s,
                              %(richtungscode)s, %(fzprofilname)s, %(vonfzpelemindex)s,
                              %(nachfzpelemindex)s)''',
@@ -734,6 +591,8 @@ def main():
     transformer.date = config['date'].replace('.','')
 
     transformer.transform()
+    if transformer.ADD_PKEYS:
+        transformer._addPrimaryKey()
 
     print 'done'
 
