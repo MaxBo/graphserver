@@ -11,6 +11,7 @@ import psycopg2
 import datetime
 import os
 
+from graphserver_tools.ext.visumPuTTables import VisumPuTTables
 from graphserver_tools.utils import utils
 
 

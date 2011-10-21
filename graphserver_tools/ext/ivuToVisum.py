@@ -7,6 +7,7 @@ import sys
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import scoped_session
 
+from graphserver_tools.ext.visumPuTTables import VisumPuTTables
 from graphserver_tools.ext.ivu.models import *
 from graphserver_tools.ext.ivu.read_ivu import read as readIvuToDb
 from graphserver_tools.utils import utils
