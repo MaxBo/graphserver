@@ -670,7 +670,7 @@ def main():
 
     ivu_folder = args[1]
 
-    transformer = ivuToVisum(psql_connect_string, create_tables=True)
+    transformer = ivuToVisum(psql_connect_string, create_tables=False)
     transformer.ivu_data = ivu_folder
     transformer.date = datetime.date(int(config['date'][:4]), int(config['date'][5:7]), int(config['date'][8:]))
 

@@ -587,7 +587,7 @@ def main():
 
     feed = args[1]
 
-    transformer = GtfsToVisum(psql_connect_string, create_tables=True)
+    transformer = GtfsToVisum(psql_connect_string, create_tables=False)
     transformer.feed = feed
     transformer.date = config['date'].replace('.','')
 
