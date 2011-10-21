@@ -572,7 +572,7 @@ class ivuToVisum(VisumPuTTables, object):
                     departure_sec = int(f.abfahrt[6:]) if len(f.abfahrt) == 8 else 0
 
 
-                    departure = datetime.datetime(1900, 1, 1, 0, 0, 0)
+                    departure = datetime.datetime(1899, 12, 30, 0, 0, 0)
 
                     departure += datetime.timedelta(hours=departure_hour, minutes=departure_min, seconds=departure_sec)
 
