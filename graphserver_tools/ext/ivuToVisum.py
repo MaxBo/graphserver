@@ -491,28 +491,28 @@ class ivuToVisum(VisumPuTTables, object):
 
         for ul in self.unterlinien:
 
-            travel_time_min = 0
-            travel_time_hours = 0
+            arrival_time_min = 0
+            arrival_time_hours = 0
 
             day = 30
 
             for lp in session.query(Linienprofil).filter(Linienprofil.linie == ul).order_by(Linienprofil.laufende_nummer).all():
 
-                departure_time_min = travel_time_min + lp.wartezeit.minute
-                departure_time_hour = travel_time_hours + lp.wartezeit.hour
+                departure_time_min = arrival_time_min + lp.wartezeit.minute
+                departure_time_hours = arrival_time_hours + lp.wartezeit.hour
                 departure_day = day
 
                 if departure_time_min > 59:
                     departure_time_min -= 60
-                    departure_time_hour += 1
+                    departure_time_hours += 1
 
-                if departure_time_hour > 23:
+                if departure_time_hours > 23:
                     departure_day += 1
-                    departure_time_hour -= 24
+                    departure_time_hours -= 24
 
 
-                arrival = datetime.datetime(1899, 12, day, travel_time_hours, travel_time_min)
-                departure = datetime.datetime(1899, 12, departure_day, departure_time_hour, departure_time_min )
+                arrival = datetime.datetime(1899, 12, day, arrival_time_hours, arrival_time_min)
+                departure = datetime.datetime(1899, 12, departure_day, departure_time_hours, departure_time_min )
 
                 elements.append({   'linname' : removepSecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
                                     'linroutename' : removepSecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))),
@@ -526,17 +526,17 @@ class ivuToVisum(VisumPuTTables, object):
                                     'abfahrt' : departure,
                                 })
 
-                departure_time_hour += lp.fahrzeit.hour
-                departure_time_min += lp.fahrzeit.minute
+                arrival_time_min = departure_time_min + lp.fahrzeit.minute
+                arrival_time_hours = departure_time_hours + lp.fahrzeit.hour
 
 
-                if travel_time_min > 59:
-                    travel_time_min -= 60
-                    travel_time_hours += 1
+                if arrival_time_min > 59:
+                    arrival_time_min -= 60
+                    arrival_time_hours += 1
 
-                if travel_time_hours > 23:
+                if arrival_time_hours > 23:
                     day += 1
-                    travel_time_hours -= 24
+                    arrival_time_hours -= 24
 
 
 
