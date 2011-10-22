@@ -21,7 +21,7 @@ def getRichtungscode(s):
                      'R': '<'}
     return richtcodeDict.get(s, '>')
 
-class ivuToVisum(VisumPuTTables, object):
+class ivuToVisum(VisumPuTTables):
 
     def __init__(self, db_connect_string, date=datetime.datetime(2011,1,1), create_tables=False):
         self.db_connect_string = db_connect_string

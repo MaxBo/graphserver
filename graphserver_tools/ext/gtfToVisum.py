@@ -16,7 +16,7 @@ from graphserver_tools.utils import utils
 
 
 
-class GtfsVisum(VisumPuTTables, object):
+class GtfsVisum(VisumPuTTables):
 
     route_type_mapper = {   0 : 'Tram/Light rail',
                             1 : 'Subway',
