@@ -29,7 +29,7 @@ class VisumPuTTables(object):
                     self._processLinieRouteElement,
                     self._processFahrzeitprofil,
                     self._processFahrzeitprofilelement,
-                    self._processFahrzeugfahrt,
+                    self._processFahrplanfahrt,
                     self._processZwischenpunkte
                  ):
 

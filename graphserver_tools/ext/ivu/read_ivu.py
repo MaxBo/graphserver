@@ -380,25 +380,38 @@ def read_linien(linien_file, session):
             for x in range(int_or_None(line[6])):
                 ln, line = i.next()
 
-                if (not line[6]) and (not line[7]): # don't read the last haltestelle (it's strange)
-                    continue
+                laufende_nummer=int_or_None(line[0])
+
+                if (not line[6]) and (not line[7]): # last Stop, nur Ankunft
+                    position_abfahrt = '0'
+                    fahrzeit = '00:00'
+                    wartezeit = '00:00'
+                    einsteigeverbot = True
+                    aussteigeverbot = False
+                else:
+                    position_abfahrt=line[5]
+                    fahrzeit = time_maker(line[6])
+                    if not line[7]: line[7] = '00:00'
+                    wartezeit = time_maker(line[7])
+                    einsteigeverbot = line[8]
+                    if not line[9]: line[9] = False
+                    aussteigeverbot = line[9]
+                    if laufende_nummer == '1': # erste Haltestelle, nur Abfahrt
+                        aussteigeverbot = True
 
                 haltestelle = session.query(Haltestelle).filter(and_(Haltestelle.lieferant == linie.betrieb.lieferant, Haltestelle.haltestellennummer == line[2])).one()
 
-                if not line[8]: line[8] = False
-                if not line[9]: line[9] = False
                 if not line[10]: line[10] = False
 
-                if not line[7]: line[7] = '00:00'
 
-                profil = Linienprofil(  laufende_nummer=int_or_None(line[0]),
+                profil = Linienprofil(  laufende_nummer=laufende_nummer,
                                         kilometrierung=int_or_None(line[3]),
                                         position_ankunft=line[4],
-                                        position_abfahrt=line[5],
-                                        fahrzeit=time_maker(line[6]),
-                                        wartezeit=time_maker(line[7]),
-                                        einsteigeverbot=line[8],
-                                        aussteigeverbot=line[9],
+                                        position_abfahrt=position_abfahrt,
+                                        fahrzeit=fahrzeit,
+                                        wartezeit=wartezeit,
+                                        einsteigeverbot=einsteigeverbot,
+                                        aussteigeverbot=aussteigeverbot,
                                         bedarfshalt=line[10],
                                         linie=linie,
                                         haltestelle=haltestelle
