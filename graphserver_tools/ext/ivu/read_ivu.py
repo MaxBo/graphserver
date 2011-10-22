@@ -396,7 +396,7 @@ def read_linien(linien_file, session):
                     einsteigeverbot = line[8]
                     if not line[9]: line[9] = False
                     aussteigeverbot = line[9]
-                    if laufende_nummer == 1: # erste Haltestelle, nur Abfahrt
+                    if laufende_nummer == '1': # erste Haltestelle, nur Abfahrt
                         aussteigeverbot = True
 
                 haltestelle = session.query(Haltestelle).filter(and_(Haltestelle.lieferant == linie.betrieb.lieferant, Haltestelle.haltestellennummer == line[2])).one()
