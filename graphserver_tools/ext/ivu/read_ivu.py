@@ -375,14 +375,14 @@ def read_linien(linien_file, session):
                          )
 
             session.add(linie)
-            anzStops = int_or_None(line[6])
+            # anzStops = int_or_None(line[6])
             # read Datenzeilen
-            for x in range(anzStops):
+            for x in range(int_or_None(line[6])):
                 ln, line = i.next()
 
                 laufende_nummer=int_or_None(line[0])
 
-                if laufende_nummer == anzStops: # last Stop, nur Ankunft
+                if (not line [6]) and (not line[7]): # last Stop, nur Ankunft
                     position_abfahrt = '0'
                     fahrzeit = '00:00'
                     wartezeit = '00:00'
