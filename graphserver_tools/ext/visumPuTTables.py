@@ -244,14 +244,12 @@ class VisumPuTTables(object):
                       "HALTESTELLENBEREICH",
                       "HALTEPUNKT",
                       "KNOTEN",
-                      "RICHTUNG",
                       "VSYS",
                       "LINIE",
                       "LINIENROUTE",
                       "LINIENROUTENELEMENT",
                       "STRECKE",
-                      "STRECKENPOLY",
-                      "VERSION"
+                      "STRECKENPOLY"
                       ]
         for TableName in TableNames:
             cursor.execute('TRUNCATE "%s" CASCADE' %TableName)
