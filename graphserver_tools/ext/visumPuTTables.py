@@ -42,8 +42,8 @@ class VisumPuTTables(object):
         for t in threads:
             t.join()
 
-        if self.ADD_PKEYS:
-            self._addPrimaryKey()
+        #if self.ADD_PKEYS:
+        #    self._addPrimaryKey()
 
 
     def _createDbTables(self, drop=False):
