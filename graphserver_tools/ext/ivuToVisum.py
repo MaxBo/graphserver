@@ -23,16 +23,19 @@ def getRichtungscode(s):
 
 class ivuToVisum(VisumPuTTables):
 
-    def __init__(self, db_connect_string, date=datetime.datetime(2011,1,1), create_tables=False):
+    def __init__(self, db_connect_string, date=datetime.datetime(2011,1,1), recreate_tables=False):
         self.db_connect_string = db_connect_string
         self.date = date
 
-        if create_tables:
+        self._createDbTables(recreate_tables)
+        self._truncateDbTables()
+
+        '''        if create_tables:
             self._createDbTables()
             self.ADD_PKEYS = True
         else:
             self._truncateDbTables()
-            self.ADD_PKEYS = False
+            self.ADD_PKEYS = False'''
 
 
     #
@@ -673,14 +676,13 @@ def main():
 
     ivu_folder = args[1]
 
-    transformer = ivuToVisum(psql_connect_string, create_tables=False)
+    transformer = ivuToVisum(psql_connect_string, recreate_tables=False)
     transformer.ivu_data = ivu_folder
     transformer.date = datetime.date(int(config['date'][:4]), int(config['date'][5:7]), int(config['date'][8:]))
 
     print 'converting data'
+
     transformer.transform()
-    if transformer.ADD_PKEYS:
-        transformer._addPrimaryKey()
 
     print 'done'
 
