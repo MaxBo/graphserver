@@ -375,34 +375,43 @@ def read_linien(linien_file, session):
                          )
 
             session.add(linie)
-            anzStops = int_or_None(line[6])
+
+
+
             # read Datenzeilen
+            anzStops = int_or_None(line[6])
+
             for x in range(anzStops):
                 ln, line = i.next()
 
                 laufende_nummer=int_or_None(line[0])
 
-                if laufende_nummer == anzStops: # last Stop, nur Ankunft
+                if laufende_nummer == anzStops: # last stop, nur Ankunft
+
                     position_abfahrt = '0'
                     fahrzeit = '00:00'
                     wartezeit = '00:00'
                     einsteigeverbot = True
                     aussteigeverbot = False
+
                 else:
+
                     position_abfahrt=line[5]
                     fahrzeit = time_maker(line[6])
+
                     if not line[7]: line[7] = '00:00'
+
                     wartezeit = time_maker(line[7])
-                    einsteigeverbot = line[8]
-                    if not line[9]: line[9] = False
-                    aussteigeverbot = line[9]
-                    if laufende_nummer == 1: # erste Haltestelle, nur Abfahrt
+
+                    einsteigeverbot = bool(line[8])
+
+                    if laufende_nummer == 1: # first stop, nur Abfahrt
                         aussteigeverbot = True
+                    else:
+                        aussteigeverbot = bool(line[9])
+
 
                 haltestelle = session.query(Haltestelle).filter(and_(Haltestelle.lieferant == linie.betrieb.lieferant, Haltestelle.haltestellennummer == line[2])).one()
-
-                if not line[10]: line[10] = False
-
 
                 profil = Linienprofil(  laufende_nummer=laufende_nummer,
                                         kilometrierung=int_or_None(line[3]),
@@ -412,7 +421,7 @@ def read_linien(linien_file, session):
                                         wartezeit=wartezeit,
                                         einsteigeverbot=einsteigeverbot,
                                         aussteigeverbot=aussteigeverbot,
-                                        bedarfshalt=line[10],
+                                        bedarfshalt=bool(line[10]),
                                         linie=linie,
                                         haltestelle=haltestelle
                                      )
