@@ -42,9 +42,12 @@ class Linie(Base):
     bitfeld = relationship("Bitfeld", backref=backref('linien'))
 
 
-    def isValidOnDate(self, date):
+    def isValidOnDate(self, session, date):
 
         if self.version.isValidOnDate(date):
+
+            if session.query(Linie).filter(and_(Linie.liniennummer == self.liniennummer, Linie.prioritaet > self.prioritaet)).all():
+                return False
 
             if not self.bitfeld:
                 return True
@@ -102,9 +105,9 @@ class Fahrt(Base):
     linie = relationship("Linie", backref=backref('fahrten'))
 
 
-    def isValidOnDate(self, date):
+    def isValidOnDate(self, session, date):
 
-        if self.linie.isValidOnDate(date):
+        if self.linie.isValidOnDate(session, date):
 
             if not self.bitfeld:
                 return True

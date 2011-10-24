@@ -16,6 +16,7 @@ class VisumPuTTables(object):
 
         print 'creating internal data structures'
         self._getValidUnterlinien()
+        self._getDirections()
 
 
         print 'converting'

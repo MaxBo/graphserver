@@ -24,7 +24,7 @@ class Strecke(Base):
     version = relationship("Version", backref=backref('strecken'))
 
 
-    def isValidOnDate(self, date):
+    def isValidOnDate(self, session, date):
 
         if self.version:
             return self.version.isValidOnDate(date)

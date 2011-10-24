@@ -16,10 +16,6 @@ from graphserver_tools.utils import utils
 def removeSpecialCharacter(s):
     return s.replace(';', '_').replace('$', '_')
 
-def getRichtungscode(s):
-    richtcodeDict = {'H': '>',
-                     'R': '<'}
-    return richtcodeDict.get(s, '>')
 
 class ivuToVisum(VisumPuTTables):
 
@@ -55,10 +51,6 @@ class ivuToVisum(VisumPuTTables):
 
 
     #
-    # other public methods
-    #
-
-    #
     # private methods
     #
     def _getNewSession(self):
@@ -78,11 +70,16 @@ class ivuToVisum(VisumPuTTables):
 
 
     def _getValidUnterlinien(self):
+        """
+            creates a dictionary mapping between linien and their unterlinien.
+            creates a list of all valid unterlinien
+        """
+
         # get all unterlinien
         unterlinien = self._session.query(Linie).all()
 
         # remove all unterlinen not valid on entered date
-        unterlinien = [ ul for ul in unterlinien if ul.isValidOnDate(self.date) ]
+        unterlinien = [ ul for ul in unterlinien if ul.isValidOnDate(self._session, self.date) ]
 
 
         self.linien_unterlinien_mapper = {}
@@ -112,7 +109,30 @@ class ivuToVisum(VisumPuTTables):
 
             linien_version_mapper[l] = valid_version
 
-        self.unterlinien =  [ ul for ul in unterlinien if ul.version == linien_version_mapper[( ul.liniennummer, ul.betrieb )] ]
+        self.unterlinien =  [ ul for ul in unterlinien if ul.version == linien_version_mapper[( ul.liniennummer, ul.betrieb )] and ul.isValidOnDate(self._session, self.date)]
+
+
+    def _getDirections(self):
+        """
+            creates a dictionary mapping ivu-directions to visum-directions ( '<', '>' )
+        """
+
+        self.direction_mapper = {}
+
+        linien_versions = set()
+
+        for ul in self.unterlinien:
+            linien_versions.add(( ul.betrieb, ul.liniennummer, ul.version ))
+
+        for lv in linien_versions:
+            linien = self._session.query(Linie).filter(and_(Linie.betrieb==lv[0], and_(Linie.liniennummer==lv[1], Linie.version==lv[2]))).all()
+
+            directions = list(set([l.richtungskuerzel for l in linien]))
+
+            self.direction_mapper[directions[0]] = '>'
+
+            if len(directions) == 2:
+                self.direction_mapper[directions[1]] = '<'
 
 
     def _processKnoten(self):
@@ -150,7 +170,7 @@ class ivuToVisum(VisumPuTTables):
 
         session = self._getNewSession()
 
-        strecken_ivu = [ s for s in session.query(Strecke).all() if s.isValidOnDate(self.date) ]
+        strecken_ivu = [ s for s in session.query(Strecke).all() if s.isValidOnDate(session, self.date) ]
 
         strecken = []
         strecken_poly = []
@@ -409,7 +429,7 @@ class ivuToVisum(VisumPuTTables):
 
             linienrouten.append({   'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
                                     'name' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))),
-                                    'richtungscode' : getRichtungscode(ul.richtungskuerzel),
+                                    'richtungscode' : self.direction_mapper[ul.richtungskuerzel],
                                     'istringlinie' : 0
                                 })
 
@@ -439,7 +459,7 @@ class ivuToVisum(VisumPuTTables):
 
                 linienroutenelemente.append({   'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
                                                 'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))),
-                                                'richtungscode' : getRichtungscode(ul.richtungskuerzel),
+                                                'richtungscode' : self.direction_mapper[ul.richtungskuerzel],
                                                 'index' : lp.laufende_nummer,
                                                 'istroutenpunkt' : 1,
                                                 'knotnr' : lp.haltestelle.id,
@@ -470,7 +490,7 @@ class ivuToVisum(VisumPuTTables):
 
             fahrzeitprofile.append({    'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
                                         'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))),
-                                        'richtungscode' : getRichtungscode(ul.richtungskuerzel),
+                                        'richtungscode' : self.direction_mapper[ul.richtungskuerzel],
                                         'name' : ul.unterliniennummer
                                    })
 
@@ -522,7 +542,7 @@ class ivuToVisum(VisumPuTTables):
 
                 elements.append({   'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
                                     'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))),
-                                    'richtungscode' : getRichtungscode(ul.richtungskuerzel),
+                                    'richtungscode' : self.direction_mapper[ul.richtungskuerzel],
                                     'fzprofilname' : ul.unterliniennummer,
                                     'index' : lp.laufende_nummer,
                                     'lrelemindex' : lp.laufende_nummer,
@@ -571,7 +591,7 @@ class ivuToVisum(VisumPuTTables):
 
             for f in session.query(Fahrt).filter(Fahrt.linie == ul).all():
 
-                if f.isValidOnDate(self.date):
+                if f.isValidOnDate(session, self.date):
 
                     departure_hour = int(f.abfahrt[:2])
                     departure_min = int(f.abfahrt[3:5])
@@ -587,7 +607,7 @@ class ivuToVisum(VisumPuTTables):
                                         'abfahrt' : departure,
                                         'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
                                         'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))),
-                                        'richtungscode' : getRichtungscode(ul.richtungskuerzel),
+                                        'richtungscode' : self.direction_mapper[ul.richtungskuerzel],
                                         'fzprofilname' : ul.unterliniennummer,
                                         'vonfzpelemindex' : f.start_pos,
                                         'nachfzpelemindex' : f.end_pos
@@ -606,7 +626,7 @@ class ivuToVisum(VisumPuTTables):
                                                 'abfahrt' : departure,
                                                 'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
                                                 'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))),
-                                                'richtungscode' : getRichtungscode(ul.richtungskuerzel),
+                                                'richtungscode' : self.direction_mapper[ul.richtungskuerzel],
                                                 'fzprofilname' : ul.unterliniennummer,
                                                 'vonfzpelemindex' : f.start_pos,
                                                 'nachfzpelemindex' : f.end_pos
