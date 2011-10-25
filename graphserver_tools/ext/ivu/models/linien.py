@@ -46,8 +46,9 @@ class Linie(Base):
 
         if self.version.isValidOnDate(date):
 
-            if session.query(Linie).filter(and_(Linie.betrieb == self.betrieb, and_(Linie.liniennummer == self.liniennummer, Linie.prioritaet > self.prioritaet))).all():
-                return False
+            for l in session.query(Linie).filter(and_(Linie.betrieb == self.betrieb, and_(Linie.liniennummer == self.liniennummer, Linie.prioritaet > self.prioritaet))).all():
+                if l.isValidOnDate(session, date):
+                    return False
 
             if not self.bitfeld:
                 return True
