@@ -33,16 +33,11 @@ class GtfsVisum(VisumPuTTables):
                        }
 
 
-    def __init__(self, db_connect_string, date='20110101', create_tables=False):
+    def __init__(self, db_connect_string, date='20110101', recreate_tables=False):
         self.db_connect_string = db_connect_string
         self.date = date
 
-        if create_tables:
-            self._createDbTables()
-            self.ADD_PKEYS = True
-        else:
-            self._truncateDbTables()
-            self.ADD_PKEYS = False
+        self._createDbTables(recreate_tables)
 
 
     #
@@ -592,8 +587,6 @@ def main():
     transformer.date = config['date'].replace('.','')
 
     transformer.transform()
-    if transformer.ADD_PKEYS:
-        transformer._addPrimaryKey()
 
     print 'done'
 

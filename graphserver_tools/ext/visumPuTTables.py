@@ -10,42 +10,6 @@ import threading
 
 class VisumPuTTables(object):
 
-    def transform(self):
-        ''' Converts the feed associated with this object into a data for a visum database.
-        '''
-
-        print 'creating internal data structures'
-        self._getValidUnterlinien()
-        self._getDirections()
-
-
-        print 'converting'
-        self._processBetreiber()
-        self._processVsysset()
-
-        threads = []
-
-        for m in (  self._processKnoten,
-                    self._processHstHstBereichHstPunkt,
-                    self._processLinieRouteElement,
-                    self._processFahrzeitprofil,
-                    self._processFahrzeitprofilelement,
-                    self._processFahrplanfahrt,
-                    self._processZwischenpunkte
-                 ):
-
-            t = threading.Thread(target=m)
-            t.start()
-
-            threads.append(t)
-
-
-        for t in threads:
-            t.join()
-
-        #if self.ADD_PKEYS:
-        #    self._addPrimaryKey()
-
 
     def _createDbTables(self, drop=False):
         """ Creates all necessary database tables. Won't overwrite tables unless 'drop' is
@@ -96,7 +60,12 @@ class VisumPuTTables(object):
                                     (   "LINNAME" varchar(255),
                                         "LINROUTENAME" varchar(255),
                                         "RICHTUNGCODE" varchar(255),
-                                        "NAME" varchar(255)
+                                        "NAME" varchar(255),
+                                        PRIMARY KEY (   "LINNAME",
+                                                        "LINROUTENAME",
+                                                        "RICHTUNGCODE",
+                                                        "NAME"
+                                                    )
                                     )''')
 
 
@@ -111,7 +80,13 @@ class VisumPuTTables(object):
                                         "AUS" integer,
                                         "EIN" integer,
                                         "ANKUNFT" timestamp,
-                                        "ABFAHRT" timestamp
+                                        "ABFAHRT" timestamp,
+                                        PRIMARY KEY (   "LINNAME",
+                                                        "LINROUTENAME",
+                                                        "RICHTUNGCODE",
+                                                        "NAME",
+                                                        "INDEX"
+                                                    )
                                     )''')
 
 
@@ -125,7 +100,8 @@ class VisumPuTTables(object):
                                     "RICHTUNGCODE" varchar(255),
                                     "FZPROFILNAME" varchar(255),
                                     "VONFZPELEMINDEX" integer,
-                                    "NACHFZPELEMINDEX" integer
+                                    "NACHFZPELEMINDEX" integer,
+                                    PRIMARY KEY ("NR")
                                 )''')
 
 
@@ -217,7 +193,10 @@ class VisumPuTTables(object):
                                     "NAME" varchar(255),
                                     "RICHTUNGCODE" varchar(255),
                                     "ISTRINGLINIE" integer,
-                                    PRIMARY KEY ("NAME")
+                                    PRIMARY KEY (   "LINNAME",
+                                                    "NAME",
+                                                    "RICHTUNGCODE"
+                                                )
                                 )''')
 
 
@@ -229,7 +208,12 @@ class VisumPuTTables(object):
                                     "INDEX" integer,
                                     "ISTROUTENPUNKT" integer,
                                     "KNOTNR" integer,
-                                    "HPUNKTNR" integer
+                                    "HPUNKTNR" integer,
+                                    PRIMARY KEY (   "LINNAME",
+                                                    "LINROUTENAME",
+                                                    "RICHTUNGCODE",
+                                                    "INDEX"
+                                                )
                                 )''')
 
 
@@ -240,7 +224,11 @@ class VisumPuTTables(object):
                                     "NACHKNOTNR" integer,
                                     "NAME" varchar(255),
                                     "TYPNR" integer,
-                                    "VSYSSET" varchar(255)
+                                    "VSYSSET" varchar(255),
+                                    PRIMARY KEY (   "NR",
+                                                    "VONKNOTNR",
+                                                    "NACHKNOTNR"
+                                                )
                                 )''')
 
 
@@ -250,7 +238,11 @@ class VisumPuTTables(object):
                                     "NACHKNOTNR" integer,
                                     "INDEX" integer,
                                     "XKOORD" float NOT NULL,
-                                    "YKOORD" float NOT NULL
+                                    "YKOORD" float NOT NULL,
+                                    PRIMARY KEY (   "VONKNOTNR",
+                                                    "NACHKNOTNR",
+                                                    "INDEX"
+                                                )
                                 )''')
 
 
@@ -261,13 +253,6 @@ class VisumPuTTables(object):
                                     "LANGUAGE" varchar(255),
                                     PRIMARY KEY ("VERSNR")
                                 )''')
-
-
-        '''cursor.execute( """CREATE OR REPLACE RULE ignore_duplicate_linien
-                           AS ON INSERT TO "LINIE"
-                           WHERE "NAME" IN ( SELECT "NAME" FROM "LINIE")
-                           DO INSTEAD NOTHING""" )'''
-
 
         cursor.close()
         connection.commit()
@@ -304,90 +289,3 @@ class VisumPuTTables(object):
 
         cursor.close()
         connection.commit()
-
-
-
-    def _addPrimaryKey(self):
-        """
-        Adds Primary Keys to all Tables
-        """
-        connection = psycopg2.connect(self.db_connect_string)
-        cursor = connection.cursor()
-
-        cursor.execute('''ALTER TABLE "FAHRZEITPROFILELEMENT"
-                          ADD PRIMARY KEY (
-                                           "LINNAME",
-                                           "LINROUTENAME",
-                                           "RICHTUNGCODE",
-                                           "NAME",
-                                           "INDEX")
-                      )''')
-
-        cursor.execute('''ALTER TABLE "FAHRZEITPROFIL"
-                          ADD PRIMARY KEY (
-                                           "LINNAME",
-                                           "LINROUTENAME",
-                                           "RICHTUNGCODE",
-                                           "NAME")
-                      )''')
-
-        cursor.execute('''ALTER TABLE "FAHRPLANFAHRT"
-                          ADD PRIMARY KEY ("NR")
-                      )''')
-
-        cursor.execute('''ALTER TABLE "HALTEPUNKT"
-                          ADD PRIMARY KEY ("NR")
-                      )''')
-
-        cursor.execute('''ALTER TABLE "HALTESTELLE"
-                          ADD PRIMARY KEY ("NR")
-                      )''')
-
-        cursor.execute('''ALTER TABLE "HALTESTELLENBEREICH"
-                          ADD PRIMARY KEY ("NR")
-                      )''')
-
-        cursor.execute('''ALTER TABLE "KNOTEN"
-                          ADD PRIMARY KEY ("NR")
-                      )''')
-
-        cursor.execute('''ALTER TABLE "LINIE"
-                          ADD PRIMARY KEY ("NAME")
-                      )''')
-
-        cursor.execute('''ALTER TABLE "LINIENROUTE"
-                          ADD PRIMARY KEY (
-                                           "LINNAME",
-                                           "NAME",
-                                           "RICHTUNGCODE")
-                      )''')
-
-        cursor.execute('''ALTER TABLE "LINIENROUTENELEMENT"
-                          ADD PRIMARY KEY (
-                                           "LINNAME",
-                                           "LINROUTENAME",
-                                           "RICHTUNGCODE",
-                                           "INDEX")
-                      )''')
-
-        cursor.execute('''ALTER TABLE "STRECKE"
-                          ADD PRIMARY KEY (
-                                           "NR",
-                                           "VONKNOTNR",
-                                           "NACHKNOTNR")
-                      )''')
-
-        cursor.execute('''ALTER TABLE "STRECKENPOLY"
-                          ADD PRIMARY KEY (
-                                           "VONKNOTNR",
-                                           "NACHKNOTNR",
-                                           "INDEX")
-                      )''')
-
-        cursor.execute('''ALTER TABLE "VERSION"
-                          ADD PRIMARY KEY ("VERSNR")
-                      )''')
-
-        cursor.close()
-        connection.commit()
-

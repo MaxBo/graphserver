@@ -26,13 +26,6 @@ class ivuToVisum(VisumPuTTables):
         self._createDbTables(recreate_tables)
         self._truncateDbTables()
 
-        '''        if create_tables:
-            self._createDbTables()
-            self.ADD_PKEYS = True
-        else:
-            self._truncateDbTables()
-            self.ADD_PKEYS = False'''
-
 
     #
     # setter & getter
@@ -48,6 +41,40 @@ class ivuToVisum(VisumPuTTables):
         return self.self._ivu_data
 
     ivu_data = property(getIvuData, setIvuData)
+
+
+    def transform(self):
+        ''' Converts the feed associated with this object into a data for a visum database.
+        '''
+
+        print 'creating internal data structures'
+        self._getValidUnterlinien()
+        self._getDirections()
+
+
+        print 'converting'
+        self._processBetreiber()
+        self._processVsysset()
+
+        threads = []
+
+        for m in (  self._processKnoten,
+                    self._processHstHstBereichHstPunkt,
+                    self._processLinieRouteElement,
+                    self._processFahrzeitprofil,
+                    self._processFahrzeitprofilelement,
+                    self._processFahrplanfahrt,
+                    self._processZwischenpunkte
+                 ):
+
+            t = threading.Thread(target=m)
+            t.start()
+
+            threads.append(t)
+
+
+        for t in threads:
+            t.join()
 
 
     #
