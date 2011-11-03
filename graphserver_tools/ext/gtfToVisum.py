@@ -6,17 +6,18 @@
 # Gertz Gutsche Rümenapp Gbr
 
 
-import transitfeed
-import psycopg2
 import datetime
 import os
+import psycopg2
+
+import transitfeed
 
 from graphserver_tools.ext.visumPuTTables import VisumPuTTables
 from graphserver_tools.utils import utils
 
 
 
-class GtfsVisum(VisumPuTTables):
+class GtfsToVisum(VisumPuTTables):
 
     route_type_mapper = {   0 : 'Tram/Light rail',
                             1 : 'Subway',
@@ -38,6 +39,7 @@ class GtfsVisum(VisumPuTTables):
         self.date = date
 
         self._createDbTables(recreate_tables)
+        self._truncateDbTables()
 
 
     #
@@ -64,6 +66,26 @@ class GtfsVisum(VisumPuTTables):
     #
     # other public methods
     #
+    def transform(self):
+        ''' Converts the feed associated with this object into a data for a visum database.
+        '''
+
+        self._createStopIdMapper()
+        self._createLinrouteMapper()
+        self._createFahrzeitprofilMapper()
+        self._processVerkehrssysteme()
+        self._processBetreiber()
+        self._processKnoten()
+        self._processHaltestelle()
+        self._processHaltestellenbereich()
+        self._processHaltepunkt()
+        self._processLinie()
+        self._processLinienroute()
+        self._processLinienroutenelement()
+        self._processFahrzeitprofil()
+        self._processFahrzeitprofilelement()
+        self._processFahrplanfahrt()
+
 
     #
     # private methods
@@ -110,7 +132,7 @@ class GtfsVisum(VisumPuTTables):
 
     def _createFahrzeitprofilMapper(self):
         ''' Creates a dictionary mapping between a (linname, linroutename, fzprofilname) and
-            trip_id.
+            trip_ids.
             Groupes all trips to one fzprofil which share the same stops and stop_times.
             Needs linroute_mapper the produce proper results.
         '''
@@ -141,7 +163,7 @@ class GtfsVisum(VisumPuTTables):
 
 
     def _createLinrouteMapper(self):
-        ''' Creates a dictionary mapping between a (linname, linroutename) and trip_id.
+        ''' Creates a dictionary mapping between a (linname, linroutename) and trip_ids.
             Groupes all trips to one linroute which share the same stops (not stop_times).
         '''
 
@@ -155,7 +177,7 @@ class GtfsVisum(VisumPuTTables):
                 trip_stops = tuple([ st.stop for st in trip.GetStopTimes() ])
 
                 if not trip_stops in stops_linroute_mapper:
-                    direction = 'R' if trip.direction_id == '<' else 'H'
+                    direction = self.direction_mapper.get(trip.direction_id, '>')
 
                     linroutename = str(linroute_counter) + '_' + direction
                     stops_linroute_mapper[trip_stops] = linroutename
@@ -167,6 +189,24 @@ class GtfsVisum(VisumPuTTables):
                 else:
                     key = ( route.route_id, stops_linroute_mapper[trip_stops] )
                     self.linroute_mapper[key].append(trip.trip_id)
+
+
+    def _processVerkehrssysteme(self):
+
+        conn = psycopg2.connect(self.db_connect_string)
+        c = conn.cursor()
+
+        c.execute('INSERT INTO "VSYS" VALUES (%s, %s, %s, %s)', ('Tram/Light rail', 'Tram/Light rail', 'OV', 1))
+        c.execute('INSERT INTO "VSYS" VALUES (%s, %s, %s, %s)', ('Subway', 'Subway', 'OV', 1))
+        c.execute('INSERT INTO "VSYS" VALUES (%s, %s, %s, %s)', ('Railway', 'Railway', 'OV', 1))
+        c.execute('INSERT INTO "VSYS" VALUES (%s, %s, %s, %s)', ('Bus', 'Bus', 'OV', 1))
+        c.execute('INSERT INTO "VSYS" VALUES (%s, %s, %s, %s)', ('Ferry', 'Ferry', 'OV', 1))
+        c.execute('INSERT INTO "VSYS" VALUES (%s, %s, %s, %s)', ('Cable Car', 'Cable Car', 'OV', 1))
+        c.execute('INSERT INTO "VSYS" VALUES (%s, %s, %s, %s)', ('Gondola', 'Gondola', 'OV', 1))
+        c.execute('INSERT INTO "VSYS" VALUES (%s, %s, %s, %s)', ('Funicular', 'Funicular', 'OV', 1))
+
+        c.close()
+        conn.commit()
 
 
     def _processKnoten(self):
@@ -188,6 +228,33 @@ class GtfsVisum(VisumPuTTables):
         c = conn.cursor()
 
         c.executemany('''INSERT INTO "KNOTEN" VALUES (%(id)s, %(xkoord)s, %(ykoord)s)''', vertices)
+
+        c.close()
+        conn.commit()
+
+
+    def _processBetreiber(self):
+        ''' Method will write a Betreiber into the visum database for each agency found
+            in the gtfs feed.
+        '''
+
+        agencies = self._schedule.GetAgencyList()
+
+        betreiber = []
+
+        for a in agencies:
+            betreiber.append({  'nr' : a.agency_id,
+                                'name' : a.agency_name,
+                                'kosten1' : 0,
+                                'kosten2' : 0,
+                                'kosten3' : 0
+                            })
+
+
+        conn = psycopg2.connect(self.db_connect_string)
+        c = conn.cursor()
+
+        c.executemany('''INSERT INTO "BETREIBER" VALUES (%(nr)s, %(name)s, %(kosten1)s, %(kosten2)s, %(kosten3)s)''', betreiber)
 
         c.close()
         conn.commit()
@@ -241,7 +308,7 @@ class GtfsVisum(VisumPuTTables):
                                         'xkoord': s.stop_lat,
                                         'ykoord': s.stop_lon
                                     })
-                hstnr = self.stop_id_mapper[s.id]
+                hstnr = self.stop_id_mapper[s.stop_id]
             else:
                 hstnr = self.stop_id_mapper[s.parent_station]
 
@@ -494,11 +561,13 @@ class GtfsVisum(VisumPuTTables):
         c.close()
         conn.commit()
 
-    def _processFahrzeugfahrt(self):
+    def _processFahrplanfahrt(self):
         ''' Writes a Fahrzeugfahrt for each trip inside the feed into the visum database.
             Uses the pre-defined Fahrzeitprofile (fahrzeitprofil_mapper).
         '''
         fahrten = []
+
+        nr = 1
 
         for (linname, linroutename, fzprofilname), trip_ids in self.fahrzeitprofil_mapper.items():
 
@@ -514,7 +583,7 @@ class GtfsVisum(VisumPuTTables):
                     departure = datetime.datetime.fromtimestamp(trip.GetStartTime() - 2209165200)
                     name = trip.trip_headsign if trip.trip_headsign else None
 
-                    fahrten.append({    'nr' : trip.trip_id,
+                    fahrten.append({    'nr' : nr,
                                         'name' : name,
                                         'abfahrt' : departure,
                                         'linname' : linname,
@@ -525,13 +594,15 @@ class GtfsVisum(VisumPuTTables):
                                         'nachfzpelemindex' : trip.GetCountStopTimes()
                                   })
 
+                    nr += 1
+
                     # add frequency trips
                     for i, st in enumerate(trip.GetFrequencyStartTimes()):
                         st_departure = datetime.datetime.fromtimestamp(st - 2209165200)
 
                         if st_departure != departure:
 
-                            fahrten.append({    'nr' : trip.trip_id + '-' + str(i),
+                            fahrten.append({    'nr' : nr,
                                                 'name' : name,
                                                 'abfahrt' : st_departure,
                                                 'linname' : linname,
@@ -541,6 +612,7 @@ class GtfsVisum(VisumPuTTables):
                                                 'vonfzpelemindex' : 1,
                                                 'nachfzpelemindex' : trip.GetCountStopTimes()
                                           })
+                            nr += 1
 
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
@@ -582,7 +654,7 @@ def main():
 
     feed = args[1]
 
-    transformer = GtfsToVisum(psql_connect_string, create_tables=False)
+    transformer = GtfsToVisum(psql_connect_string, recreate_tables=False)
     transformer.feed = feed
     transformer.date = config['date'].replace('.','')
 
