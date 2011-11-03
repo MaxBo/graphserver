@@ -612,7 +612,7 @@ class GtfsToVisum(VisumPuTTables):
                     nr += 1
 
                     # add frequency trips
-                    for i, st in enumerate(trip.GetFrequencyStartTimes()):
+                    for st in trip.GetFrequencyStartTimes():
                         st_departure = datetime.datetime.fromtimestamp(st - 2209165200)
 
                         if st_departure != departure:
