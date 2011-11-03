@@ -84,8 +84,8 @@ class VisumPuTTables(object):
                                         PRIMARY KEY (   "LINNAME",
                                                         "LINROUTENAME",
                                                         "RICHTUNGCODE",
-                                                        "NAME",
-                                                        "INDEX"
+                                                        "INDEX",
+                                                        "FZPROFILNAME"
                                                     )
                                     )''')
 
@@ -203,7 +203,7 @@ class VisumPuTTables(object):
         if 'LINIENROUTENELEMENT' not in tables:
             cursor.execute('''CREATE TABLE "LINIENROUTENELEMENT"
                                 (   "LINNAME" varchar(255),
-                                    "LINROUTENAME" varchar(255) REFERENCES "LINIENROUTE",
+                                    "LINROUTENAME" varchar(255),
                                     "RICHTUNGCODE" varchar(255),
                                     "INDEX" integer,
                                     "ISTROUTENPUNKT" integer,
@@ -213,7 +213,11 @@ class VisumPuTTables(object):
                                                     "LINROUTENAME",
                                                     "RICHTUNGCODE",
                                                     "INDEX"
-                                                )
+                                                ),
+                                    FOREIGN KEY  (  "LINNAME",
+                                                    "LINROUTENAME",
+                                                    "RICHTUNGCODE"
+                                                 ) REFERENCES "LINIENROUTE"
                                 )''')
 
 
@@ -266,6 +270,7 @@ class VisumPuTTables(object):
 
 
         cursor.execute('''TRUNCATE "BETREIBER",
+                                   "FAHRZEITPROFIL",
                                    "FAHRZEITPROFILELEMENT",
                                    "FAHRPLANFAHRT",
                                    "HALTESTELLE",
