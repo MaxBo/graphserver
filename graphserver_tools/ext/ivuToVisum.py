@@ -17,7 +17,7 @@ def removeSpecialCharacter(s):
     return s.replace(';', '_').replace('$', '_')
 
 
-class ivuToVisum(VisumPuTTables):
+class IvuToVisum(VisumPuTTables):
 
     def __init__(self, db_connect_string, date=datetime.datetime(2011,1,1), recreate_tables=False):
         self.db_connect_string = db_connect_string
@@ -723,7 +723,7 @@ def main():
 
     ivu_folder = args[1]
 
-    transformer = ivuToVisum(psql_connect_string, recreate_tables=False)
+    transformer = IvuToVisum(psql_connect_string, recreate_tables=False)
     transformer.ivu_data = ivu_folder
     transformer.date = datetime.date(int(config['date'][:4]), int(config['date'][5:7]), int(config['date'][8:]))
 
