@@ -73,6 +73,8 @@ class GtfsToVisum(VisumPuTTables):
         self._createStopIdMapper()
         self._createLinrouteMapper()
         self._createFahrzeitprofilMapper()
+        self._createBetreiberIdMapper()
+
         self._processVerkehrssysteme()
         self._processBetreiber()
         self._processKnoten()
@@ -101,6 +103,19 @@ class GtfsToVisum(VisumPuTTables):
 
         for s in self._schedule.GetStopList():
             self.stop_id_mapper[s.stop_id] = id_counter
+            id_counter += 1
+
+
+    def _createBetreiberIdMapper(self):
+        ''' The visum id (NR) is integer while gtfs id (agency_id) is string.
+            This method creates a dictionary to map between those to ids.
+        '''
+
+        self.agency_id_mapper = {}
+        id_counter = 0
+
+        for a in self._schedule.GetAgencyList():
+            self.agency_id_mapper[a.agency_id] = id_counter
             id_counter += 1
 
 
@@ -243,7 +258,7 @@ class GtfsToVisum(VisumPuTTables):
         betreiber = []
 
         for a in agencies:
-            betreiber.append({  'nr' : a.agency_id,
+            betreiber.append({  'nr' : self.agency_id_mapper[a.agency_id],
                                 'name' : a.agency_name,
                                 'kosten1' : 0,
                                 'kosten2' : 0,
@@ -405,7 +420,7 @@ class GtfsToVisum(VisumPuTTables):
             linien.append({ 'name' : r.route_id,
                             'vsyscode' : self.route_type_mapper[r.route_type],
                             'tarifsystemmenge' : 1,
-                            'betreibernr' : r.agency_id
+                            'betreibernr' : self.agency_id_mapper[r.agency_id]
                           })
 
         conn = psycopg2.connect(self.db_connect_string)
