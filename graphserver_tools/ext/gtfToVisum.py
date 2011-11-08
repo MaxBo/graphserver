@@ -245,7 +245,7 @@ class GtfsToVisum(VisumPuTTables):
         strecken = []
         strecken_poly = []
 
-        strecken_read = {} # contains start and stop vertex numbers to make sure not to write duplicate entries into the database (some data might get lost!)
+        strecken_read = {} # maps between contains start, stop vertex numbers and strecken_id
 
         vsysset = 'Tram/Light rail,Subway,Railway,Bus,Ferry,Cable Car,Gondola,Funicular'
 
@@ -260,8 +260,7 @@ class GtfsToVisum(VisumPuTTables):
             strecke_end = findVertexId(points[-1][0], points[-1][1], c)
 
             if (strecke_start, strecke_end) in strecken_read:
-                print 'already read! %s, %s' % (strecke_start, strecke_end)
-                continue
+                continue # possible data lost!
             else:
                 strecken_read[(strecke_start, strecke_end)] = id
 
@@ -724,6 +723,10 @@ def main():
     parser = OptionParser(usage=usage)
     (options, args) = parser.parse_args()
 
+    if len(args) != 2 or not os.path.exists(args[0]) or not os.path.exists(args[1]):
+        parser.print_help()
+        exit(-1)
+
 
     defaults = { 'psql-host':'localhost',
                  'psql-port':'5432',
@@ -732,16 +735,14 @@ def main():
                  'psql-database':'graphserver',
                  'date':'2011.01.01' }
 
-    if not os.path.exists(args[0]): raise Exception()
-
     config = utils.read_config(args[0], defaults, True)
 
     psql_connect_string = 'dbname=%s user=%s password=%s host=%s port=%s' % ( config['psql-database'],
                                                                               config['psql-user'],
                                                                               config['psql-password'],
                                                                               config['psql-host'],
-                                                                              config['psql-port']       )
-
+                                                                              config['psql-port']
+                                                                            )
     feed = args[1]
 
     transformer = GtfsToVisum(psql_connect_string, recreate_tables=False)

@@ -19,9 +19,10 @@ def removeSpecialCharacter(s):
 
 class IvuToVisum(VisumPuTTables):
 
-    def __init__(self, db_connect_string, date=datetime.datetime(2011,1,1), recreate_tables=False):
+    def __init__(self, db_connect_string, date=datetime.datetime(2011,1,1), recreate_tables=False, read_ivu_data=False):
         self.db_connect_string = db_connect_string
         self.date = date
+        self.read_ivu_data = read_ivu_data
 
         self._createDbTables(recreate_tables)
         self._truncateDbTables()
@@ -34,7 +35,9 @@ class IvuToVisum(VisumPuTTables):
         self._ivu_data = ivu_data
 
         self._session = self._getNewSession()
-        readIvuToDb(ivu_data, self.db_connect_string)
+
+        if self.read_ivu_data:
+            readIvuToDb(ivu_data, self.db_connect_string)
 
 
     def getIvuData(self):
@@ -699,9 +702,17 @@ class IvuToVisum(VisumPuTTables):
 
 def main():
     from optparse import OptionParser
-    usage = """usage: python ivuToVisum.py config_file ivu_folder"""
+    usage = """usage: python ivuToVisum.py [options] config_file ivu_folder"""
     parser = OptionParser(usage=usage)
+
+    parser.add_option("-e", "--export-only", action="store_true", help="converts the data in the database into the visum format (NO READING OF IVU DATA)", dest="export_only", default=False)
+    parser.add_option("-i", "--import-only", action="store_true", help="imports the ivu data into the database (NO CONVERSION INTO VISUM DATA)", dest="import_only", default=False)
+
     (options, args) = parser.parse_args()
+
+    if len(args) != 2 or not os.path.exists(args[0]) or not os.path.exists(args[1]) or (options.import_only and options.export_only):
+        parser.print_help()
+        exit(-1)
 
 
     defaults = { 'psql-host':'localhost',
@@ -710,8 +721,6 @@ def main():
                  'psql-password':'',
                  'psql-database':'graphserver',
                  'date':'2011.01.01' }
-
-    if not os.path.exists(args[0]): raise Exception()
 
     config = utils.read_config(args[0], defaults, True)
 
@@ -723,13 +732,15 @@ def main():
 
     ivu_folder = args[1]
 
-    transformer = IvuToVisum(psql_connect_string, recreate_tables=False)
+    read_ivu_data = not options.export_only
+
+    transformer = IvuToVisum(psql_connect_string, recreate_tables=False, read_ivu_data=read_ivu_data)
     transformer.ivu_data = ivu_folder
     transformer.date = datetime.date(int(config['date'][:4]), int(config['date'][5:7]), int(config['date'][8:]))
 
-    print 'converting data'
-
-    transformer.transform()
+    if not options.import_only:
+        print 'converting data'
+        transformer.transform()
 
     print 'done'
 
