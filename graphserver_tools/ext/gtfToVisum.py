@@ -56,6 +56,7 @@ class GtfsToVisum(VisumPuTTables):
         self._createStopIdMapper()
         self._createLinrouteMapper()
         self._createFahrzeitprofilMapper()
+        self._createBetreiberIdMapper()
 
     def getFeed(self):
         return self._feed
@@ -70,14 +71,10 @@ class GtfsToVisum(VisumPuTTables):
         ''' Converts the feed associated with this object into a data for a visum database.
         '''
 
-        self._createStopIdMapper()
-        self._createLinrouteMapper()
-        self._createFahrzeitprofilMapper()
-        self._createBetreiberIdMapper()
-
         self._processVerkehrssysteme()
         self._processBetreiber()
         self._processKnoten()
+        self._processStrecken()
         self._processHaltestelle()
         self._processHaltestellenbereich()
         self._processHaltepunkt()
@@ -224,6 +221,84 @@ class GtfsToVisum(VisumPuTTables):
         conn.commit()
 
 
+    def _processStrecken(self):
+
+        def findVertexId(lat, lon, cursor):
+            cursor.execute('SELECT "NR" FROM "KNOTEN" WHERE "XKOORD"=%s AND "YKOORD"=%s', (lat, lon))
+
+            vertex_nr = cursor.fetchone()
+
+            # create a new vertex if nothing could be fetched
+            if not vertex_nr:
+                cursor.execute('SELECT MAX("NR") FROM "KNOTEN"')
+
+                vertex_nr = int(cursor.fetchone()) +1
+
+                print 'new vertex nr: %d' % vertex_nr
+
+                cursor.execute('INSERT INTO "KONTEN" VALUES (%s,%s,%s)', (vertex_nr, lat, lon))
+
+            return vertex_nr
+
+
+        shapes = self._schedule.GetShapeList()
+        strecken = []
+        strecken_poly = []
+
+        strecken_read = {} # contains start and stop vertex numbers to make sure not to write duplicate entries into the database (some data might get lost!)
+
+        vsysset = 'Tram/Light rail,Subway,Railway,Bus,Ferry,Cable Car,Gondola,Funicular'
+
+        conn = psycopg2.connect(self.db_connect_string)
+        c = conn.cursor()
+
+        for id, s in enumerate(shapes):
+            points = s.points
+
+            # find visum vertices for start & end of shape
+            strecke_start = findVertexId(points[0][0], points[0][1], c)
+            strecke_end = findVertexId(points[-1][0], points[-1][1], c)
+
+            if (strecke_start, strecke_end) in strecken_read:
+                print 'already read! %s, %s' % (strecke_start, strecke_end)
+                continue
+            else:
+                strecken_read[(strecke_start, strecke_end)] = id
+
+
+            if (strecke_end, strecke_start) in strecken_read:
+                id = strecken_read[(strecke_end, strecke_start)]
+
+
+            strecken.append({   'nr':id,
+                                'von_knoten':strecke_start,
+                                'nach_knoten':strecke_end,
+                                'name':None,
+                                'typnr':1,
+                                'vsysset':vsysset
+                            })
+
+            for index, p in enumerate(points[1:-2]):
+
+                strecken_poly.append({  'von_knoten':strecke_start,
+                                        'nach_knoten':strecke_end,
+                                        'index':index,
+                                        'x_koord':p[0],
+                                        'y_koord':p[1]
+                                    })
+
+        c.executemany('''INSERT INTO "STRECKE" VALUES
+                            (%(nr)s, %(von_knoten)s, %(nach_knoten)s, %(name)s, %(typnr)s,
+                             %(vsysset)s)''', strecken)
+
+        c.executemany('''INSERT INTO "STRECKENPOLY" VALUES
+                            (%(von_knoten)s, %(nach_knoten)s, %(index)s, %(x_koord)s,
+                             %(y_koord)s )''', strecken_poly)
+
+        c.close()
+        conn.commit()
+
+
     def _processKnoten(self):
         ''' Method will write a vertex (Knoten) for every stop (not station) in the feed
             into the visum database. It will need the stop_id_mapper
@@ -233,7 +308,7 @@ class GtfsToVisum(VisumPuTTables):
         vertices = []
 
         for s in stops:
-            if not s.location_type: # stations don't need a vertex
+            if not s.location_type: # stations: don't need a vertex
                 vertices.append({   'id':self.stop_id_mapper[s.stop_id],
                                     'xkoord':s.stop_lat,
                                     'ykoord':s.stop_lon
@@ -382,7 +457,7 @@ class GtfsToVisum(VisumPuTTables):
             if s in stop_transit_type_mapper:
                 vsysset = ','.join([ self.route_type_mapper[rt] for rt in stop_transit_type_mapper[s] ])
             else:
-                vsysset = None
+                vsysset = 'Tram/Light rail,Subway,Railway,Bus,Ferry,Cable Car,Gondola,Funicular'
 
             haltepunkte.append({    'nr' : self.stop_id_mapper[s.stop_id],
                                     'hstbernr' : self.stop_id_mapper[s.stop_id],
