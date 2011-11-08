@@ -58,8 +58,8 @@ Folgende Funktionen werden bereitgestellt:
     * Ansicht eines GTFS-Feeds als Layer über Google Maps
     * Das Berechnen von kürzesten Wegen innerhalb eines GTFS-Feeds mit Hilfe von OpenStreetMap Daten
     * Zusschneiden einer OpenStreetMap XML Datei
-    * Umwandeln von IVU Ascii Exportdaten in ein von Visum lesbares Format (in Arbeit)
-    * Umwandeln eines GTFS-Feeds in ein von Visum lesbares Format (in Arbeit)
+    * Umwandeln von IVU Ascii Exportdaten in ein von Visum lesbares Format
+    * Umwandeln eines GTFS-Feeds in ein von Visum lesbares Format
 
 
 
@@ -77,6 +77,32 @@ Zur Umwandlung wird das Skript gst_hafasToGtfs benötigt. Es kann wie folgt aufg
 <code>$ gst_hafasToGtfs <input> <output></code>
 
 //input// ist die umzuwandelte Hafas-Datei.
+
+
+== IVU Ascii Exportdaten nach Visum ==
+Es wird das Skript gst_ivuToVisum benötigt. Es kann wie folgt aufgerufen werden:
+
+<code>$ gst_ivuToVisum [options] <config> <ascii export></code>
+
+//config// Pfad zur Konfigurationsdatei (siehe Abschnitt Konfigurationsdatei)
+<ascii export> Pfad zu einem Ordner, in dem die einzelnen Export-Dateien liegen
+
+Optionen
+^ kurz ^ lang ^ Beschreibung ^
+| -h | ---help | show the help message and exit |
+| -e | ---export-only | converts the data in the database into the visum format (NO READING OF IVU DATA) |
+| -i | ---import-only | imports the ivu data into the database (NO CONVERSION INTO VISUM DATA) |
+
+
+== GTFS-Feeds nach Visum ==
+Zur Umwandlung steht das Skript gst_gtfsToVisum zur Verfügung. Es wird wie folgt verwendet:
+
+<code>$ gst_gtfsToVisum <config> <feed></code>
+
+//conig// Pfad zur Konfigurationsdatei (siehe Abschnitt Konfigurationsdatei)
+//feed// Pfad zu einem GTFS-Feed
+
+**Achtung:** Aufgrund grundlegender Unterschiede in der Datenhaltung der Formate, kann es bei der Umwandlung zu einem Datenverlust im Bereich der Shapes/Strecken kommen.
 
 
 == Überprüfen eines GTFS-Feeds ==
@@ -135,7 +161,7 @@ max-walk=1080
 </code>
 
 
-^ Mögliche Einstellungen ^^^
+^ Mögliche Einstellungen ^^
 | **Name** | **Erklärung** |
 | walking-speed | Geschwindigkeit, in der sich Fußgänger fortbewegen. Einheit: m/s. Punkt statt Komma verwenden |
 | time-step | Zeitabstand, in dem innerhalb der definierten Zeitfenster Berechnungen durchgeführt werden sollen. Je kleiner der Wert, desto genauer, aber auch zeitintensiver die Berechnungen. |
@@ -182,8 +208,6 @@ Die Zeiten, Punkte und Routen müssen als CSV-Dateien vorliegen. Als Trennzeiche
 | id | beliebige Ganzzahl |
 | destination | id des Endpunktes (aus points.csv) |
 | time_id | id des Zeitfensters (aus times.csv) |
-
-
 
 
 === Bekannte Fehler ===
