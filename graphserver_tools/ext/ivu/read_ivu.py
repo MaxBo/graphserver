@@ -727,13 +727,13 @@ def read(folder, db_connect_string):
         fusswege_process = Process(target=read_fusswege, args=(codecs.open(os.path.join(folder, 'fussweg.asc'), encoding='latin-1'), db_connect_string))
         fusswege_process.start()
 
-    if os.path.exists(os.path.join(folder, 'umst1.asc')):
-        umst1_process = Process(target=read_umst1, args=(codecs.open(os.path.join(folder, 'umst1.asc'), encoding='latin-1'), db_connect_string))
-        umst1_process.start()
+    #if os.path.exists(os.path.join(folder, 'umst1.asc')):
+    #    umst1_process = Process(target=read_umst1, args=(codecs.open(os.path.join(folder, 'umst1.asc'), encoding='latin-1'), db_connect_string))
+    #    umst1_process.start()
 
-    if os.path.exists(os.path.join(folder, 'umst2.asc')):
-        umst2_process = Process(target=read_umst2, args=(codecs.open(os.path.join(folder, 'umst2.asc'), encoding='latin-1'), db_connect_string))
-        umst2_process.start()
+    #if os.path.exists(os.path.join(folder, 'umst2.asc')):
+    #    umst2_process = Process(target=read_umst2, args=(codecs.open(os.path.join(folder, 'umst2.asc'), encoding='latin-1'), db_connect_string))
+    #    umst2_process.start()
 
 
     linien_process.join()
@@ -743,19 +743,19 @@ def read(folder, db_connect_string):
     fahrten_process = Process(target=fahrtenWrapper, args=(folder, db_connect_string))
     fahrten_process.start()
 
-    if os.path.exists(os.path.join(folder, 'umst3.asc')):
-        umst3_process = Process(target=read_umst3, args=(codecs.open(os.path.join(folder, 'umst3.asc'), encoding='latin-1'), db_connect_string))
-        umst3_process.start()
+    #if os.path.exists(os.path.join(folder, 'umst3.asc')):
+    #    umst3_process = Process(target=read_umst3, args=(codecs.open(os.path.join(folder, 'umst3.asc'), encoding='latin-1'), db_connect_string))
+    #    umst3_process.start()
 
 
     fahrten_process.join()
 
 
-    print 'started reading: Umsteigezeiten4'
+    #print 'started reading: Umsteigezeiten4'
 
-    if os.path.exists(os.path.join(folder, 'umst4.asc')):
-        umst4_process = Process(target=read_umst4, args=(codecs.open(os.path.join(folder, 'umst4.asc'), encoding='latin-1'), db_connect_string))
-        umst4_process.start()
+    #if os.path.exists(os.path.join(folder, 'umst4.asc')):
+    #    umst4_process = Process(target=read_umst4, args=(codecs.open(os.path.join(folder, 'umst4.asc'), encoding='latin-1'), db_connect_string))
+    #    umst4_process.start()
 
 
     if zwischenpunkte_process:
