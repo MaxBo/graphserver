@@ -258,6 +258,19 @@ class VisumPuTTables(object):
                                     PRIMARY KEY ("VERSNR")
                                 )''')
 
+
+        if 'UEBERGANGSGEHZEITHSTBER' not in tables:
+            cursor.execute('''CREATE TABLE "UEBERGANGSGEHZEITHSTBER"
+                                (   "VONHSTBERNR" integer,
+                                    "NACHHSTBERNR" integer,
+                                    "VSYSCODE" varchar(255),
+                                    "ZEIT" integer,
+                                    PRIMARY KEY (   "VONHSTBERNR",
+                                                    "NACHHSTBERNR",
+                                                    "VSYSCODE"
+                                                )
+                                )''')
+
         cursor.close()
         connection.commit()
 
@@ -284,7 +297,8 @@ class VisumPuTTables(object):
                                    "STRECKE",
                                    "STRECKENPOLY",
                                    "VERSION",
-                                   "RICHTUNG"
+                                   "RICHTUNG",
+                                   "UEBERGANGSGEHZEITHSTBER"
                           CASCADE''')
 
         cursor.execute('INSERT INTO "VERSION" VALUES (%s, %s, %s)', ( 8.1, 'Net', 'DEU' ))
