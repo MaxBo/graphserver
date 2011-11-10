@@ -84,12 +84,12 @@ class GtfsToVisum(VisumPuTTables):
         self._processFahrzeitprofil()
         self._processFahrzeitprofilelement()
         self._processFahrplanfahrt()
+        self._processUebergangsGehzeitenHaltestellenbereich()
 
 
     #
     # private methods
     #
-
     def _createStopIdMapper(self):
         ''' The visum id (NR) is integer while gtfs id (stop_id) is string.
             This method creates a dictionary to map between those to ids.
@@ -714,6 +714,34 @@ class GtfsToVisum(VisumPuTTables):
 
         c.close()
         conn.commit()
+
+
+    def _processUebergangsGehzeitenHaltestellenbereich(self):
+
+        zeiten = []
+        vsysset = 'Tram/Light rail,Subway,Railway,Bus,Ferry,Cable Car,Gondola,Funicular'
+
+        for t in self._schedule.GetTransferList():
+
+            if t.transfer_type != 2 or t.from_stop_id == t.to_stop_id:
+                continue
+
+            zeiten.append({ 'von_hst' : self.stop_id_mapper[t.from_stop_id],
+                            'nach_hst' : self.stop_id_mapper[t.to_stop_id],
+                            'vsyscode' : vsysset, # CHECK IF WORKING!!
+                            'zeit' : t.min_transfer_time
+                         })
+
+
+        conn = psycopg2.connect(self.db_connect_string)
+        c = conn.cursor()
+
+        c.executemany('''INSERT INTO "UEBERGANGSGEHZEITHSTBER" VALUES
+                            (%(von_hst)s, %(nach_hst)s, %(vsyscode)s, %(zeit)s)''', zeiten)
+
+        c.close()
+        conn.commit()
+
 
 
 
