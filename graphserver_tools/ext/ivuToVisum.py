@@ -46,6 +46,9 @@ class IvuToVisum(VisumPuTTables):
     ivu_data = property(getIvuData, setIvuData)
 
 
+    #
+    # other public methods
+    #
     def transform(self):
         ''' Converts the feed associated with this object into a data for a visum database.
         '''
@@ -58,12 +61,14 @@ class IvuToVisum(VisumPuTTables):
         print 'converting'
         self._processBetreiber()
         self._processVsysset()
+        self._processKnoten()
 
         threads = []
 
-        for m in (  self._processKnoten,
-                    self._processHstHstBereichHstPunkt,
-                    self._processLinieRouteElement,
+        hst_t = threading.Thread(target=self._processHstHstBereichHstPunkt)
+        hst_t.start()
+
+        for m in (  self._processLinieRouteElement,
                     self._processFahrzeitprofil,
                     self._processFahrzeitprofilelement,
                     self._processFahrplanfahrt,
@@ -75,6 +80,9 @@ class IvuToVisum(VisumPuTTables):
 
             threads.append(t)
 
+        hst_t.join()
+
+        self._processUebergangsGehzeitenHaltestellenbereich()
 
         for t in threads:
             t.join()
@@ -676,6 +684,7 @@ class IvuToVisum(VisumPuTTables):
 
         print '\tfinished converting Fahrplanfahrten'
 
+
     def _processVsysset(self):
         session = self._getNewSession()
         vsyssets_list = []
@@ -698,6 +707,64 @@ class IvuToVisum(VisumPuTTables):
         conn.commit()
 
         print '\tfinished converting Verkehrssysteme'
+
+
+    def _processUebergangsGehzeitenHaltestellenbereich(self):
+        session = self._getNewSession()
+        zeiten = {}
+
+        vsysset = ','.join(set([ v.verkehrsmittelkuerzel for v in session.query(Verkehrsmittel).all()]))
+
+        haltestellenbereiche = session.query(Haltestelle).filter(or_(Haltestelle.referenzhaltestelle == None, Haltestelle.unterhaltestellen != None)).all()
+        haltestellenbereiche = [h.id for h in haltestellenbereiche]
+
+        skipped = 0
+
+        for f in session.query(Fussweg).all():
+
+            von_hst = f.von_haltestelle.id
+            nach_hst = f.nach_haltestelle.id
+
+            if von_hst not in haltestellenbereiche:
+                von_hst = f.von_haltestelle.referenzhaltestelle.id
+
+            if nach_hst not in haltestellenbereiche:
+                nach_hst = f.nach_haltestelle.referenzhaltestelle.id
+
+            if von_hst == nach_hst:
+                continue
+
+            time = f.zeit.hour*3600 + f.zeit.minute*60 + f.zeit.second
+
+            if (von_hst, nach_hst) not in zeiten:
+                zeiten[(von_hst, nach_hst)] = time
+
+            else:
+                zeiten[(von_hst, nach_hst)] = min(time, zeiten[(von_hst, nach_hst)])
+
+
+        zeiten_list = []
+
+        for (von_hst, nach_hst), time in zeiten.items():
+
+            zeiten_list.append({    'von_hst' : von_hst,
+                                    'nach_hst' : nach_hst,
+                                    'vsyscode' : vsysset, # CHECK IF WORKING!!
+                                    'zeit' : time
+                              })
+
+
+        conn = psycopg2.connect(self.db_connect_string)
+        c = conn.cursor()
+
+        c.executemany('''INSERT INTO "UEBERGANGSGEHZEITHSTBER" VALUES
+                            (%(von_hst)s, %(nach_hst)s, %(vsyscode)s, %(zeit)s)''', zeiten_list)
+
+        c.close()
+        conn.commit()
+
+        print '\tfinished converting Uebergangs-Gehzeiten Haltestellenbereich'
+
 
 
 def main():
