@@ -93,6 +93,18 @@ Optionen
 | -e | ---export-only | converts the data in the database into the visum format (NO READING OF IVU DATA) |
 | -i | ---import-only | imports the ivu data into the database (NO CONVERSION INTO VISUM DATA) |
 
+Folgende Informationen werden nicht berücksichtigt:
+  * Haltestellen Äquivalenzen
+  * Betriebstage (es können nur Linien und Fahrten, die mit Hilfe von Bitfeldern kodiert sind umgewandelt werden)
+  * Liniearisierte Haltestellenfolgen
+  * Fahrtenverknüpfungen
+  * Besondere Ziele
+  * Umsteigezeiten (Gehwege zwischen Haltestellenbereichen werden mit Hilfe der Fußwege abgebildet)
+  * Tarifinformationen
+  * Attribute
+  * Fahrplandarstellungen
+  * Umsteigebauwerke
+
 
 == GTFS-Feeds nach Visum ==
 Zur Umwandlung steht das Skript gst_gtfsToVisum zur Verfügung. Es wird wie folgt verwendet:
