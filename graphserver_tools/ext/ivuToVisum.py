@@ -496,9 +496,12 @@ class IvuToVisum(VisumPuTTables):
 
             for lp in session.query(Linienprofil).filter(Linienprofil.linie == ul).all():
 
-                if last_haltestelle_id == lp.haltestelle.id: # skip stops at the same haltestelle
-                    print "skipping element: %s" % last_haltestelle_id
-                    continue
+                #if last_haltestelle_id == lp.haltestelle.id: # skip stops at the same haltestelle
+                #    print "skipping element: %s" % last_haltestelle_id
+                #    continue
+
+                if ul.id == 7905:
+                    print "index %s" % lp.laufende_nummer
 
                 linienroutenelemente.append({   'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
                                                 'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))),
@@ -625,7 +628,7 @@ class IvuToVisum(VisumPuTTables):
 
         print '\tfinished converting Fahrzeitprofilelemente'
 
-    def _processFahrplanfahrt(self):
+    def                       (self):
         ''' Writes a Fahrplanfahrt for each trip inside the feed into the visum database.
             Uses the pre-defined Fahrzeitprofile (fahrzeitprofil_mapper).
         '''
@@ -763,7 +766,7 @@ class IvuToVisum(VisumPuTTables):
 
             zeiten_list.append({    'von_hst' : von_hst,
                                     'nach_hst' : nach_hst,
-                                    'vsyscode' : 'Fuß',
+                                    'vsyscode' : 'Fuss',
                                     'zeit' : time
                               })
 
