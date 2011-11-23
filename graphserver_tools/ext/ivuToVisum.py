@@ -490,10 +490,14 @@ class IvuToVisum(VisumPuTTables):
         session = self._getNewSession()
 
         linienroutenelemente = []
+        last_haltestelle_id = None
 
         for ul in self.unterlinien:
 
             for lp in session.query(Linienprofil).filter(Linienprofil.linie == ul).all():
+
+                if last_haltestelle_id == lp.haltestelle.id: # skip stops at the same haltestelle
+                    continue
 
                 linienroutenelemente.append({   'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
                                                 'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))),
@@ -503,6 +507,8 @@ class IvuToVisum(VisumPuTTables):
                                                 'knotnr' : lp.haltestelle.id,
                                                 'hpunktnr' : lp.haltestelle.id
                                             })
+
+                last_haltestelle_id = lp.haltestelle.id
 
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
@@ -693,9 +699,15 @@ class IvuToVisum(VisumPuTTables):
 
             vsyssets_list.append({  'code':v.verkehrsmittelkuerzel,
                                     'name':removeSpecialCharacter(v.verkehrsmittelname),
-                                    'type':'OV',
+                                    'type':'ÖV',
                                     'pkwe':1
                                 })
+
+        vsyssets_list.append({  'code':'Fuß',
+                                'name':'Fuß',
+                                'type':'ÖV-Fuß',
+                                'pkwe':1
+                            })
 
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
@@ -712,8 +724,6 @@ class IvuToVisum(VisumPuTTables):
     def _processUebergangsGehzeitenHaltestellenbereich(self):
         session = self._getNewSession()
         zeiten = {}
-
-        vsyssets = [ v.verkehrsmittelkuerzel for v in session.query(Verkehrsmittel).all()]
 
         haltestellenbereiche = session.query(Haltestelle).filter(or_(Haltestelle.referenzhaltestelle == None, Haltestelle.unterhaltestellen != None)).all()
         haltestellenbereiche = [h.id for h in haltestellenbereiche]
@@ -747,13 +757,11 @@ class IvuToVisum(VisumPuTTables):
 
         for (von_hst, nach_hst), time in zeiten.items():
 
-            for v in vsyssets:
-
-                zeiten_list.append({    'von_hst' : von_hst,
-                                        'nach_hst' : nach_hst,
-                                        'vsyscode' : v,
-                                        'zeit' : time
-                                  })
+            zeiten_list.append({    'von_hst' : von_hst,
+                                    'nach_hst' : nach_hst,
+                                    'vsyscode' : 'Fuß',
+                                    'zeit' : time
+                              })
 
 
         conn = psycopg2.connect(self.db_connect_string)
