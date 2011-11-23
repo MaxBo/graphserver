@@ -713,7 +713,7 @@ class IvuToVisum(VisumPuTTables):
         session = self._getNewSession()
         zeiten = {}
 
-        vsysset = ','.join(set([ v.verkehrsmittelkuerzel for v in session.query(Verkehrsmittel).all()]))
+        vsyssets = [ v.verkehrsmittelkuerzel for v in session.query(Verkehrsmittel).all()]
 
         haltestellenbereiche = session.query(Haltestelle).filter(or_(Haltestelle.referenzhaltestelle == None, Haltestelle.unterhaltestellen != None)).all()
         haltestellenbereiche = [h.id for h in haltestellenbereiche]
@@ -747,11 +747,13 @@ class IvuToVisum(VisumPuTTables):
 
         for (von_hst, nach_hst), time in zeiten.items():
 
-            zeiten_list.append({    'von_hst' : von_hst,
-                                    'nach_hst' : nach_hst,
-                                    'vsyscode' : vsysset, # CHECK IF WORKING!!
-                                    'zeit' : time
-                              })
+            for v in vsyssets:
+
+                zeiten_list.append({    'von_hst' : von_hst,
+                                        'nach_hst' : nach_hst,
+                                        'vsyscode' : v,
+                                        'zeit' : time
+                                  })
 
 
         conn = psycopg2.connect(self.db_connect_string)
