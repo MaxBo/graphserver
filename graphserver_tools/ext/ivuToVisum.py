@@ -629,7 +629,7 @@ class IvuToVisum(VisumPuTTables):
 
         print '\tfinished converting Fahrzeitprofilelemente'
 
-    def                       (self):
+    def _processFahrplanfahrt(self):
         ''' Writes a Fahrplanfahrt for each trip inside the feed into the visum database.
             Uses the pre-defined Fahrzeitprofile (fahrzeitprofil_mapper).
         '''
