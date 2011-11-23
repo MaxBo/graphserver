@@ -700,13 +700,13 @@ class IvuToVisum(VisumPuTTables):
 
             vsyssets_list.append({  'code':v.verkehrsmittelkuerzel,
                                     'name':removeSpecialCharacter(v.verkehrsmittelname),
-                                    'type':'ÖV',
+                                    'type':'OV',
                                     'pkwe':1
                                 })
 
-        vsyssets_list.append({  'code':'Fuß',
-                                'name':'Fuß',
-                                'type':'ÖV-Fuß',
+        vsyssets_list.append({  'code':'Fuss',
+                                'name':'Fuss',
+                                'type':'OVFuss',
                                 'pkwe':1
                             })
 
