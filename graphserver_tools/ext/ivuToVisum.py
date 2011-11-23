@@ -497,6 +497,7 @@ class IvuToVisum(VisumPuTTables):
             for lp in session.query(Linienprofil).filter(Linienprofil.linie == ul).all():
 
                 if last_haltestelle_id == lp.haltestelle.id: # skip stops at the same haltestelle
+                    print "skipping element"
                     continue
 
                 linienroutenelemente.append({   'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
