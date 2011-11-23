@@ -745,6 +745,9 @@ class IvuToVisum(VisumPuTTables):
             if von_hst == nach_hst:
                 continue
 
+            if von_hst.referenzhaltestelle != nach_hst.referenzhaltestelle:
+                continue
+
             time = f.zeit.hour*3600 + f.zeit.minute*60 + f.zeit.second
 
             if (von_hst, nach_hst) not in zeiten:
