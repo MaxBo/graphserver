@@ -683,8 +683,8 @@ class IvuToVisum(VisumPuTTables):
 
         fahrplanfahrtabschnitte = [{'nr': 1,
                                     'fplfahrtnr': x['nr'],
-                                    'vonfzpelemindex' : x[vonfzpelemindex],
-                                    'nachfzpelemindex' : x[nachfzpelemindex]} \
+                                    'vonfzpelemindex' : x['vonfzpelemindex'],
+                                    'nachfzpelemindex' : x['nachfzpelemindex']} \
                                     for x in fahrten]
 
         conn = psycopg2.connect(self.db_connect_string)
