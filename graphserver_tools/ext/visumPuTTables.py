@@ -111,7 +111,7 @@ class VisumPuTTables(object):
                                     "FPLFAHRTNR" integer,
                                     "VONFZPELEMINDEX" integer,
                                     "NACHFZPELEMINDEX" integer,
-                                    PRIMARY KEY ("NR")
+                                    PRIMARY KEY ("FPLFAHRTNR", "NR")
                                 )''')
 
 
