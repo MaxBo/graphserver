@@ -25,6 +25,7 @@ class VisumPuTTables(object):
                                                     "FAHRZEITPROFIL",
                                                     "FAHRZEITPROFILELEMENT",
                                                     "FAHRPLANFAHRT",
+                                                    "FAHRPLANFAHRTABSCHNITT",
                                                     "HALTESTELLE",
                                                     "HALTESTELLENBEREICH",
                                                     "HALTEPUNKT",
@@ -99,6 +100,15 @@ class VisumPuTTables(object):
                                     "LINROUTENAME" varchar(255),
                                     "RICHTUNGCODE" varchar(255),
                                     "FZPROFILNAME" varchar(255),
+                                    "VONFZPELEMINDEX" integer,
+                                    "NACHFZPELEMINDEX" integer,
+                                    PRIMARY KEY ("NR")
+                                )''')
+
+        if 'FAHRPLANFAHRTABSCHNITT' not in tables:
+            cursor.execute('''CREATE TABLE "FAHRPLANFAHRTABSCHNITT"
+                                (   "NR" integer,
+                                    "FPLFAHRTNR" integer,
                                     "VONFZPELEMINDEX" integer,
                                     "NACHFZPELEMINDEX" integer,
                                     PRIMARY KEY ("NR")
@@ -286,6 +296,7 @@ class VisumPuTTables(object):
                                    "FAHRZEITPROFIL",
                                    "FAHRZEITPROFILELEMENT",
                                    "FAHRPLANFAHRT",
+                                   "FAHRPLANFAHRTABSCHNITT",
                                    "HALTESTELLE",
                                    "HALTESTELLENBEREICH",
                                    "HALTEPUNKT",

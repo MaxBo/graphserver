@@ -466,7 +466,7 @@ class IvuToVisum(VisumPuTTables):
         for ul in self.unterlinien:
 
             linienrouten.append({   'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
-                                    'name' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))),
+                                    'name' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))).lstrip('-'),
                                     'richtungscode' : self.direction_mapper[ul.richtungskuerzel],
                                     'istringlinie' : 0
                                 })
@@ -504,7 +504,7 @@ class IvuToVisum(VisumPuTTables):
                     print "index %s" % lp.laufende_nummer
 
                 linienroutenelemente.append({   'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
-                                                'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))),
+                                                'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))).lstrip('-'),
                                                 'richtungscode' : self.direction_mapper[ul.richtungskuerzel],
                                                 'index' : lp.laufende_nummer,
                                                 'istroutenpunkt' : 1,
@@ -538,7 +538,7 @@ class IvuToVisum(VisumPuTTables):
         for ul in self.unterlinien:
 
             fahrzeitprofile.append({    'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
-                                        'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))),
+                                        'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))).lstrip('-'),
                                         'richtungscode' : self.direction_mapper[ul.richtungskuerzel],
                                         'name' : ul.unterliniennummer
                                    })
@@ -590,7 +590,7 @@ class IvuToVisum(VisumPuTTables):
                 departure = datetime.datetime(1899, 12, departure_day, departure_time_hours, departure_time_min )
 
                 elements.append({   'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
-                                    'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))),
+                                    'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))).lstrip('-'),
                                     'richtungscode' : self.direction_mapper[ul.richtungskuerzel],
                                     'fzprofilname' : ul.unterliniennummer,
                                     'index' : lp.laufende_nummer,
@@ -655,7 +655,7 @@ class IvuToVisum(VisumPuTTables):
                                         'name' : removeSpecialCharacter(ul.oeffentlicher_linienname),
                                         'abfahrt' : departure,
                                         'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
-                                        'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))),
+                                        'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))).lstrip('-'),
                                         'richtungscode' : self.direction_mapper[ul.richtungskuerzel],
                                         'fzprofilname' : ul.unterliniennummer,
                                         'vonfzpelemindex' : f.start_pos,
@@ -674,12 +674,18 @@ class IvuToVisum(VisumPuTTables):
                                                 'name' : removeSpecialCharacter(ul.oeffentlicher_linienname),
                                                 'abfahrt' : departure,
                                                 'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
-                                                'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))),
+                                                'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))).lstrip('-'),
                                                 'richtungscode' : self.direction_mapper[ul.richtungskuerzel],
                                                 'fzprofilname' : ul.unterliniennummer,
                                                 'vonfzpelemindex' : f.start_pos,
                                                 'nachfzpelemindex' : f.end_pos
                                           })
+
+        fahrplanfahrtabschnitte = [{'nr': 1,
+                                    'fplfahrtnr': x['nr'],
+                                    'vonfzpelemindex' : x[vonfzpelemindex],
+                                    'nachfzpelemindex' : x[nachfzpelemindex]} \
+                                    for x in fahrten]
 
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
@@ -689,6 +695,11 @@ class IvuToVisum(VisumPuTTables):
                              %(richtungscode)s, %(fzprofilname)s, %(vonfzpelemindex)s,
                              %(nachfzpelemindex)s)''',
                         fahrten)
+
+        c.executemany('''INSERT INTO "FAHRPLANFAHRTABSCHNITT" VALUES
+                            (%(nr)s, %(fplfahrtnr)s, %(vonfzpelemindex)s,
+                             %(nachfzpelemindex)s)''',
+                        fahrplanfahrtabschnitte)
 
         c.close()
         conn.commit()
