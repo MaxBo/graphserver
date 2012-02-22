@@ -11,7 +11,7 @@ import threading
 class VisumPuTTables(object):
 
 
-    def _createDbTables(self, drop=False):
+    def _createDbTables(self, drop=False, user='public'):
         """ Creates all necessary database tables. Won't overwrite tables unless 'drop' is
             set to True.
         """
@@ -41,7 +41,7 @@ class VisumPuTTables(object):
                               CASCADE''')
 
 
-        cursor.execute("select tablename from pg_tables where schemaname='public'" )
+        cursor.execute("select tablename from pg_tables where schemaname='%s'" )
         tables = [t[0] for t in cursor.fetchall()]
 
 

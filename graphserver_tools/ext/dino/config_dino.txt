@@ -1,0 +1,32 @@
+# calculation options
+walking-speed=1.2
+link-dist=150
+time-step=240
+max-walk=1080
+walking-reluctance=2
+
+# system
+parallel-calculations=1
+
+# database
+psql-host=localhost
+psql-port=5432
+psql-user=dino
+psql-password=ggr
+psql-database=visum_import
+
+# files
+routes=routes.csv
+times=times.csv
+points=points.csv
+transit-feed=transit_data.zip
+osm-data=streets.osm
+results=results.csv
+result-details=result-details.csv
+
+date=2011.01.01
+
+
+
+
+
