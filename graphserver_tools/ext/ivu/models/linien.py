@@ -120,39 +120,39 @@ class Fahrt(Base):
         return False
 
 
-class FahrtAtt(Base):
-    __tablename__ = 'ivu_fahrtatt'
-
-    id = Column(Integer, primary_key=True)
-
-    betrieb_id = Column(Integer, ForeignKey('ivu_betriebe.id'), nullable=False)
-    betrieb = relationship("Betrieb", backref=backref('linien'))
-
-    liniennummer = Column(String(8), nullable=False)
-    richtungskuerzel = Column(String(2), nullable=False)
-
-    version_id = Column(Integer, ForeignKey('ivu_versione.id'), nullable=False)
-    version = relationship("Version", backref=backref('linien'))
-
-    interne_fahrtennummer = Column(String(10))
-
-    start_pos = Column(Integer, nullable=False)
-    end_pos = Column(Integer, nullable=False)
-
-    attribut_schluessel = Column(String(10))
-
-    wert = Column(String(255))
-
-    bitfeld_id = Column(Integer, ForeignKey('ivu_bitfeld.id'))
-    bitfeld = relationship("Bitfeld", backref=backref('linien'))
-
-    def isValidOnDate(self, session, date):
-
-        if self.linie.isValidOnDate(session, date):
-
-            if not self.bitfeld:
-                return True
-            else:
-                return self.bitfeld.isValidOnDate(self.line.version.anfang, date)
-
-        return False
+##class FahrtAtt(Base):
+##    __tablename__ = 'ivu_fahrtatt'
+##
+##    id = Column(Integer, primary_key=True)
+##
+##    betrieb_id = Column(Integer, ForeignKey('ivu_betriebe.id'), nullable=False)
+##    betrieb = relationship("Betrieb", backref=backref('linien'))
+##
+##    liniennummer = Column(String(8), nullable=False)
+##    richtungskuerzel = Column(String(2), nullable=False)
+##
+##    version_id = Column(Integer, ForeignKey('ivu_versione.id'), nullable=False)
+##    version = relationship("Version", backref=backref('linien'))
+##
+##    interne_fahrtennummer = Column(String(10))
+##
+##    start_pos = Column(Integer, nullable=False)
+##    end_pos = Column(Integer, nullable=False)
+##
+##    attribut_schluessel = Column(String(10))
+##
+##    wert = Column(String(255))
+##
+##    bitfeld_id = Column(Integer, ForeignKey('ivu_bitfeld.id'))
+##    bitfeld = relationship("Bitfeld", backref=backref('linien'))
+##
+##    def isValidOnDate(self, session, date):
+##
+##        if self.linie.isValidOnDate(session, date):
+##
+##            if not self.bitfeld:
+##                return True
+##            else:
+##                return self.bitfeld.isValidOnDate(self.line.version.anfang, date)
+##
+##        return False

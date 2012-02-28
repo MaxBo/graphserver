@@ -438,39 +438,39 @@ def read_linien(linien_file, session):
     session.commit()
 
 
-def read_fahrtatt(fahrtattfile, session):
-    linie = None
-
-    for ln, line in fileToTuples(fahrten_file):
-
-        betrieb = session.query(Betrieb).filter(Betrieb.betriebsteilschluessel == line[0]).one()
-        linie = line[1]
-        richtungskuerzel = linie[2]
-        version = int_or_None(line[3])
-        interne_fahrtennummer = linie[4]
-        start_pos=int_or_None(line[5])
-        end_pos=int_or_None(line[6])
-        attribut_schluessel = linie[7]
-        wert = linie[8]
-        bitfeld = None
-        try: # bitfeld is optional
-            bitfeld = session.query(Bitfeld).filter(Bitfeld.bitfeldnummer == line[9]).one()
-        except:
-            pass
-
-        fahrtatt = FahrtAtt(  betrieb=betrieb,
-                    linie = linie,
-                    richtungskuerzel = richtungskuerzel,
-                    version = version,
-                    interne_fahrtennummer = interne_fahrtennummer,
-                    start_pos = start_pos,
-                    end_pos = end_pos,
-                    attribut_schluessel = attribut_schluessel,
-                    wert = wert,
-                    bitfeld_id = bitfeld
-                     )
-        session.add(fahrtatt)
-        session.commit()
+##def read_fahrtatt(fahrtattfile, session):
+##    linie = None
+##
+##    for ln, line in fileToTuples(fahrten_file):
+##
+##        betrieb = session.query(Betrieb).filter(Betrieb.betriebsteilschluessel == line[0]).one()
+##        linie = line[1]
+##        richtungskuerzel = linie[2]
+##        version = int_or_None(line[3])
+##        interne_fahrtennummer = linie[4]
+##        start_pos=int_or_None(line[5])
+##        end_pos=int_or_None(line[6])
+##        attribut_schluessel = linie[7]
+##        wert = linie[8]
+##        bitfeld = None
+##        try: # bitfeld is optional
+##            bitfeld = session.query(Bitfeld).filter(Bitfeld.bitfeldnummer == line[9]).one()
+##        except:
+##            pass
+##
+##        fahrtatt = FahrtAtt(  betrieb=betrieb,
+##                    linie = linie,
+##                    richtungskuerzel = richtungskuerzel,
+##                    version = version,
+##                    interne_fahrtennummer = interne_fahrtennummer,
+##                    start_pos = start_pos,
+##                    end_pos = end_pos,
+##                    attribut_schluessel = attribut_schluessel,
+##                    wert = wert,
+##                    bitfeld_id = bitfeld
+##                     )
+##        session.add(fahrtatt)
+##        session.commit()
 
 def read_fahrten(fahrten_file, session):
 
