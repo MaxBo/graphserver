@@ -29,7 +29,7 @@ class Linie(Base):
     richtungskuerzel = Column(String(2), nullable=False)
     oeffentlicher_linienname = Column(String(8), nullable=False)
 
-    version_id = Column(Integer, ForeignKey('ivu_versione.id'), nullable=False)
+    version_id = Column(Integer, ForeignKey('ivu_version.id'), nullable=False)
     version = relationship("Version", backref=backref('linien'))
 
     betrieb_id = Column(Integer, ForeignKey('ivu_betriebe.id'), nullable=False)
@@ -115,7 +115,7 @@ class Fahrt(Base):
             if not self.bitfeld:
                 return True
             else:
-                return self.bitfeld.isValidOnDate(self.line.version.anfang, date)
+                return self.bitfeld.isValidOnDate(self.linie.version.anfang, date)
 
         return False
 
@@ -131,7 +131,7 @@ class Fahrt(Base):
 ##    liniennummer = Column(String(8), nullable=False)
 ##    richtungskuerzel = Column(String(2), nullable=False)
 ##
-##    version_id = Column(Integer, ForeignKey('ivu_versione.id'), nullable=False)
+##    version_id = Column(Integer, ForeignKey('ivu_version.id'), nullable=False)
 ##    version = relationship("Version", backref=backref('linien'))
 ##
 ##    interne_fahrtennummer = Column(String(10))

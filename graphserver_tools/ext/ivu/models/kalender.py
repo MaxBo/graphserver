@@ -2,36 +2,11 @@ from sqlalchemy import *
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.schema import UniqueConstraint
 
+from bitstring import BitArray
+
 from __init__ import Base
 
 
-def hex_to_bool_list(hex_string, verbose=True):
-    b_list = []
-
-    for hex in hex_string:
-        if hex == '0': b_list.extend(( False, False, False, False))
-        elif hex == '1': b_list.extend(( False, False, False, True))
-        elif hex == '2': b_list.extend(( False, False, True, False))
-        elif hex == '3': b_list.extend(( False, False, True, True))
-        elif hex == '4': b_list.extend(( False, True, False, False))
-        elif hex == '5': b_list.extend(( False, True, False, True))
-        elif hex == '6': b_list.extend(( False, True, True, False))
-        elif hex == '7': b_list.extend(( False, True, True, True))
-        elif hex == '8': b_list.extend(( True, False, False, False))
-        elif hex == '9': b_list.extend(( True, False, False, True))
-        elif hex == 'A' or hex == 'a': b_list.extend(( True, False, True, False))
-        elif hex == 'B' or hex == 'b': b_list.extend(( True, False, True, True))
-        elif hex == 'C' or hex == 'c': b_list.extend(( True, True, False, False))
-        elif hex == 'D' or hex == 'd': b_list.extend(( True, True, False, True))
-        elif hex == 'E' or hex == 'e': b_list.extend(( True, True, True, False))
-        elif hex == 'F' or hex == 'f': b_list.extend(( True, True, True, True))
-        else:
-            if verbose:
-                b_list.extend(( False, False, False, False))
-            else:
-                raise Exception('unrecognizable character in hex_string')
-
-    return b_list
 
 
 class Bitfeld(Base):
@@ -48,7 +23,7 @@ class Bitfeld(Base):
     def isValidOnDate(self, start_date, date):
 
         if not self.bitfeld_list:
-            self.bitfeld_list = hex_to_bool_list(self.bitfeld)
+            self.bitfeld_list = BitArray(hex=self.bitfeld)
 
         delta = date - start_date
 
@@ -59,7 +34,7 @@ class Bitfeld(Base):
 
 
 class Version(Base):
-    __tablename__ = 'ivu_versione'
+    __tablename__ = 'ivu_version'
 
     id = Column(Integer, primary_key=True)
 

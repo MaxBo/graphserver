@@ -20,7 +20,7 @@ class Strecke(Base):
     nach_haltestelle_id = Column(Integer, ForeignKey('ivu_halteste.id'), nullable=False)
     nach_haltestelle = relationship("Haltestelle", backref=backref('strecken_ein'), primaryjoin=nach_haltestelle_id==Haltestelle.id)
 
-    version_id = Column(Integer, ForeignKey('ivu_versione.id'))
+    version_id = Column(Integer, ForeignKey('ivu_version.id'))
     version = relationship("Version", backref=backref('strecken'))
 
 
