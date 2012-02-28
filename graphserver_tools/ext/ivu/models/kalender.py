@@ -17,12 +17,12 @@ class Bitfeld(Base):
     bitfeldnummer = Column(Integer, unique=True, index=True)
     bitfeld = Column(String(255), nullable=False)
 
-    bitfeld_list = None # list containing boolean values ( True, False ) representing the bitfeld
+    bitfeld_list = None # bitstring containing boolean values ( True, False ) representing the bitfeld
 
 
     def isValidOnDate(self, start_date, date):
 
-        if not self.bitfeld_list:
+        if self.bitfeld_list is None:
             self.bitfeld_list = BitArray(hex=self.bitfeld)
 
         delta = date - start_date
