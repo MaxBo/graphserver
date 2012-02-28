@@ -41,7 +41,7 @@ class VisumPuTTables(object):
                               CASCADE''')
 
 
-        cursor.execute("select tablename from pg_tables where schemaname='%s'" )
+        cursor.execute("select tablename from pg_tables where schemaname='%s'" %user)
         tables = [t[0] for t in cursor.fetchall()]
 
 
