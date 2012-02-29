@@ -13,7 +13,7 @@ import datetime
 from pyproj import Proj, transform
 from termcolor import colored
 
-from graphserver.core import Street
+#from graphserver.core import Street
 
 
 def read_config(filename, defaults, raise_exception=False):
