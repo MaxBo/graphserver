@@ -1,3 +1,15 @@
+﻿#-------------------------------------------------------------------------------
+# Name:        ivu2visum
+# Purpose:
+#
+# Author:      Tobias Ottenweller
+#
+# Created:     23.11.2011
+# Copyright:   (c) GGR Stadtentwicklung und Mobilität
+#-------------------------------------------------------------------------------
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 import datetime
 import os
 import psycopg2
@@ -14,7 +26,7 @@ from graphserver_tools.utils import utils
 
 
 def removeSpecialCharacter(s):
-    return s.replace(';', '_').replace('$', '_')
+    return s.replace(';', '_').replace('$', '_').replace('---','')
 
 
 class IvuToVisum(VisumPuTTables):
@@ -493,18 +505,19 @@ class IvuToVisum(VisumPuTTables):
         session = self._getNewSession()
 
         linienroutenelemente = []
-        last_haltestelle_id = None
 
         for ul in self.unterlinien:
+            last_haltestelle_id = None
+            index = 1
 
             for lp in session.query(Linienprofil).filter(Linienprofil.linie == ul).all():
 
-                #if last_haltestelle_id == lp.haltestelle.id: # skip stops at the same haltestelle
-                #    print "skipping element: %s" % last_haltestelle_id
-                #    continue
-
-                if ul.id == 7905:
-                    print "index %s" % lp.laufende_nummer
+##                if last_haltestelle_id == lp.haltestelle.id: # skip stops at the same haltestelle
+##                    print "skipping element: %s" % last_haltestelle_id
+##                    continue
+##
+##                if ul.id == 7905:
+##                    print "index %s" % lp.laufende_nummer
 
                 linienroutenelemente.append({   'linname' : removeSpecialCharacter('_'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
                                                 'linroutename' : self.direction_mapperHR[ul.richtungskuerzel] + removeSpecialCharacter('_'.join(( ul.oeffentlicher_linienname, str(ul.id) ))),
@@ -516,6 +529,7 @@ class IvuToVisum(VisumPuTTables):
                                             })
 
                 last_haltestelle_id = lp.haltestelle.id
+                index += 1
 
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
@@ -569,6 +583,9 @@ class IvuToVisum(VisumPuTTables):
 
         for ul in self.unterlinien:
 
+            last_haltestelle_id = None
+            index = 1
+
             arrival_time_min = 0
             arrival_time_hours = 0
 
@@ -591,6 +608,16 @@ class IvuToVisum(VisumPuTTables):
 
                 arrival = datetime.datetime(1899, 12, day, arrival_time_hours, arrival_time_min)
                 departure = datetime.datetime(1899, 12, departure_day, departure_time_hours, departure_time_min )
+##
+                # doppelte Haltestellen weglassen ist hier schwierig, da auf die indices in anderen Tabellen referenziert wird (Fahrplanfahrtabschnitt)
+##                if last_haltestelle_id == lp.haltestelle.id: # skip stops at the same haltestelle
+##                    print "skipping element: %s" % last_haltestelle_id
+##                    # set departure time of second row
+##                    elements[-1]['abfahrt'] = departure
+##                    elements[-1]['ein'] = int(not lp.einsteigeverbot)
+##
+##                    continue
+
 
                 elements.append({   'linname' : removeSpecialCharacter('_'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
                                     'linroutename' : self.direction_mapperHR[ul.richtungskuerzel] + removeSpecialCharacter('_'.join(( ul.oeffentlicher_linienname, str(ul.id) ))),
@@ -616,6 +643,8 @@ class IvuToVisum(VisumPuTTables):
                     day += 1
                     arrival_time_hours -= 24
 
+                last_haltestelle_id = lp.haltestelle.id
+                index += 1
 
 
         conn = psycopg2.connect(self.db_connect_string)
@@ -792,10 +821,92 @@ class IvuToVisum(VisumPuTTables):
         c.executemany('''INSERT INTO "UEBERGANGSGEHZEITHSTBER" VALUES
                             (%(von_hst)s, %(nach_hst)s, %(vsyscode)s, %(zeit)s)''', zeiten_list)
 
+        # setze Haltestellennummer für Haltestellenbereiche, für die Uebergangsgehzeiten angegeben sind, auf die kleinste gemeinsame Nummer
+
+        sql_update = '''
+        UPDATE public."HALTESTELLENBEREICH" nachh
+        SET "HSTNR" = LEAST(vonh."HSTNR", nachh."HSTNR")
+        FROM public."UEBERGANGSGEHZEITHSTBER" uz,
+        public."HALTESTELLENBEREICH" vonh
+        WHERE uz."NACHHSTBERNR" = nachh."NR"
+        AND uz."VONHSTBERNR" = vonh."NR"
+        AND nachh."HSTNR" <> vonh."HSTNR";
+
+
+        UPDATE public."HALTESTELLENBEREICH" vonh
+        SET "HSTNR" = LEAST(vonh."HSTNR", nachh."HSTNR")
+        FROM public."UEBERGANGSGEHZEITHSTBER" uz,
+        public."HALTESTELLENBEREICH" nachh
+        WHERE uz."NACHHSTBERNR" = nachh."NR"
+        AND uz."VONHSTBERNR" = vonh."NR"
+        AND nachh."HSTNR" <> vonh."HSTNR";
+        '''
+
+        sql_count = '''SELECT count(*)
+                  FROM
+                    public."HALTESTELLENBEREICH" vonh,
+                    public."HALTESTELLENBEREICH" nachh,
+                    public."UEBERGANGSGEHZEITHSTBER" uz
+                  WHERE
+                    uz."VONHSTBERNR" = vonh."HSTNR" AND
+                    uz."NACHHSTBERNR" = nachh."HSTNR" AND
+                    nachh."HSTNR" <> vonh."HSTNR";'''
+
+        # zaehle, wie viele Übergangsgehzeiten zwischen unterschiedlichen Haltestellen es gibt
+        c.execute(sql_count)
+        r = c.fetchone()[0]
+
+        # solange es noch welche gibt..
+        while r:
+            # setze Haltestelle auf kleinsten gemeinsamen Wert
+            c.execute(sql_update)
+            # zaehle, wie viele Übergangsgehzeiten zwischen unterschiedlichen Haltestellen noch übrig sind
+            c.execute(sql_count)
+            r = c.fetchone()[0]
+
         c.close()
         conn.commit()
 
         print '\tfinished converting Uebergangs-Gehzeiten Haltestellenbereich'
+
+
+    def _remove_duplicate_stops(self):
+        # requires foreign key on fahrzeitprofilement -> linienroutenelement
+        # and fahrplanfahrt -> fahrzeitprofilelement mit on update cascade, on delete cascade
+        # CREATE TRIGGER on fahrzeitprofilelement:
+        # ON UPDATE ON "INDEX" DO :
+        #
+        """
+        UPDATE "FAHRPLANFAHRTABSCHNITT" fa
+        SET "VONFZPELEMINDEX" = NEW."INDEX"
+        FROM
+          public."FAHRPLANFAHRT" f
+        WHERE (f."NR" = fa."FPLFAHRTNR")
+          AND (f."LINNAME" = OLD."LINNAME")
+          AND (f."LINROUTENAME" = OLD."LINROUTENAME")
+          AND (f."RICHTUNGCODE" = OLD."RICHTUNGCODE")
+          AND (f."FZPROFILNAME" = OLD."FZPROFILNAME")
+          AND (fa."VONFZPELEMINDEX" = OLD."INDEX");
+
+        UPDATE "FAHRPLANFAHRTABSCHNITT" fa
+        SET "NACHFZPELEMINDEX" = NEW."INDEX"
+        FROM
+          public."FAHRPLANFAHRT" f
+        WHERE (f."NR" = fa."FPLFAHRTNR")
+          AND (f."LINNAME" = OLD."LINNAME")
+          AND (f."LINROUTENAME" = OLD."LINROUTENAME")
+          AND (f."RICHTUNGCODE" = OLD."RICHTUNGCODE")
+          AND (f."FZPROFILNAME" = OLD."FZPROFILNAME")
+          AND (fa."NACHFZPELEMINDEX" = OLD."INDEX");
+        """
+        # CREATE TRIGGER auf "LINIENROUTENELEMENT" und "FAHRZEITPPOFILELEMENT"
+        # ON DELETE DO
+        # UPDATE "LINIENROUTENELEMENT" SET "INDEX" = "INDEX" - 1 WHERE "INDEX" > OLD."INDEX" AND PK gleich
+
+        # ON DELETE DO
+        # UPDATE "FAHRZEITPPOFILELEMENT" SET "INDEX" = "INDEX" - 1 WHERE "INDEX" > OLD."INDEX" AND PK gleich
+
+        # DELETE FROM "LINIENROUTENELENEMT" WHERE haltepunkt in row.1 == haltepunkt in row AND PK gleich
 
 
 
