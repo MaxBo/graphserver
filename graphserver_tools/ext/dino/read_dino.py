@@ -74,7 +74,7 @@ def int_or_None(s):
 def decode_utf(s):
     return s.decode('latin1')
 
-def read_table(fileName, db_connect_string=db_connect_string, folder=r'C:\GIT\Eingangsdaten\01 Dino\Fahrplan DVG', create_tables=False):
+def read_table(fileName, db_connect_string=db_connect_string, folder=r'D:\GIT\gs\graphserver_tools\graphserver_tools\msp\Eingangsdaten\01 Dino\Fahrplan DVG', create_tables=False):
     session = getSession(db_connect_string, create_tables=False)
     newTableClass = eval(fileName.capitalize())
     file = open('%s\\%s.din' %(folder,fileName))
@@ -108,8 +108,8 @@ def read(folder, db_connect_string):
 
     def bitfeldVersionaeWrapper(folder, db_connect_string):
 
-        read_bitfeld(codecs.open(folder+'/bitfeld.asc', encoding='latin-1'), db_connect_string)
-        read_versionen(codecs.open(folder+'/versione.asc', encoding='latin-1'), db_connect_string)
+        read_versionen(codecs.open(folder+'/set_version.din', encoding='latin-1'), db_connect_string)
+        read_daytype(codecs.open(folder+'/set_day_type.din', encoding='latin-1'), db_connect_string)
 
 
     def lieferanHaltesteBetriebeWrapper(folder, db_connect_string):

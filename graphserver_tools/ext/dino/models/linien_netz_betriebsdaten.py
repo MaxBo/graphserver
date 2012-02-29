@@ -4,6 +4,7 @@ from sqlalchemy.schema import UniqueConstraint
 
 from __init__ import Base
 
+from kalenderdaten import Set_version
 
 class Set_vehicle_type(Base):
     __tablename__ = 'dino_set_vehicle_type'
@@ -72,7 +73,7 @@ class Lid_course(Base):
 
     id = Column(Integer, primary_key=True, nullable=False)
 
-    version = Column(Integer, index=True)
+    version = Column(Integer, ForeignKey(Set_version.version))
     line_nr = Column(Integer)
     str_line_var = Column(String(4))
     line_dir_nr = Column(Integer)
@@ -82,6 +83,12 @@ class Lid_course(Base):
     stopping_point_nr = Column(Integer)
     stopping_point_type = Column(Integer)
     length = Column(Integer)
+
+    ver = relationship(Set_version, primaryjoin = (Set_version.version==version),\
+                            foreign_keys=[Set_version.version])
+
+    def isValidOnDate(self, date):
+        return self.ver[0].isValidOnDate(date)
 
 
 class Rec_lin_ber(Base):

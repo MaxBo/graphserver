@@ -4,6 +4,7 @@ from sqlalchemy.schema import UniqueConstraint
 
 from __init__ import Base
 
+from kalenderdaten import Set_day_attribute
 
 class Rec_trip(Base):
     __tablename__ = 'dino_rec_trip'
@@ -38,6 +39,14 @@ class Rec_trip(Base):
     round_trip_ID = Column(Integer)
     train_nr = Column(Integer)
 
+
+    ForeignKeyConstraint([version, day_attribute_nr], [Set_day_attribute.version, Set_day_attribute.day_attribute_nr])
+    day_attribute = relationship(Set_day_attribute, primaryjoin = (Set_day_attribute.version==version) & (Set_day_attribute.day_attribute_nr==day_attribute_nr),\
+                            foreign_keys=[Set_day_attribute.version, Set_day_attribute.day_attribute_nr])
+
+    def isValidOnDate(self, date):
+
+        return self.day_attribute.isValidOnDate(self, date)
 
 class Trip_stop_time(Base):
     __tablename__ = 'dino_trip_stop_time'

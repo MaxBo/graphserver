@@ -5,3 +5,5 @@ graphserver_tools.egg-info/*
 /graphserver_tools/ivu
 *.pyc
 */*.pyc
+
+/graphserver_tools/msp

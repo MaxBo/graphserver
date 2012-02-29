@@ -1,3 +1,15 @@
+﻿#-------------------------------------------------------------------------------
+# Name:        dino2visum
+# Purpose:
+#
+# Author:      Max Bohnet, Tobias Ottenweller
+#
+# Created:     29.02.2012
+# Copyright:   (c) GGR Stadtentwicklung und Mobilität
+#-------------------------------------------------------------------------------
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 import datetime
 import os
 import psycopg2
@@ -6,6 +18,9 @@ import sys
 
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import scoped_session
+from sqlalchemy import over
+
+
 
 from string import letters
 
@@ -22,7 +37,7 @@ db_connect_string = 'dbname=visum_import user=dino password=ggr host=192.168.198
 
 class DinoToVisum(VisumPuTTables):
 
-    def __init__(self, db_connect_string=db_connect_string, date=datetime.datetime(2011,1,1), recreate_tables=False, read_dino_data=False):
+    def __init__(self, db_connect_string=db_connect_string, date=datetime.datetime(2012,3,6), recreate_tables=False, read_dino_data=False):
         self.db_connect_string = db_connect_string
         self.date = date
         self.read_dino_data = read_dino_data
@@ -57,7 +72,7 @@ class DinoToVisum(VisumPuTTables):
         '''
 
         print 'creating internal data structures'
-        self._getValidUnterlinien()
+##        self._getValidUnterlinien()
         self._getDirections()
 
 
@@ -117,7 +132,7 @@ class DinoToVisum(VisumPuTTables):
         """
 
         # get all unterlinien
-        unterlinien = self._session.query(Rec_lin_ber).all()
+        unterlinien = self._session.query(Lin_ber).all()
 
         # remove all unterlinen not valid on entered date
         unterlinien = [ ul for ul in unterlinien if ul.isValidOnDate(self._session, self.date) ]
@@ -159,6 +174,7 @@ class DinoToVisum(VisumPuTTables):
         """
 
         self.direction_mapper = {1: '>', 2: '<'}
+        self.direction_mapperHR = {1: 'H', 2: 'R'}
 
     def _processKnoten(self):
         ''' Method will write a vertex (Knoten) for every Haltestelle
@@ -195,13 +211,14 @@ class DinoToVisum(VisumPuTTables):
 
         session = self._getNewSession()
 
-        strecken_dino = [ s for s in session.query(Lid_course).all() if s.isValidOnDate(session, self.date) ]
-
+        strecken_dino = [ s for s in session.query(Lid_course).all() if s.isValidOnDate(self.date) ]
         strecken = []
         strecken_poly = []
         visum_strecken_ids = {}
+        version = None
 
-        vsysset = ','.join(set([ v.veh_type_nr for v in session.query(Vehicle_type).all()]))
+
+        vsysset = ','.join(set([ v.str_veh_type for v in session.query(Set_vehicle_type).all()]))
 
         for s in strecken_dino:
 
@@ -292,21 +309,20 @@ class DinoToVisum(VisumPuTTables):
         '''
         session = self._getNewSession()
 
-        haltestellenbereiche_dino = session.query(Rec_stop_area).all()
+        haltestellenbereiche_dino = session.query(Res_stop_area).all()
         hatestellenbereiche = []
         vertices = []
 
         for h in haltestellenbereiche_dino:
 
             # find the referenzhaltestelle
-            ref_hst = h.stop_nr
 
-            hstbernr = ref_hst * 10 + h.stop_area_nr
+            hstbernr = h.stop_nr * 10 + h.stop_area_nr
 
             knotnr = hstbernr + 10000000
 
             hatestellenbereiche.append({    'nr': hstbernr,
-                                            'hstnr': ref_hst,
+                                            'hstnr': h.stop_nr,
                                             'code': '',
                                             'name': removeSpecialCharacter(h.stop_area_name),
                                             'knotnr': knotnr,
@@ -344,8 +360,10 @@ class DinoToVisum(VisumPuTTables):
 
 
         for h in haltepunkte_dino:
+
+
             hstbernr = h.stop_nr * 10 + h.stop_area_nr
-            hp_nr = hstbernr * 10 + h.stopping_point_nr
+            hp_nr = h.stop_nr * 100 + h.stopping_point_nr
             knotnr = hp_nr
 
             # not working --> vsysset = ','.join(set([ l.linie.verkehrsmittel.verkehrsmittelkuerzel for l in h.linienprofile]))
@@ -403,87 +421,91 @@ class DinoToVisum(VisumPuTTables):
 
     def _processLinieRouteElement(self):
         self._processLinienroute()
+        self._processLinienroute()
         self._processLinienroutenelement()
 
 
+    def _processLinie(self):
 
+        session = self._getNewSession()
+        linie = []
 
-    def _processLinienroute(self):
-        ''' Writes a Linienroute for each different set of stops (trip) into the visum database.
-        '''
-        linien = []
-        linienrouten = []
+        for l in session.query(Rec_lin_ber).all():
 
-        linien_dino = session.query(Rec_lin_ber).all()
-
-
-        for l in linien_dino:
-
-            linienroutenname = '_'.join([l.branch_nr, l.linie_name])
-            linienname = linienroutenname.rstrip(letters)
-            linie = { 'name' : linienname,
-                            'vsyscode' : self.default_vsysset,
-                            'tarifsystemmenge' : None,
-                            'betreibernr' : l.branch_nr
-                          }
-            if not linie in linien:
-                linien.append(linie)
-
-            linienrouten.append({   'linname' : linienname,
-                                    'name' : linienroutenname,
-                                    'richtungscode' : self.direction_mapper[l.line_dir_nr],
-                                    'istringlinie' : 0
-                                })
-
+            linie.append({  'betreibernr':l.branch_nr,
+                                'name':removeSpecialCharacter(l.line_name),
+                                'vsyscode':'B',
+                                'tarifsystemmenge':''
+                            })
+        # ggf. noch ergänzen Liniennummer
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
+
 
         c.executemany('''INSERT INTO "LINIE" VALUES
                             (%(name)s, %(vsyscode)s, %(tarifsystemmenge)s, %(betreibernr)s)''',
                         linien)
 
-        c.executemany('''INSERT INTO "LINIENROUTE" VALUES
-                            (%(linname)s, %(name)s, %(richtungscode)s, %(istringlinie)s)''',
-                        linienrouten)
-
         c.close()
         conn.commit()
 
-        print '\tfinished converting Linien und Linienrouten'
+        print '\tfinished converting Betreiber'
 
 
     def _processLinienroutenelement(self):
-        ''' Writes all Linienprofile of all valid Unterlinien to the visum database
+        ''' Writes a Linienprofile for each different set of stops (trip) into the visum database.
         '''
-        session = self._getNewSession()
+        linienrouten = []
+        linienroutenelement = []
 
-        linienroutenelemente = []
-        last_haltestelle_id = None
+        linien_dino = session.query(Lin_ber).all()
 
-        for ul in self.unterlinien:
 
-            for lp in session.query(Linienprofil).filter(Linienprofil.linie == ul).all():
+        for l in linien_dino:
+            linienroutennamen = []
+            linienname = '_'.join([l.branch_nr, l.linie_name])
+            lre = session.query(LidCourse).filter(linie_nr=l.linie_nr).all()
+            for lr in lre:
+                richtung = self.direction_mapperHR(lr.line_dir_nr)
+                linienroutenname = '_'.join([l.linie_name, str_linie_var, richtung])
 
-                #if last_haltestelle_id == lp.haltestelle.id: # skip stops at the same haltestelle
-                #    print "skipping element: %s" % last_haltestelle_id
-                #    continue
+                if linienroutenname not in linienroutennamen:
+                    linienroutennamen.append(linienroutenname)
 
-                if ul.id == 7905:
-                    print "index %s" % lp.laufende_nummer
+                    linienrouten.append({   'linname' : linienname,
+                                            'name' : linienroutenname,
+                                            'richtungscode' : self.direction_mapper[l.line_dir_nr],
+                                            'istringlinie' : 0
+                                        })
+                    LRIndex = 0
+                    last_haltestelle_id = None
 
-                linienroutenelemente.append({   'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
-                                                'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))).lstrip('-'),
-                                                'richtungscode' : self.direction_mapper[ul.richtungskuerzel],
-                                                'index' : lp.laufende_nummer,
+
+
+                hpnr = ref_hst * 100 + lr.stop_area_nr
+
+                knotnr = hpnr
+
+
+                linienroutenelemente.append({   'linname' : linienname,
+                                                'linroutename' : linienroutenname,
+                                                'richtungscode' : self.direction_mapper[l.line_dir_nr],
+                                                'index' : lr.line_consec_nr,
                                                 'istroutenpunkt' : 1,
-                                                'knotnr' : lp.haltestelle.id,
-                                                'hpunktnr' : lp.haltestelle.id
+                                                'knotnr' : knotnr,
+                                                'hpunktnr' : hpnr
                                             })
 
                 last_haltestelle_id = lp.haltestelle.id
 
+
+
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
+
+        c.executemany('''INSERT INTO "LINIENROUTE" VALUES
+                            (%(linname)s, %(name)s, %(richtungscode)s, %(istringlinie)s)''',
+                        linienrouten)
 
         c.executemany('''INSERT INTO "LINIENROUTENELEMENT" VALUES
                             (%(linname)s, %(linroutename)s, %(richtungscode)s, %(index)s,
@@ -493,7 +515,9 @@ class DinoToVisum(VisumPuTTables):
         c.close()
         conn.commit()
 
-        print '\tfinished converting Linienroutenelemente'
+        print '\tfinished converting Linienrouten und Linienroutenelemente'
+
+
 
 
 
@@ -502,14 +526,73 @@ class DinoToVisum(VisumPuTTables):
         '''
 
         fahrzeitprofile = []
+        elements = []
 
-        for ul in self.unterlinien:
+        linien_dino = session.query(Lin_ber).all()
+        for l in linien_dino:
+            linienname = '_'.join([l.branch_nr, l.linie_name])
+            lre = session.query(LidCourse).filter(linie_nr=l.linie_nr).all()
+            for lr in lre:
+                FZPNamen = []
+                richtung = self.direction_mapperHR(lr.line_dir_nr)
+                linienroutenname = '_'.join([l.linie_name, str_linie_var, richtung])
+                fzp = session.query(Lid_travel_time_type).filter(linie_nr=l.linie_nr).filter(str_line_var=lr.line_var).all() # Richtung scheint bei den Lid_travel_time_type nicht gesetzt zu sein...
+                for f in fzp:
+                    if f.timing_group_nr not in FZPNamen:
+                        FZPNamen.append(f.timing_group_nr)
 
-            fahrzeitprofile.append({    'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
-                                        'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))).lstrip('-'),
-                                        'richtungscode' : self.direction_mapper[ul.richtungskuerzel],
-                                        'name' : ul.unterliniennummer
-                                   })
+                        fahrzeitprofile.append({    'linname' : linienname,
+                                                    'linroutename' : linienroutenname,
+                                                    'richtungscode' : self.direction_mapper[l.line_dir_nr],
+                                                    'name' : fzp[0].timing_group_nr
+                                               })
+
+                        arrival_time_min = 0
+                        arrival_time_hours = 0
+
+                        day = 30
+
+                    else:
+                        departure_time_min = arrival_time_min + f.stopping_time/60
+                        departure_day = day
+
+                        if departure_time_min > 59:
+                            departure_time_min -= 60
+                            departure_time_hours += 1
+
+                        if departure_time_hours > 23:
+                            departure_day += 1
+                            departure_time_hours -= 24
+
+
+                    arrival = datetime.datetime(1899, 12, day, arrival_time_hours, arrival_time_min)
+                    departure = datetime.datetime(1899, 12, departure_day, departure_time_hours, departure_time_min )
+
+                    elements.append({   'linname' : linienname,
+                                        'linroutename' : linienroutenname,
+                                        'richtungscode' : self.direction_mapper[l.line_dir_nr],
+                                        'fzprofilname' : fzp.timing_group_nr,
+                                        'index' : f.consec_nr,
+                                        'lrelemindex' : f.consec_nr,
+                                        'aus' : int(not f.tt_rel==-1),
+                                        'ein' : int(not f.tt_rel==-1),
+                                        'ankunft' : arrival,
+                                        'abfahrt' : departure,
+                                    })
+                    if f.tt_rel >= 0:
+                        arrival_time_min = departure_time_min + f.tt_rel/60
+
+
+                    if arrival_time_min > 59:
+                        arrival_time_min -= 60
+                        arrival_time_hours += 1
+
+                    if arrival_time_hours > 23:
+                        day += 1
+                        arrival_time_hours -= 24
+
+
+
 
 
         conn = psycopg2.connect(self.db_connect_string)
@@ -518,73 +601,6 @@ class DinoToVisum(VisumPuTTables):
         c.executemany('''INSERT INTO "FAHRZEITPROFIL" VALUES
                             (%(linname)s, %(linroutename)s, %(richtungscode)s, %(name)s)''',
                         fahrzeitprofile)
-
-        c.close()
-        conn.commit()
-
-        print '\tfinished converting Fahrzeitprofile'
-
-
-    def _processFahrzeitprofilelement(self):
-        ''' Writes Fahrzeitprofilemente for Linienprofile of all valid Unterlinien into
-            the visum database.
-        '''
-        session = self._getNewSession()
-        elements = []
-
-        for ul in self.unterlinien:
-
-            arrival_time_min = 0
-            arrival_time_hours = 0
-
-            day = 30
-
-            for lp in session.query(Linienprofil).filter(Linienprofil.linie == ul).order_by(Linienprofil.laufende_nummer).all():
-
-                departure_time_min = arrival_time_min + lp.wartezeit.minute
-                departure_time_hours = arrival_time_hours + lp.wartezeit.hour
-                departure_day = day
-
-                if departure_time_min > 59:
-                    departure_time_min -= 60
-                    departure_time_hours += 1
-
-                if departure_time_hours > 23:
-                    departure_day += 1
-                    departure_time_hours -= 24
-
-
-                arrival = datetime.datetime(1899, 12, day, arrival_time_hours, arrival_time_min)
-                departure = datetime.datetime(1899, 12, departure_day, departure_time_hours, departure_time_min )
-
-                elements.append({   'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
-                                    'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))).lstrip('-'),
-                                    'richtungscode' : self.direction_mapper[ul.richtungskuerzel],
-                                    'fzprofilname' : ul.unterliniennummer,
-                                    'index' : lp.laufende_nummer,
-                                    'lrelemindex' : lp.laufende_nummer,
-                                    'aus' : int(not lp.aussteigeverbot),
-                                    'ein' : int(not lp.einsteigeverbot),
-                                    'ankunft' : arrival,
-                                    'abfahrt' : departure,
-                                })
-
-                arrival_time_min = departure_time_min + lp.fahrzeit.minute
-                arrival_time_hours = departure_time_hours + lp.fahrzeit.hour
-
-
-                if arrival_time_min > 59:
-                    arrival_time_min -= 60
-                    arrival_time_hours += 1
-
-                if arrival_time_hours > 23:
-                    day += 1
-                    arrival_time_hours -= 24
-
-
-
-        conn = psycopg2.connect(self.db_connect_string)
-        c = conn.cursor()
 
         c.executemany('''INSERT INTO "FAHRZEITPROFILELEMENT" VALUES
                             (%(linname)s, %(linroutename)s, %(richtungscode)s, %(fzprofilname)s,
@@ -595,7 +611,8 @@ class DinoToVisum(VisumPuTTables):
         c.close()
         conn.commit()
 
-        print '\tfinished converting Fahrzeitprofilelemente'
+        print '\tfinished converting Fahrzeitprofile'
+
 
     def _processFahrplanfahrt(self):
         ''' Writes a Fahrplanfahrt for each trip inside the feed into the visum database.
@@ -801,7 +818,7 @@ def main():
                                                                               config['psql-port']       )
 
     dino_folder = args[1]
-
+    dino_folder = r'D:\GIT\gs\graphserver_tools\graphserver_tools\msp\Eingangsdaten\01 Dino\Fahrplan DVG'
     read_dino_data = not options.export_only
 
     transformer = DinoToVisum(psql_connect_string, recreate_tables=False, read_dino_data=read_dino_data)
@@ -816,5 +833,6 @@ def main():
 
 
 if __name__ == '__main__': main()
+
 
 
