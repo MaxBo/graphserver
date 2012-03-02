@@ -33,7 +33,8 @@ from graphserver_tools.utils import utils
 def removeSpecialCharacter(s):
     return s.replace(';', '_').replace('$', '_')
 
-db_connect_string = 'dbname=visum_import user=dino password=ggr host=192.168.198.24 port=5432'
+##db_connect_string = 'dbname=visum_import user=dino password=ggr host=192.168.198.24 port=5432'
+db_connect_string = 'dbname=visum_import user=dino password=ggr host=localhost port=5432'
 
 class DinoToVisum(VisumPuTTables):
 
@@ -276,24 +277,28 @@ class DinoToVisum(VisumPuTTables):
 
         haltestellen_dino = session.query(Rec_stop).all()
         haltestellen = []
+        haltestellen_nr = {}
 
         for h in haltestellen_dino:
+            if not haltestellen_nr.has_key(h.stop_nr):
+                haltestellen_nr[h.stop_nr] = None
 
-            x_koordinate = h.stop_pos_x if h.stop_pos_x > -1 else 0
-            y_koordinate = h.stop_pos_y if h.stop_pos_y > -1 else 0
 
-            haltestellen.append({   'nr': h.stop_nr,
-                                    'code': removeSpecialCharacter(h.stop_shortname),
-                                    'name': removeSpecialCharacter(h.stop_name),
-                                    'typnr': 1,
-                                    'xkoord': x_koordinate,
-                                    'ykoord': y_koordinate
-                                })
+                x_koordinate = h.stop_pos_x if h.stop_pos_x > -1 else 0
+                y_koordinate = h.stop_pos_y if h.stop_pos_y > -1 else 0
+
+                haltestellen.append({   'nr': h.stop_nr,
+                                        'code': removeSpecialCharacter(h.stop_shortname),
+                                        'name': removeSpecialCharacter(h.stop_name),
+                                        'typnr': 1,
+                                        'xkoord': x_koordinate,
+                                        'ykoord': y_koordinate
+                                    })
 
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
 
-        c.executemany('''INSERT INTO "HALTESTELLE" VALUES
+        c.executemany('''INSERT INTO "HALTESTELLE" ("NR", "CODE", "NAME", "TYPNR", "XKOORD", "YKOORD") VALUES
                             (%(nr)s, %(code)s, %(name)s, %(typnr)s, %(xkoord)s, %(ykoord)s)''',
                             haltestellen)
 
@@ -309,8 +314,9 @@ class DinoToVisum(VisumPuTTables):
         '''
         session = self._getNewSession()
 
-        haltestellenbereiche_dino = session.query(Res_stop_area).all()
+        haltestellenbereiche_dino = session.query(Rec_stop_area).all()
         hatestellenbereiche = []
+        hstber_id = {}
         vertices = []
 
         for h in haltestellenbereiche_dino:
@@ -318,31 +324,33 @@ class DinoToVisum(VisumPuTTables):
             # find the referenzhaltestelle
 
             hstbernr = h.stop_nr * 10 + h.stop_area_nr
+            if not hstber_id.has_key(hstbernr):
+                hstber_id[hstbernr] = None
 
-            knotnr = hstbernr + 10000000
+                knotnr = hstbernr + 10000000
 
-            hatestellenbereiche.append({    'nr': hstbernr,
-                                            'hstnr': h.stop_nr,
-                                            'code': '',
-                                            'name': removeSpecialCharacter(h.stop_area_name),
-                                            'knotnr': knotnr,
-                                            'typnr': 1
-                                        })
-            vertices.append({   'id':knotnr
-                            })
+                hatestellenbereiche.append({    'nr': hstbernr,
+                                                'hstnr': h.stop_nr,
+                                                'code': '',
+                                                'name': removeSpecialCharacter(h.stop_area_name),
+                                                'knotnr': knotnr,
+                                                'typnr': 1
+                                            })
+                vertices.append({   'id':knotnr
+                                })
 
 
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
 
-        c.executemany('''INSERT INTO "KNOTEN" VALUES (%(id)s)''', vertices)
+        c.executemany('''INSERT INTO "KNOTEN" ("NR") VALUES (%(id)s)''', vertices)
 
-        c.executemany('''INSERT INTO "HALTESTELLENBEREICH" VALUES
+        c.executemany('''INSERT INTO "HALTESTELLENBEREICH" ("NR", "HSTNR", "CODE", "NAME", "KNOTNR", "TYPNR") VALUES
                             (%(nr)s, %(hstnr)s, %(code)s, %(name)s, %(knotnr)s, %(typnr)s)''',
                         hatestellenbereiche)
 
-        c.execute('''UPDATE "HALTESTELLENBEREICHE" AS hb SET "XKOORD"=h."XKOORD", "YKOORD"=h."YKOORD" FROM "HALTESTELLE" AS h WHERE hb."HSTNR" = h."NR";''')
-        c.execute('''UPDATE "KNOTEN" AS k SET "XKOORD"=h."XKOORD", "YKOORD"=h."YKOORD" FROM "HALTESTELLENBEREICH" AS hb, "HALTESTELLE" AS h WHERE hb."KNOTNR" = k."NR" AND hb."HSTNR" = h."NR" AND "XKOORD" IS NULL;''')
+        c.execute('''UPDATE "HALTESTELLENBEREICH" AS hb SET "XKOORD"=h."XKOORD", "YKOORD"=h."YKOORD" FROM "HALTESTELLE" AS h WHERE hb."HSTNR" = h."NR";''')
+        c.execute('''UPDATE "KNOTEN" AS k SET "XKOORD"=h."XKOORD", "YKOORD"=h."YKOORD" FROM "HALTESTELLENBEREICH" AS hb, "HALTESTELLE" AS h WHERE hb."KNOTNR" = k."NR" AND hb."HSTNR" = h."NR" AND k."XKOORD" IS NULL;''')
 
         c.close()
         conn.commit()
@@ -377,13 +385,23 @@ class DinoToVisum(VisumPuTTables):
                                     'knotnr' : knotnr,
                                     'vonknotnr' : None,
                                     'strnr' : None,
-                                    'relpos' : 0,
+                                    'relpos' : 0
                               })
 
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
 
-        c.executemany('''INSERT INTO "HALTEPUNKT" VALUES
+        c.executemany('''INSERT INTO "HALTEPUNKT" ("NR",
+                                                   "HSTBERNR",
+                                                   "TYPNR",
+                                                   "VSYSSET",
+                                                   "DEPOTFZGKOMBMENGE",
+                                                   "GERICHTET",
+                                                   "KNOTNR",
+                                                   "VONKNOTNR",
+                                                   "STRNR",
+                                                   "RELPOS")
+                                                    VALUES
                             (%(nr)s, %(hstbernr)s, %(typnr)s, %(vsysset)s,
                             %(depotfzgkombm)s, %(gerichtet)s, %(knotnr)s, %(vonknotnr)s, %(strnr)s, %(relpos)s)''',
                         haltepunkte)
@@ -428,12 +446,12 @@ class DinoToVisum(VisumPuTTables):
     def _processLinie(self):
 
         session = self._getNewSession()
-        linie = []
+        linien = []
 
         for l in session.query(Rec_lin_ber).all():
-
-            linie.append({  'betreibernr':l.branch_nr,
-                                'name':removeSpecialCharacter(l.line_name),
+            linienname = '_'.join([str(l.branch_nr), l.line_name])
+            linien.append({  'betreibernr':l.branch_nr,
+                                'name':linienname,
                                 'vsyscode':'B',
                                 'tarifsystemmenge':''
                             })
@@ -449,32 +467,33 @@ class DinoToVisum(VisumPuTTables):
         c.close()
         conn.commit()
 
-        print '\tfinished converting Betreiber'
+        print '\tfinished converting Linien'
 
 
     def _processLinienroutenelement(self):
         ''' Writes a Linienprofile for each different set of stops (trip) into the visum database.
         '''
+        session = self._getNewSession()
         linienrouten = []
-        linienroutenelement = []
+        linienroutenelemente = []
 
-        linien_dino = session.query(Lin_ber).all()
+        linien_dino = session.query(Rec_lin_ber).all()
 
 
         for l in linien_dino:
             linienroutennamen = []
-            linienname = '_'.join([l.branch_nr, l.linie_name])
-            lre = session.query(LidCourse).filter(linie_nr=l.linie_nr).all()
+            linienname = '_'.join([str(l.branch_nr), l.line_name])
+            lre = session.query(Lid_course).filter_by(line_nr=l.line_nr).all()
             for lr in lre:
-                richtung = self.direction_mapperHR(lr.line_dir_nr)
-                linienroutenname = '_'.join([l.linie_name, str_linie_var, richtung])
+                richtung = self.direction_mapperHR[lr.line_dir_nr]
+                linienroutenname = '_'.join([l.line_name, lr.str_line_var, richtung])
 
                 if linienroutenname not in linienroutennamen:
                     linienroutennamen.append(linienroutenname)
 
                     linienrouten.append({   'linname' : linienname,
                                             'name' : linienroutenname,
-                                            'richtungscode' : self.direction_mapper[l.line_dir_nr],
+                                            'richtungscode' : self.direction_mapper[lr.line_dir_nr],
                                             'istringlinie' : 0
                                         })
                     LRIndex = 0
@@ -482,32 +501,33 @@ class DinoToVisum(VisumPuTTables):
 
 
 
-                hpnr = ref_hst * 100 + lr.stop_area_nr
+                hpnr = lr.stop_nr * 100 + lr.stopping_point_nr
 
                 knotnr = hpnr
 
 
                 linienroutenelemente.append({   'linname' : linienname,
                                                 'linroutename' : linienroutenname,
-                                                'richtungscode' : self.direction_mapper[l.line_dir_nr],
+                                                'richtungscode' : self.direction_mapper[lr.line_dir_nr],
                                                 'index' : lr.line_consec_nr,
                                                 'istroutenpunkt' : 1,
                                                 'knotnr' : knotnr,
                                                 'hpunktnr' : hpnr
                                             })
 
-                last_haltestelle_id = lp.haltestelle.id
+                last_haltestelle_id = hpnr
 
 
 
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
 
-        c.executemany('''INSERT INTO "LINIENROUTE" VALUES
+        c.executemany('''INSERT INTO "LINIENROUTE" ("LINNAME", "NAME", "RICHTUNGCODE", "ISTRINGLINIE") VALUES
                             (%(linname)s, %(name)s, %(richtungscode)s, %(istringlinie)s)''',
                         linienrouten)
 
-        c.executemany('''INSERT INTO "LINIENROUTENELEMENT" VALUES
+        c.executemany('''INSERT INTO "LINIENROUTENELEMENT" ("LINNAME", "LINROUTENAME", "RICHTUNGCODE", "INDEX", "ISTROUTENPUNKT", "KNOTNR", "HPUNKTNR")
+                         VALUES
                             (%(linname)s, %(linroutename)s, %(richtungscode)s, %(index)s,
                              %(istroutenpunkt)s, %(knotnr)s, %(hpunktnr)s)''',
                         linienroutenelemente)
@@ -524,26 +544,26 @@ class DinoToVisum(VisumPuTTables):
     def _processFahrzeitprofil(self):
         ''' Writes a Fahrzeitprofil for each Unterlinie into the visum database.
         '''
-
+        session = self._getNewSession()
         fahrzeitprofile = []
         elements = []
 
-        linien_dino = session.query(Lin_ber).all()
+        linien_dino = session.query(Rec_lin_ber).all()
         for l in linien_dino:
-            linienname = '_'.join([l.branch_nr, l.linie_name])
-            lre = session.query(LidCourse).filter(linie_nr=l.linie_nr).all()
+            linienname = '_'.join([str(l.branch_nr), l.line_name])
+            lre = session.query(Lid_course).filter_by(line_nr=l.line_nr).all()
             for lr in lre:
                 FZPNamen = []
-                richtung = self.direction_mapperHR(lr.line_dir_nr)
-                linienroutenname = '_'.join([l.linie_name, str_linie_var, richtung])
-                fzp = session.query(Lid_travel_time_type).filter(linie_nr=l.linie_nr).filter(str_line_var=lr.line_var).all() # Richtung scheint bei den Lid_travel_time_type nicht gesetzt zu sein...
+                richtung = self.direction_mapperHR[lr.line_dir_nr]
+                linienroutenname = '_'.join([l.line_name, lr.str_line_var, richtung])
+                fzp = session.query(Lid_travel_time_type).filter_by(line_nr=l.line_nr).filter_by(str_line_var=lr.str_line_var).all() # Richtung scheint bei den Lid_travel_time_type nicht gesetzt zu sein...
                 for f in fzp:
                     if f.timing_group_nr not in FZPNamen:
                         FZPNamen.append(f.timing_group_nr)
 
                         fahrzeitprofile.append({    'linname' : linienname,
                                                     'linroutename' : linienroutenname,
-                                                    'richtungscode' : self.direction_mapper[l.line_dir_nr],
+                                                    'richtungscode' : self.direction_mapper[lr.line_dir_nr],
                                                     'name' : fzp[0].timing_group_nr
                                                })
 
@@ -570,7 +590,7 @@ class DinoToVisum(VisumPuTTables):
 
                     elements.append({   'linname' : linienname,
                                         'linroutename' : linienroutenname,
-                                        'richtungscode' : self.direction_mapper[l.line_dir_nr],
+                                        'richtungscode' : self.direction_mapper[lr.line_dir_nr],
                                         'fzprofilname' : fzp.timing_group_nr,
                                         'index' : f.consec_nr,
                                         'lrelemindex' : f.consec_nr,
@@ -598,11 +618,12 @@ class DinoToVisum(VisumPuTTables):
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
 
-        c.executemany('''INSERT INTO "FAHRZEITPROFIL" VALUES
+        c.executemany('''INSERT INTO "FAHRZEITPROFIL" ("LINNAME", "LINROUTENAME", "RICHTUNGCODE", "NAME") VALUES
                             (%(linname)s, %(linroutename)s, %(richtungscode)s, %(name)s)''',
                         fahrzeitprofile)
 
-        c.executemany('''INSERT INTO "FAHRZEITPROFILELEMENT" VALUES
+        c.executemany('''INSERT INTO "FAHRZEITPROFILELEMENT" ("LINNAME", "LINROUTENAME", "RICHTUNGCODE", "FZPROFILNAME", "INDEX", "LRELEMINDEX", "AUS", "EIN", "ANKUNFT", "ABFAHRT")
+                         VALUES
                             (%(linname)s, %(linroutename)s, %(richtungscode)s, %(fzprofilname)s,
                              %(index)s, %(lrelemindex)s, %(aus)s, %(ein)s, %(ankunft)s,
                              %(abfahrt)s)''',
@@ -709,8 +730,8 @@ class DinoToVisum(VisumPuTTables):
                                 'name':'Fuss',
                                 'type':'OVFuss',
                                 'pkwe':1
-                            },
-                            {  'code':'B',
+                            })
+        vsyssets_list.append({  'code':'B',
                                 'name':'Bus',
                                 'type':'OV',
                                 'pkwe':1

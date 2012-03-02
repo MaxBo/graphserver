@@ -15,7 +15,8 @@ from sqlalchemy.types import String as StringType
 
 from graphserver_tools.ext.dino.models import *
 
-db_connect_string = 'dbname=visum_import user=dino pwd=ggr host=192.168.198.24 port=5432'
+##db_connect_string = 'dbname=visum_import user=dino pwd=ggr host=192.168.198.24 port=5432'
+db_connect_string = 'dbname=visum_import user=dino pwd=ggr host=localhost port=5432'
 
 def getSession(db_connect_string=db_connect_string, create_tables=False):
 

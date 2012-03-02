@@ -29,6 +29,13 @@ def test_import():
 
 from graphserver_tools.ext.dinoToVisum import DinoToVisum
 D = DinoToVisum()
-D._processZwischenpunkte()
+D._getDirections()
+D._processBetreiber()
+D._processVsysset()
+#D._processZwischenpunkte()
+##D._processHstHstBereichHstPunkt()
+D._processLinie()
+D._processLinienroutenelement()
+D._processFahrzeitprofil()
 print D
 

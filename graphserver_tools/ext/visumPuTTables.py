@@ -48,7 +48,7 @@ class VisumPuTTables(object):
         if 'BETREIBER' not in tables:
             cursor.execute('''CREATE TABLE "BETREIBER"
                                     (   "NR" integer,
-                                        "NAME" varchar(255),
+                                        "NAME" varchar,
                                         "KOSTENSATZ1" float,
                                         "KOSTENSATZ2" float,
                                         "KOSTENSATZ3" float,
@@ -58,10 +58,10 @@ class VisumPuTTables(object):
 
         if 'FAHRZEITPROFIL' not in tables:
             cursor.execute('''CREATE TABLE "FAHRZEITPROFIL"
-                                    (   "LINNAME" varchar(255),
-                                        "LINROUTENAME" varchar(255),
-                                        "RICHTUNGCODE" varchar(255),
-                                        "NAME" varchar(255),
+                                    (   "LINNAME" varchar,
+                                        "LINROUTENAME" varchar,
+                                        "RICHTUNGCODE" varchar,
+                                        "NAME" varchar,
                                         PRIMARY KEY (   "LINNAME",
                                                         "LINROUTENAME",
                                                         "RICHTUNGCODE",
@@ -72,10 +72,10 @@ class VisumPuTTables(object):
 
         if 'FAHRZEITPROFILELEMENT' not in tables:
             cursor.execute('''CREATE TABLE "FAHRZEITPROFILELEMENT"
-                                    (   "LINNAME" varchar(255),
-                                        "LINROUTENAME" varchar(255),
-                                        "RICHTUNGCODE" varchar(255),
-                                        "FZPROFILNAME" varchar(255),
+                                    (   "LINNAME" varchar,
+                                        "LINROUTENAME" varchar,
+                                        "RICHTUNGCODE" varchar,
+                                        "FZPROFILNAME" varchar,
                                         "INDEX" integer,
                                         "LRELEMINDEX" integer,
                                         "AUS" integer,
@@ -94,12 +94,12 @@ class VisumPuTTables(object):
         if 'FAHRPLANFAHRT' not in tables:
             cursor.execute('''CREATE TABLE "FAHRPLANFAHRT"
                                 (   "NR" integer,
-                                    "NAME" varchar(255),
+                                    "NAME" varchar,
                                     "ABFAHRT" timestamp,
-                                    "LINNAME" varchar(255),
-                                    "LINROUTENAME" varchar(255),
-                                    "RICHTUNGCODE" varchar(255),
-                                    "FZPROFILNAME" varchar(255),
+                                    "LINNAME" varchar,
+                                    "LINROUTENAME" varchar,
+                                    "RICHTUNGCODE" varchar,
+                                    "FZPROFILNAME" varchar,
                                     "VONFZPELEMINDEX" integer,
                                     "NACHFZPELEMINDEX" integer,
                                     PRIMARY KEY ("NR")
@@ -118,11 +118,11 @@ class VisumPuTTables(object):
         if 'HALTESTELLE' not in tables:
             cursor.execute('''CREATE TABLE "HALTESTELLE"
                                 (   "NR" integer,
-                                    "CODE" varchar(255),
-                                    "NAME" varchar(255),
+                                    "CODE" varchar,
+                                    "NAME" varchar,
                                     "TYPNR" integer,
-                                    "XKOORD" float NOT NULL,
-                                    "YKOORD" float NOT NULL,
+                                    "XKOORD" float NOT NULL DEFAULT 0,
+                                    "YKOORD" float NOT NULL DEFAULT 0,
                                     PRIMARY KEY ("NR")
                                 )''')
 
@@ -131,12 +131,12 @@ class VisumPuTTables(object):
             cursor.execute('''CREATE TABLE "HALTESTELLENBEREICH"
                                 (   "NR" integer,
                                     "HSTNR" integer REFERENCES "HALTESTELLE",
-                                    "CODE" varchar(255),
-                                    "NAME" varchar(255),
+                                    "CODE" varchar,
+                                    "NAME" varchar,
                                     "KNOTNR" integer,
                                     "TYPNR" integer,
-                                    "XKOORD" float NOT NULL,
-                                    "YKOORD" float NOT NULL,
+                                    "XKOORD" float NOT NULL DEFAULT 0,
+                                    "YKOORD" float NOT NULL DEFAULT 0,
                                     PRIMARY KEY ("NR")
                                 )''')
 
@@ -145,11 +145,11 @@ class VisumPuTTables(object):
             cursor.execute('''CREATE TABLE "HALTEPUNKT"
                                 (   "NR" integer,
                                     "HSTBERNR" integer REFERENCES "HALTESTELLENBEREICH",
-                                    "CODE" varchar(255),
-                                    "NAME" varchar(255),
+                                    "CODE" varchar,
+                                    "NAME" varchar,
                                     "TYPNR" integer,
-                                    "VSYSSET" varchar(255),
-                                    "DEPOTFZGKOMBMENGE" varchar(255),
+                                    "VSYSSET" varchar,
+                                    "DEPOTFZGKOMBMENGE" varchar,
                                     "GERICHTET" integer,
                                     "KNOTNR" integer,
                                     "VONKNOTNR" integer,
@@ -162,8 +162,8 @@ class VisumPuTTables(object):
         if 'KNOTEN' not in tables:
             cursor.execute('''CREATE TABLE "KNOTEN"
                                 (   "NR" integer,
-                                    "XKOORD" float NOT NULL,
-                                    "YKOORD" float NOT NULL,
+                                    "XKOORD" float NOT NULL DEFAULT 0,
+                                    "YKOORD" float NOT NULL DEFAULT 0,
                                     PRIMARY KEY ("NR")
                                 )''')
 
@@ -171,17 +171,17 @@ class VisumPuTTables(object):
         if 'RICHTUNG' not in tables:
             cursor.execute('''CREATE TABLE "RICHTUNG"
                                 (   "NR" integer,
-                                    "CODE" varchar(255),
-                                    "NAME" varchar(255),
+                                    "CODE" varchar,
+                                    "NAME" varchar,
                                     PRIMARY KEY ("CODE")
                                 )''')
 
 
         if 'VSYS' not in tables:
             cursor.execute('''CREATE TABLE "VSYS"
-                                (   "CODE" varchar(255),
-                                    "NAME" varchar(255),
-                                    "TYP" varchar(255),
+                                (   "CODE" varchar,
+                                    "NAME" varchar,
+                                    "TYP" varchar,
                                     "PKWE" integer,
                                     PRIMARY KEY ("CODE")
                                 )''')
@@ -189,9 +189,9 @@ class VisumPuTTables(object):
 
         if 'LINIE' not in tables:
             cursor.execute('''CREATE TABLE "LINIE"
-                                (   "NAME" varchar(255),
-                                    "VSYSCODE" varchar(255) REFERENCES "VSYS",
-                                    "TARIFSYSTEMMENGE" varchar(255),
+                                (   "NAME" varchar,
+                                    "VSYSCODE" varchar REFERENCES "VSYS",
+                                    "TARIFSYSTEMMENGE" varchar,
                                     "BETREIBERNR" integer REFERENCES "BETREIBER",
                                     PRIMARY KEY ("NAME")
                                 )''')
@@ -199,9 +199,9 @@ class VisumPuTTables(object):
 
         if 'LINIENROUTE' not in tables:
             cursor.execute('''CREATE TABLE "LINIENROUTE"
-                                (   "LINNAME" varchar(255) REFERENCES "LINIE",
-                                    "NAME" varchar(255),
-                                    "RICHTUNGCODE" varchar(255),
+                                (   "LINNAME" varchar REFERENCES "LINIE",
+                                    "NAME" varchar,
+                                    "RICHTUNGCODE" varchar,
                                     "ISTRINGLINIE" integer,
                                     PRIMARY KEY (   "LINNAME",
                                                     "NAME",
@@ -212,9 +212,9 @@ class VisumPuTTables(object):
 
         if 'LINIENROUTENELEMENT' not in tables:
             cursor.execute('''CREATE TABLE "LINIENROUTENELEMENT"
-                                (   "LINNAME" varchar(255),
-                                    "LINROUTENAME" varchar(255),
-                                    "RICHTUNGCODE" varchar(255),
+                                (   "LINNAME" varchar,
+                                    "LINROUTENAME" varchar,
+                                    "RICHTUNGCODE" varchar,
                                     "INDEX" integer,
                                     "ISTROUTENPUNKT" integer,
                                     "KNOTNR" integer,
@@ -238,7 +238,7 @@ class VisumPuTTables(object):
                                     "NACHKNOTNR" integer,
                                     "NAME" varchar(255),
                                     "TYPNR" integer,
-                                    "VSYSSET" varchar(255),
+                                    "VSYSSET" varchar,
                                     PRIMARY KEY (   "NR",
                                                     "VONKNOTNR",
                                                     "NACHKNOTNR"
@@ -273,7 +273,7 @@ class VisumPuTTables(object):
             cursor.execute('''CREATE TABLE "UEBERGANGSGEHZEITHSTBER"
                                 (   "VONHSTBERNR" integer,
                                     "NACHHSTBERNR" integer,
-                                    "VSYSCODE" varchar(255),
+                                    "VSYSCODE" varchar,
                                     "ZEIT" integer,
                                     PRIMARY KEY (   "VONHSTBERNR",
                                                     "NACHHSTBERNR",
