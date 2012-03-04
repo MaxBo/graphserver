@@ -7,6 +7,7 @@ from __init__ import Base
 
 class Set_version(Base):
     __tablename__ = 'dino_set_version'
+    __table_args__ = (  UniqueConstraint('version'), )
 
     id = Column(Integer, primary_key=True, nullable=False)
 
@@ -19,7 +20,7 @@ class Set_version(Base):
     net_id = Column(String(3))
     period_priority = Column(Integer)
 
-    def isValidOnDate(self, date):
+    def isValidOnDate(self, session, date):
         return date.date() > self.period_date_from and date.date() < self.period_date_to
 
 
@@ -68,9 +69,9 @@ class Set_day_attribute(Base):
                             foreign_keys=[Day_type_2_day_attribute.version, Day_type_2_day_attribute.day_attribute_nr])
 
 
-    def isValidOnDate(self, date):
-        daytype = session.query(Calendar_of_the_company).filter_by(day=date.date()).one()[0]
-        return daytype['day_type_nr'] == self.dt.day_dype
+    def isValidOnDate(self, session, date):
+        daytype = session.query(Calendar_of_the_company).filter_by(day=date.date()).one()
+        return daytype.day_type_nr == self.dt[0].day_type_nr
 
 
 
@@ -94,6 +95,7 @@ class Calendar_of_the_company(Base):
 
 class Service_restriction(Base):
     __tablename__ = 'dino_service_restriction'
+    __table_args__ = (  UniqueConstraint('version', 'restriction'), )
 
     id = Column(Integer, primary_key=True, nullable=False)
 

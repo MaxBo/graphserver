@@ -125,50 +125,6 @@ class DinoToVisum(VisumPuTTables):
         return Session()
 
 
-
-    def _getValidUnterlinien(self):
-        """
-            creates a dictionary mapping between linien and their unterlinien.
-            creates a list of all valid unterlinien
-        """
-
-        # get all unterlinien
-        unterlinien = self._session.query(Lin_ber).all()
-
-        # remove all unterlinen not valid on entered date
-        unterlinien = [ ul for ul in unterlinien if ul.isValidOnDate(self._session, self.date) ]
-
-
-        self.linien_unterlinien_mapper = {}
-
-        for ul in unterlinien:
-
-            if ( ul.liniennummer, ul.betrieb ) in self.linien_unterlinien_mapper:
-                self.linien_unterlinien_mapper[( ul.liniennummer, ul.betrieb )].append(ul)
-
-            else:
-                self.linien_unterlinien_mapper[( ul.liniennummer, ul.betrieb )] = [ ul, ]
-
-
-        # compute which versions are valid for each linie
-        linien_version_mapper = {}
-
-        for l in self.linien_unterlinien_mapper:
-
-            valid_version = self.linien_unterlinien_mapper[l][0].version
-            version_prioritaet = self.linien_unterlinien_mapper[l][0].prioritaet
-
-            for ul in self.linien_unterlinien_mapper[l]:
-
-                if ul.prioritaet > version_prioritaet:
-                    valid_version = ul.version
-                    version_prioritaet = ul.prioritaet
-
-            linien_version_mapper[l] = valid_version
-
-        self.unterlinien =  [ ul for ul in unterlinien if ul.version == linien_version_mapper[( ul.liniennummer, ul.betrieb )] and ul.isValidOnDate(self._session, self.date)]
-
-
     def _getDirections(self):
         """
             creates a dictionary mapping dino-directions to visum-directions ( '<', '>' )
@@ -212,7 +168,7 @@ class DinoToVisum(VisumPuTTables):
 
         session = self._getNewSession()
 
-        strecken_dino = [ s for s in session.query(Lid_course).all() if s.isValidOnDate(self.date) ]
+        strecken_dino = [ s for s in session.query(Lid_course).all() if s.isValidOnDate(session, self.date) ]
         strecken = []
         strecken_poly = []
         visum_strecken_ids = {}
@@ -542,16 +498,27 @@ class DinoToVisum(VisumPuTTables):
 
 
     def _processFahrzeitprofil(self):
-        ''' Writes a Fahrzeitprofil for each Unterlinie into the visum database.
+        ''' Writes a Fahrzeitprofil for each Linienroute into the visum database.
         '''
+
         session = self._getNewSession()
         fahrzeitprofile = []
         elements = []
+        fahrten = []
+
+# Bei vielen Linien sehr seltsame stopping_times definiert - ueberpruefen!!!
+# Vorschlag:
+        sql = """
+        UPDATE dino_lid_travel_time_type
+        SET tt_rel = stopping_time,
+        stopping_time = 0
+        WHERE tt_rel = 0 AND stopping_time > 0;
+        """
 
         linien_dino = session.query(Rec_lin_ber).all()
         for l in linien_dino:
             linienname = '_'.join([str(l.branch_nr), l.line_name])
-            lre = session.query(Lid_course).filter_by(line_nr=l.line_nr).all()
+            lre = session.query(Lid_course).filter_by(line_nr=l.line_nr).filter_by(line_consec_nr=1).all()
             for lr in lre:
                 FZPNamen = []
                 richtung = self.direction_mapperHR[lr.line_dir_nr]
@@ -560,59 +527,112 @@ class DinoToVisum(VisumPuTTables):
                 for f in fzp:
                     if f.timing_group_nr not in FZPNamen:
                         FZPNamen.append(f.timing_group_nr)
+                        print linienname, linienroutenname, f.timing_group_nr
 
                         fahrzeitprofile.append({    'linname' : linienname,
                                                     'linroutename' : linienroutenname,
                                                     'richtungscode' : self.direction_mapper[lr.line_dir_nr],
-                                                    'name' : fzp[0].timing_group_nr
+                                                    'name' : f.timing_group_nr # fzp[0].timing_group_nr
                                                })
 
                         arrival_time_min = 0
                         arrival_time_hours = 0
+                        departure_time_min = 0
+                        departure_time_hours = 0
 
-                        day = 30
+                        arrival_day = 30
+                        departure_day = arrival_day
+
+
+                        # suche Fahrten dieses Fahrzeitprofils
+                        for fahrt in session.query(Rec_trip).filter_by(line_nr= l.line_nr).filter_by(str_line_var=lr.str_line_var).filter_by(timing_group_nr=f.timing_group_nr).all():
+
+                            if fahrt.isValidOnDate(session, self.date):
+
+                                departure_sec = int(fahrt.departure_time)
+
+                                departure = datetime.datetime(1899, 12, 30, 0, 0, 0) + datetime.timedelta(seconds=departure_sec)
+
+                                lreindex = session.query(Lid_course).filter_by(line_nr=l.line_nr).\
+                                                                     filter_by(str_line_var=lr.str_line_var).\
+                                                                     filter_by(stop_nr=fahrt.dep_stop_nr).\
+                                                                     filter_by(stopping_point_nr=fahrt.dep_stopping_point_nr).first()
+
+                                vonfzpelemindex = lreindex.line_consec_nr
+
+                                lreindex = session.query(Lid_course).filter_by(line_nr=l.line_nr).\
+                                                                     filter_by(str_line_var=lr.str_line_var).\
+                                                                     filter_by(stop_nr=fahrt.arr_stop_nr).\
+                                                                     filter_by(stopping_point_nr=fahrt.arr_stopping_point_nr).first()
+
+                                nachfzpelemindex = lreindex.line_consec_nr
+                                fahrtnr = fahrt.trip_id_printing * 10 + fahrt.line_dir_nr
+
+                                fahrten.append({    'nr' : fahrtnr,
+                                                    'name' : linienname,
+                                                    'abfahrt' : departure,
+                                                    'linname' : linienname,
+                                                    'linroutename' : linienroutenname,
+                                                    'richtungscode' : self.direction_mapper[lr.line_dir_nr],
+                                                    'fzprofilname' : f.timing_group_nr,
+                                                    'vonfzpelemindex' : vonfzpelemindex,
+                                                    'nachfzpelemindex' : nachfzpelemindex
+                                              })
 
                     else:
-                        departure_time_min = arrival_time_min + f.stopping_time/60
-                        departure_day = day
+                        if f.tt_rel >= 0:
+                            arrival_time_min = departure_time_min + f.tt_rel/60
 
-                        if departure_time_min > 59:
+
+                        while arrival_time_min > 59:
+                            arrival_time_min -= 60
+                            arrival_time_hours += 1
+
+                        while arrival_time_hours > 23:
+                            arrival_day += 1
+                            arrival_time_hours -= 24
+
+                        departure_time_min = arrival_time_min + f.stopping_time/60
+                        departure_time_hours = arrival_time_hours
+                        departure_day = arrival_day
+
+                        while departure_time_min > 59:
                             departure_time_min -= 60
                             departure_time_hours += 1
 
-                        if departure_time_hours > 23:
+                        while departure_time_hours > 23:
                             departure_day += 1
                             departure_time_hours -= 24
 
 
-                    arrival = datetime.datetime(1899, 12, day, arrival_time_hours, arrival_time_min)
+
+
+
+
+                    arrival = datetime.datetime(1899, 12, arrival_day, arrival_time_hours, arrival_time_min)
                     departure = datetime.datetime(1899, 12, departure_day, departure_time_hours, departure_time_min )
 
                     elements.append({   'linname' : linienname,
                                         'linroutename' : linienroutenname,
                                         'richtungscode' : self.direction_mapper[lr.line_dir_nr],
-                                        'fzprofilname' : fzp.timing_group_nr,
-                                        'index' : f.consec_nr,
-                                        'lrelemindex' : f.consec_nr,
-                                        'aus' : int(not f.tt_rel==-1),
-                                        'ein' : int(not f.tt_rel==-1),
+                                        'fzprofilname' : f.timing_group_nr,
+                                        'index' : f.line_consec_nr,
+                                        'lrelemindex' : f.line_consec_nr,
+                                        'aus' : int(f.tt_rel<>-1),
+                                        'ein' : int(f.tt_rel<>-1),
                                         'ankunft' : arrival,
                                         'abfahrt' : departure,
                                     })
-                    if f.tt_rel >= 0:
-                        arrival_time_min = departure_time_min + f.tt_rel/60
-
-
-                    if arrival_time_min > 59:
-                        arrival_time_min -= 60
-                        arrival_time_hours += 1
-
-                    if arrival_time_hours > 23:
-                        day += 1
-                        arrival_time_hours -= 24
 
 
 
+
+
+        fahrplanfahrtabschnitte = [{'nr': 1,
+                                    'fplfahrtnr': x['nr'],
+                                    'vonfzpelemindex' : x['vonfzpelemindex'],
+                                    'nachfzpelemindex' : x['nachfzpelemindex']} \
+                                    for x in fahrten]
 
 
         conn = psycopg2.connect(self.db_connect_string)
@@ -629,6 +649,47 @@ class DinoToVisum(VisumPuTTables):
                              %(abfahrt)s)''',
                         elements)
 
+
+        c.executemany('''INSERT INTO "FAHRPLANFAHRT" VALUES
+                            (%(nr)s, %(name)s, %(abfahrt)s, %(linname)s, %(linroutename)s,
+                             %(richtungscode)s, %(fzprofilname)s, %(vonfzpelemindex)s,
+                             %(nachfzpelemindex)s)''',
+                        fahrten)
+
+        c.executemany('''INSERT INTO "FAHRPLANFAHRTABSCHNITT" VALUES
+                            (%(nr)s, %(fplfahrtnr)s, %(vonfzpelemindex)s,
+                             %(nachfzpelemindex)s)''',
+                        fahrplanfahrtabschnitte)
+
+        # Aussteigen an erster Haltestelle und Einsteigen an letzter Haltestelle verbieten...
+        updatesql = """
+        UPDATE "FAHRZEITPROFILELEMENT" fze SET "AUS"=0 FROM
+        (SELECT "LINNAME","LINROUTENAME","RICHTUNGCODE","FZPROFILNAME",min("INDEX") AS minindex
+        FROM "FAHRZEITPROFILELEMENT"
+         GROUP BY
+        "LINNAME","LINROUTENAME","RICHTUNGCODE","FZPROFILNAME") f
+        WHERE f."LINNAME"=fze."LINNAME"
+        AND f."LINROUTENAME"=fze."LINROUTENAME"
+        AND f."RICHTUNGCODE"=fze."RICHTUNGCODE"
+        AND f."FZPROFILNAME"=fze."FZPROFILNAME"
+        AND fze."INDEX"=f.minindex;
+        """
+        c.execute(updatesql)
+
+        updatesql = """
+        UPDATE "FAHRZEITPROFILELEMENT" fze SET "EIN"=0 FROM
+        (SELECT "LINNAME","LINROUTENAME","RICHTUNGCODE","FZPROFILNAME",max("INDEX") AS maxindex
+        FROM "FAHRZEITPROFILELEMENT"
+         GROUP BY
+        "LINNAME","LINROUTENAME","RICHTUNGCODE","FZPROFILNAME") f
+        WHERE f."LINNAME"=fze."LINNAME"
+        AND f."LINROUTENAME"=fze."LINROUTENAME"
+        AND f."RICHTUNGCODE"=fze."RICHTUNGCODE"
+        AND f."FZPROFILNAME"=fze."FZPROFILNAME"
+        AND fze."INDEX"=f.maxindex;
+        """
+        c.execute(updatesql)
+
         c.close()
         conn.commit()
 
@@ -642,50 +703,54 @@ class DinoToVisum(VisumPuTTables):
         session = self._getNewSession()
         fahrten = []
 
-        for ul in self.unterlinien:
-
-            for f in session.query(Fahrt).filter(Fahrt.linie == ul).all():
-
-                if f.isValidOnDate(session, self.date):
-
-                    departure_hour = int(f.abfahrt[:2])
-                    departure_min = int(f.abfahrt[3:5])
-                    departure_sec = int(f.abfahrt[6:]) if len(f.abfahrt) == 8 else 0
+        linien_dino = session.query(Rec_lin_ber).all()
+        for l in linien_dino:
+            linienname = '_'.join([str(l.branch_nr), l.line_name])
+            lre = session.query(Lid_course).filter_by(line_nr=l.line_nr).filter_by(line_consec_nr=1).all()
+            for lr in lre:
 
 
-                    departure = datetime.datetime(1899, 12, 30, 0, 0, 0)
 
-                    departure += datetime.timedelta(hours=departure_hour, minutes=departure_min, seconds=departure_sec)
+                for f in session.query(Rec_trip).filter_by(line_name == l.line_name).filter_by(str_line_var == lr.str_line_var).all():
 
-                    fahrten.append({    'nr' : f.id,
-                                        'name' : removeSpecialCharacter(ul.oeffentlicher_linienname),
-                                        'abfahrt' : departure,
-                                        'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
-                                        'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))).lstrip('-'),
-                                        'richtungscode' : self.direction_mapper[ul.richtungskuerzel],
-                                        'fzprofilname' : ul.unterliniennummer,
-                                        'vonfzpelemindex' : f.start_pos,
-                                        'nachfzpelemindex' : f.end_pos
-                                  })
+                    if f.isValidOnDate(session, self.date):
 
-                    # add folgefahrten
-                    if f.zeitspanne:
-
-                        for i in range(f.anzahl_folgefahrten):
-
-                            departure += datetime.timedelta(hours=f.zeitspanne.hours, minutes=f.zeitspanne.minutes)
+                        departure_sec = int(f.abfahrt[6:]) if len(f.abfahrt) == 8 else 0
 
 
-                            fahrten.append({    'nr' : f.id,
-                                                'name' : removeSpecialCharacter(ul.oeffentlicher_linienname),
-                                                'abfahrt' : departure,
-                                                'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
-                                                'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))).lstrip('-'),
-                                                'richtungscode' : self.direction_mapper[ul.richtungskuerzel],
-                                                'fzprofilname' : ul.unterliniennummer,
-                                                'vonfzpelemindex' : f.start_pos,
-                                                'nachfzpelemindex' : f.end_pos
-                                          })
+                        departure = datetime.datetime(1899, 12, 30, 0, 0, 0)
+
+                        departure += datetime.timedelta(hours=departure_hour, minutes=departure_min, seconds=departure_sec)
+
+                        fahrten.append({    'nr' : f.id,
+                                            'name' : removeSpecialCharacter(ul.oeffentlicher_linienname),
+                                            'abfahrt' : departure,
+                                            'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
+                                            'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))).lstrip('-'),
+                                            'richtungscode' : self.direction_mapper[ul.richtungskuerzel],
+                                            'fzprofilname' : ul.unterliniennummer,
+                                            'vonfzpelemindex' : f.start_pos,
+                                            'nachfzpelemindex' : f.end_pos
+                                      })
+
+                        # add folgefahrten
+                        if f.zeitspanne:
+
+                            for i in range(f.anzahl_folgefahrten):
+
+                                departure += datetime.timedelta(hours=f.zeitspanne.hours, minutes=f.zeitspanne.minutes)
+
+
+                                fahrten.append({    'nr' : f.id,
+                                                    'name' : removeSpecialCharacter(ul.oeffentlicher_linienname),
+                                                    'abfahrt' : departure,
+                                                    'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
+                                                    'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))).lstrip('-'),
+                                                    'richtungscode' : self.direction_mapper[ul.richtungskuerzel],
+                                                    'fzprofilname' : ul.unterliniennummer,
+                                                    'vonfzpelemindex' : f.start_pos,
+                                                    'nachfzpelemindex' : f.end_pos
+                                              })
 
         fahrplanfahrtabschnitte = [{'nr': 1,
                                     'fplfahrtnr': x['nr'],

@@ -87,8 +87,8 @@ class Lid_course(Base):
     ver = relationship(Set_version, primaryjoin = (Set_version.version==version),\
                             foreign_keys=[Set_version.version])
 
-    def isValidOnDate(self, date):
-        return self.ver[0].isValidOnDate(date)
+    def isValidOnDate(self, session, date):
+        return self.ver[0].isValidOnDate(session, date)
 
 
 class Rec_lin_ber(Base):
