@@ -31,7 +31,7 @@ from graphserver_tools.utils import utils
 
 
 def removeSpecialCharacter(s):
-    return s.replace(';', '_').replace('$', '_')
+    return s.replace(';', '_').replace('$', '_').replace('.','')
 
 ##db_connect_string = 'dbname=visum_import user=dino password=ggr host=192.168.198.24 port=5432'
 db_connect_string = 'dbname=visum_import user=dino password=ggr host=localhost port=5432'
@@ -405,7 +405,7 @@ class DinoToVisum(VisumPuTTables):
         linien = []
 
         for l in session.query(Rec_lin_ber).all():
-            linienname = '_'.join([str(l.branch_nr), l.line_name])
+            linienname = removeSpecialCharacter('_'.join([str(l.branch_nr), l.line_name]))
             linien.append({  'betreibernr':l.branch_nr,
                                 'name':linienname,
                                 'vsyscode':'B',
@@ -438,11 +438,11 @@ class DinoToVisum(VisumPuTTables):
 
         for l in linien_dino:
             linienroutennamen = []
-            linienname = '_'.join([str(l.branch_nr), l.line_name])
+            linienname = removeSpecialCharacter('_'.join([str(l.branch_nr), l.line_name]))
             lre = session.query(Lid_course).filter_by(line_nr=l.line_nr).all()
             for lr in lre:
                 richtung = self.direction_mapperHR[lr.line_dir_nr]
-                linienroutenname = '_'.join([l.line_name, lr.str_line_var, richtung])
+                linienroutenname = removeSpecialCharacter('_'.join([l.line_name, lr.str_line_var, richtung]))
 
                 if linienroutenname not in linienroutennamen:
                     linienroutennamen.append(linienroutenname)
@@ -517,12 +517,12 @@ class DinoToVisum(VisumPuTTables):
 
         linien_dino = session.query(Rec_lin_ber).all()
         for l in linien_dino:
-            linienname = '_'.join([str(l.branch_nr), l.line_name])
+            linienname = removeSpecialCharacter('_'.join([str(l.branch_nr), l.line_name]))
             lre = session.query(Lid_course).filter_by(line_nr=l.line_nr).filter_by(line_consec_nr=1).all()
             for lr in lre:
                 FZPNamen = []
                 richtung = self.direction_mapperHR[lr.line_dir_nr]
-                linienroutenname = '_'.join([l.line_name, lr.str_line_var, richtung])
+                linienroutenname = removeSpecialCharacter('_'.join([l.line_name, lr.str_line_var, richtung]))
                 fzp = session.query(Lid_travel_time_type).filter_by(line_nr=l.line_nr).filter_by(str_line_var=lr.str_line_var).all() # Richtung scheint bei den Lid_travel_time_type nicht gesetzt zu sein...
                 for f in fzp:
                     if f.timing_group_nr not in FZPNamen:
@@ -566,7 +566,7 @@ class DinoToVisum(VisumPuTTables):
                                                                      filter_by(stopping_point_nr=fahrt.arr_stopping_point_nr).first()
 
                                 nachfzpelemindex = lreindex.line_consec_nr
-                                fahrtnr = fahrt.trip_id_printing * 10 + fahrt.line_dir_nr
+                                fahrtnr = fahrt.trip_id_printing * 1000 + int(fahrt.str_line_var) * 10 + fahrt.line_dir_nr
 
                                 fahrten.append({    'nr' : fahrtnr,
                                                     'name' : linienname,
@@ -696,86 +696,6 @@ class DinoToVisum(VisumPuTTables):
         print '\tfinished converting Fahrzeitprofile'
 
 
-    def _processFahrplanfahrt(self):
-        ''' Writes a Fahrplanfahrt for each trip inside the feed into the visum database.
-            Uses the pre-defined Fahrzeitprofile (fahrzeitprofil_mapper).
-        '''
-        session = self._getNewSession()
-        fahrten = []
-
-        linien_dino = session.query(Rec_lin_ber).all()
-        for l in linien_dino:
-            linienname = '_'.join([str(l.branch_nr), l.line_name])
-            lre = session.query(Lid_course).filter_by(line_nr=l.line_nr).filter_by(line_consec_nr=1).all()
-            for lr in lre:
-
-
-
-                for f in session.query(Rec_trip).filter_by(line_name == l.line_name).filter_by(str_line_var == lr.str_line_var).all():
-
-                    if f.isValidOnDate(session, self.date):
-
-                        departure_sec = int(f.abfahrt[6:]) if len(f.abfahrt) == 8 else 0
-
-
-                        departure = datetime.datetime(1899, 12, 30, 0, 0, 0)
-
-                        departure += datetime.timedelta(hours=departure_hour, minutes=departure_min, seconds=departure_sec)
-
-                        fahrten.append({    'nr' : f.id,
-                                            'name' : removeSpecialCharacter(ul.oeffentlicher_linienname),
-                                            'abfahrt' : departure,
-                                            'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
-                                            'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))).lstrip('-'),
-                                            'richtungscode' : self.direction_mapper[ul.richtungskuerzel],
-                                            'fzprofilname' : ul.unterliniennummer,
-                                            'vonfzpelemindex' : f.start_pos,
-                                            'nachfzpelemindex' : f.end_pos
-                                      })
-
-                        # add folgefahrten
-                        if f.zeitspanne:
-
-                            for i in range(f.anzahl_folgefahrten):
-
-                                departure += datetime.timedelta(hours=f.zeitspanne.hours, minutes=f.zeitspanne.minutes)
-
-
-                                fahrten.append({    'nr' : f.id,
-                                                    'name' : removeSpecialCharacter(ul.oeffentlicher_linienname),
-                                                    'abfahrt' : departure,
-                                                    'linname' : removeSpecialCharacter('-'.join(( ul.betrieb.betriebsteilschluessel, str(ul.liniennummer) ))),
-                                                    'linroutename' : removeSpecialCharacter('-'.join(( ul.oeffentlicher_linienname, str(ul.id) ))).lstrip('-'),
-                                                    'richtungscode' : self.direction_mapper[ul.richtungskuerzel],
-                                                    'fzprofilname' : ul.unterliniennummer,
-                                                    'vonfzpelemindex' : f.start_pos,
-                                                    'nachfzpelemindex' : f.end_pos
-                                              })
-
-        fahrplanfahrtabschnitte = [{'nr': 1,
-                                    'fplfahrtnr': x['nr'],
-                                    'vonfzpelemindex' : x['vonfzpelemindex'],
-                                    'nachfzpelemindex' : x['nachfzpelemindex']} \
-                                    for x in fahrten]
-
-        conn = psycopg2.connect(self.db_connect_string)
-        c = conn.cursor()
-
-        c.executemany('''INSERT INTO "FAHRPLANFAHRT" VALUES
-                            (%(nr)s, %(name)s, %(abfahrt)s, %(linname)s, %(linroutename)s,
-                             %(richtungscode)s, %(fzprofilname)s, %(vonfzpelemindex)s,
-                             %(nachfzpelemindex)s)''',
-                        fahrten)
-
-        c.executemany('''INSERT INTO "FAHRPLANFAHRTABSCHNITT" VALUES
-                            (%(nr)s, %(fplfahrtnr)s, %(vonfzpelemindex)s,
-                             %(nachfzpelemindex)s)''',
-                        fahrplanfahrtabschnitte)
-
-        c.close()
-        conn.commit()
-
-        print '\tfinished converting Fahrplanfahrten'
 
 
     def _processVsysset(self):

@@ -52,7 +52,7 @@ def test_import():
 ##        read_dino.read_table(tn, folder=r'D:\GIT\gs\graphserver_tools\graphserver_tools\msp\Eingangsdaten\01 Dino\Fahrplan DVG')
         read_dino.read_table(tn, folder=r'D:\GIT\gs\graphserver_tools\graphserver_tools\msp\Eingangsdaten\01 Dino\Fahrplan VMS')
 
-test_import()
+##test_import()
 
 from graphserver_tools.ext.dinoToVisum import DinoToVisum
 D = DinoToVisum()
