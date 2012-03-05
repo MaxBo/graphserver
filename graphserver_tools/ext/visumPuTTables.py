@@ -103,7 +103,10 @@ class VisumPuTTables(object):
                                     "VONFZPELEMINDEX" integer,
                                     "NACHFZPELEMINDEX" integer,
                                     PRIMARY KEY ("NR")
-                                )''')
+                                );
+                                CREATE INDEX "FAHRPLANFAHRT_idx" ON dino."FAHRPLANFAHRT"
+                                USING btree ("LINNAME", "LINROUTENAME", "FZPROFILNAME");
+                                ''')
 
         if 'FAHRPLANFAHRTABSCHNITT' not in tables:
             cursor.execute('''CREATE TABLE "FAHRPLANFAHRTABSCHNITT"
@@ -111,7 +114,12 @@ class VisumPuTTables(object):
                                     "FPLFAHRTNR" integer,
                                     "VONFZPELEMINDEX" integer,
                                     "NACHFZPELEMINDEX" integer,
-                                    PRIMARY KEY ("FPLFAHRTNR", "NR")
+                                    PRIMARY KEY ("FPLFAHRTNR", "NR"),
+                                    CONSTRAINT "FAHRPLANFAHRTABSCHNITT_fk" FOREIGN KEY ("FPLFAHRTNR")
+                                    REFERENCES dino."FAHRPLANFAHRT"("NR")
+                                    ON DELETE NO ACTION
+                                    ON UPDATE NO ACTION
+                                    NOT DEFERRABLE
                                 )''')
 
 

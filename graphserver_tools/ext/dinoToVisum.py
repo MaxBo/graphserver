@@ -34,7 +34,7 @@ def removeSpecialCharacter(s):
     return s.replace(';', '_').replace('$', '_').replace('.','')
 
 ##db_connect_string = 'dbname=visum_import user=dino password=ggr host=192.168.198.24 port=5432'
-db_connect_string = 'dbname=visum_import user=dino password=ggr host=localhost port=5432'
+db_connect_string = 'dbname=visum_import user=dino password=ggr host=192.168.198.24 port=5432'
 
 class DinoToVisum(VisumPuTTables):
 
@@ -283,7 +283,7 @@ class DinoToVisum(VisumPuTTables):
             if not hstber_id.has_key(hstbernr):
                 hstber_id[hstbernr] = None
 
-                knotnr = hstbernr + 10000000
+                knotnr = hstbernr
 
                 hatestellenbereiche.append({    'nr': hstbernr,
                                                 'hstnr': h.stop_nr,
@@ -321,6 +321,7 @@ class DinoToVisum(VisumPuTTables):
 
         haltepunkte_dino = session.query(Rec_stopping_points).all()
         haltepunkte = []
+        vertices = []
 
 
         for h in haltepunkte_dino:
@@ -344,9 +345,13 @@ class DinoToVisum(VisumPuTTables):
                                     'relpos' : 0
                               })
 
+            vertices.append({   'id':knotnr
+                            })
+
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
 
+        c.executemany('''INSERT INTO "KNOTEN" ("NR") VALUES (%(id)s)''', vertices)
         c.executemany('''INSERT INTO "HALTEPUNKT" ("NR",
                                                    "HSTBERNR",
                                                    "TYPNR",
@@ -518,6 +523,7 @@ class DinoToVisum(VisumPuTTables):
         linien_dino = session.query(Rec_lin_ber).all()
         for l in linien_dino:
             linienname = removeSpecialCharacter('_'.join([str(l.branch_nr), l.line_name]))
+            print linienname
             lre = session.query(Lid_course).filter_by(line_nr=l.line_nr).filter_by(line_consec_nr=1).all()
             for lr in lre:
                 FZPNamen = []
@@ -527,7 +533,7 @@ class DinoToVisum(VisumPuTTables):
                 for f in fzp:
                     if f.timing_group_nr not in FZPNamen:
                         FZPNamen.append(f.timing_group_nr)
-                        print linienname, linienroutenname, f.timing_group_nr
+##                        print linienname, linienroutenname, f.timing_group_nr
 
                         fahrzeitprofile.append({    'linname' : linienname,
                                                     'linroutename' : linienroutenname,
@@ -542,7 +548,6 @@ class DinoToVisum(VisumPuTTables):
 
                         arrival_day = 30
                         departure_day = arrival_day
-
 
                         # suche Fahrten dieses Fahrzeitprofils
                         for fahrt in session.query(Rec_trip).filter_by(line_nr= l.line_nr).filter_by(str_line_var=lr.str_line_var).filter_by(timing_group_nr=f.timing_group_nr).all():
@@ -580,8 +585,27 @@ class DinoToVisum(VisumPuTTables):
                                               })
 
                     else:
-                        if f.tt_rel >= 0:
-                            arrival_time_min = departure_time_min + f.tt_rel/60
+                        lre_aktuell = session.query(Lid_course).filter_by(line_nr=l.line_nr).filter_by(str_line_var=lr.str_line_var).filter_by(line_consec_nr=f.line_consec_nr).one()
+                        if f.stopping_time > 10000: # negative Fahrzeit, da Haltestellen in anderer Reihenfolge bedient werden
+                            tt_rel = (f.stopping_time - 20864) + f.tt_rel
+                            stopping_time = 0
+                        elif lre_aktuell.stopping_point_type == 1 or (f.tt_rel == 0 and f.stopping_time > 0): # Bedarfshalt oder nur Wartezeit, keine Fahrzeit angegeben
+                            tt_rel = f.tt_rel + f.stopping_time
+                            stopping_time = 0
+##                        elif f.tt_rel == 0 and f.stopping_time > 0:
+##                            tt_rel = f.stopping_time
+##                            stopping_time = 0
+                        else:
+                            tt_rel = f.tt_rel
+                            stopping_time = f.stopping_time
+##                        if linienroutenname == '013_23_H':
+##                            print linienname, linienroutenname, f.line_consec_nr, f.tt_rel, f.stopping_time, tt_rel, stopping_time
+
+                        arrival_time_min = departure_time_min + tt_rel/60
+                        arrival_time_hours = departure_time_hours
+                        arrival_day = departure_day
+
+##                        print 'arrival_time:', arrival_time_hours, arrival_time_min
 
 
                         while arrival_time_min > 59:
@@ -592,9 +616,19 @@ class DinoToVisum(VisumPuTTables):
                             arrival_day += 1
                             arrival_time_hours -= 24
 
-                        departure_time_min = arrival_time_min + f.stopping_time/60
+                        while arrival_time_min < 0:
+                            arrival_time_min += 60
+                            arrival_time_hours -= 1
+
+                        while arrival_time_hours < 0:
+                            arrival_day -= 1
+                            arrival_time_hours += 24
+
+                        departure_time_min = arrival_time_min + stopping_time/60
                         departure_time_hours = arrival_time_hours
                         departure_day = arrival_day
+
+##                        print 'departure_time:', departure_time_hours, departure_time_min
 
                         while departure_time_min > 59:
                             departure_time_min -= 60
@@ -605,13 +639,21 @@ class DinoToVisum(VisumPuTTables):
                             departure_time_hours -= 24
 
 
+                        while departure_time_min < 0:
+                            departure_time_min += 60
+                            departure_time_hours -= 1
+
+                        while departure_time_hours < 0:
+                            departure_day -= 1
+                            departure_time_hours += 24
+
 
 
 
 
                     arrival = datetime.datetime(1899, 12, arrival_day, arrival_time_hours, arrival_time_min)
                     departure = datetime.datetime(1899, 12, departure_day, departure_time_hours, departure_time_min )
-
+##                    print arrival_time_hours, arrival_time_min, departure_time_hours, departure_time_min
                     elements.append({   'linname' : linienname,
                                         'linroutename' : linienroutenname,
                                         'richtungscode' : self.direction_mapper[lr.line_dir_nr],
@@ -661,6 +703,142 @@ class DinoToVisum(VisumPuTTables):
                              %(nachfzpelemindex)s)''',
                         fahrplanfahrtabschnitte)
 
+        funcsql = """
+CREATE OR REPLACE FUNCTION update_fzp_index (
+)
+RETURNS trigger AS
+$body$
+BEGIN
+UPDATE dino."FAHRPLANFAHRT" f
+SET "VONFZPELEMINDEX" = NEW."INDEX"
+WHERE
+  f."LINNAME" = OLD."LINNAME"
+  AND
+  f."LINROUTENAME" = OLD."LINROUTENAME"
+  AND
+  f."FZPROFILNAME" = OLD."FZPROFILNAME"
+  AND
+  f."VONFZPELEMINDEX" = OLD."INDEX";
+
+UPDATE dino."FAHRPLANFAHRT" f
+SET "NACHFZPELEMINDEX" = NEW."INDEX"
+WHERE
+  f."LINNAME" = OLD."LINNAME"
+  AND
+  f."LINROUTENAME" = OLD."LINROUTENAME"
+  AND
+  f."FZPROFILNAME" = OLD."FZPROFILNAME"
+  AND
+  f."NACHFZPELEMINDEX" = OLD."INDEX";
+
+UPDATE dino."FAHRPLANFAHRTABSCHNITT" fa
+SET "VONFZPELEMINDEX" = NEW."INDEX"
+FROM dino."FAHRPLANFAHRT" f
+WHERE
+  f."LINNAME" = OLD."LINNAME"
+  AND
+  f."LINROUTENAME" = OLD."LINROUTENAME"
+  AND
+  f."FZPROFILNAME" = OLD."FZPROFILNAME"
+  AND
+  f."NR" = fa."FPLFAHRTNR"
+  AND
+  fa."VONFZPELEMINDEX" = OLD."INDEX";
+
+UPDATE dino."FAHRPLANFAHRTABSCHNITT" fa
+SET "NACHFZPELEMINDEX" = NEW."INDEX"
+FROM dino."FAHRPLANFAHRT" f
+WHERE
+  f."LINNAME" = OLD."LINNAME"
+  AND
+  f."LINROUTENAME" = OLD."LINROUTENAME"
+  AND
+  f."FZPROFILNAME" = OLD."FZPROFILNAME"
+  AND
+  f."NR" = fa."FPLFAHRTNR"
+  AND
+  fa."NACHFZPELEMINDEX" = OLD."INDEX";
+
+UPDATE dino."LINIENROUTENELEMENT" lre
+SET "INDEX" = NEW."INDEX"
+WHERE
+  lre."LINNAME" = OLD."LINNAME"
+  AND
+  lre."LINROUTENAME" = OLD."LINROUTENAME"
+  AND
+  lre."INDEX" = OLD."LRELEMINDEX";
+
+UPDATE dino."FAHRZEITPROFILELEMENT" f
+SET "LRELEMINDEX" = NEW."INDEX"
+WHERE
+  f."LINNAME" = OLD."LINNAME"
+  AND
+  f."LINROUTENAME" = OLD."LINROUTENAME"
+  AND
+  f."FZPROFILNAME" = OLD."FZPROFILNAME"
+  AND
+  f."LRELEMINDEX" = OLD."INDEX";
+
+RETURN NULL;
+END;
+$body$
+LANGUAGE 'plpgsql'
+VOLATILE
+CALLED ON NULL INPUT
+SECURITY INVOKER
+COST 100;        """
+        c.execute(funcsql)
+
+        triggersql = """
+DROP TRIGGER IF EXISTS "FAHRZEITPROFILELEMENT_tr" ON dino."FAHRZEITPROFILELEMENT";
+CREATE TRIGGER "FAHRZEITPROFILELEMENT_tr"
+  AFTER UPDATE OF "INDEX"
+  ON dino."FAHRZEITPROFILELEMENT" FOR EACH ROW
+  EXECUTE PROCEDURE update_fzp_index();   """
+        c.execute(triggersql)
+
+
+
+        updateindexsql = """
+UPDATE dino."FAHRZEITPROFILELEMENT" fzp
+SET "INDEX" = f.rn + 10000
+FROM
+(SELECT "LINNAME","LINROUTENAME", "FZPROFILNAME", "LRELEMINDEX",
+row_number() OVER(PARTITION BY fzp."LINNAME", fzp."LINROUTENAME", fzp."FZPROFILNAME" ORDER BY fzp."ABFAHRT", fzp."INDEX") AS rn
+FROM dino."FAHRZEITPROFILELEMENT" fzp) f
+WHERE
+f."LINNAME"=fzp."LINNAME"
+AND
+f."LINROUTENAME"=fzp."LINROUTENAME"
+AND
+f."FZPROFILNAME" = fzp."FZPROFILNAME"
+AND
+f."LRELEMINDEX" = fzp."LRELEMINDEX"
+;
+
+UPDATE dino."FAHRZEITPROFILELEMENT" fzp
+SET "INDEX" = "INDEX" - 10000
+;"""
+        c.execute(updateindexsql)
+
+        sql = """SELECT "LINNAME", "LINROUTENAME", "FZPROFILNAME", '30.12.1899 00:00:00'::timestamp -"ANKUNFT" as timediff FROM dino."FAHRZEITPROFILELEMENT"
+        WHERE "INDEX"=1 AND "ANKUNFT" < '30.12.1899 00:00:00'::timestamp"""
+        c.execute(sql)
+        rows = c.fetchall()
+
+        updatefzp = """UPDATE dino."FAHRZEITPROFILELEMENT"
+                 SET "ABFAHRT" = "ABFAHRT" + %s, "ANKUNFT" = "ANKUNFT" + %s
+                 WHERE "LINNAME" = %s and "LINROUTENAME" = %s and "FZPROFILNAME" = %s;"""
+
+        updatefp = """UPDATE dino."FAHRPLANFAHRT"
+                 SET "ABFAHRT" = "ABFAHRT" - %s
+                 WHERE "LINNAME" = %s and "LINROUTENAME" = %s and "FZPROFILNAME" = %s;"""
+        for r in rows:
+            l,lr,fzp,td = r
+            c.execute(updatefzp, (td, td, l, lr, fzp,))
+            c.execute(updatefp, (td, l, lr, fzp,))
+
+
         # Aussteigen an erster Haltestelle und Einsteigen an letzter Haltestelle verbieten...
         updatesql = """
         UPDATE "FAHRZEITPROFILELEMENT" fze SET "AUS"=0 FROM
@@ -689,6 +867,31 @@ class DinoToVisum(VisumPuTTables):
         AND fze."INDEX"=f.maxindex;
         """
         c.execute(updatesql)
+
+        sql = """
+        UPDATE dino."FAHRPLANFAHRT" f
+        SET "VONFZPELEMINDEX" = 1, "NACHFZPELEMINDEX" = maxindex
+        FROM
+        (SELECT "LINNAME","LINROUTENAME", "FZPROFILNAME",
+         max("INDEX") OVER(PARTITION BY "LINNAME","LINROUTENAME", "FZPROFILNAME") maxindex
+         FROM dino."FAHRZEITPROFILELEMENT"
+        ) fzp
+        WHERE
+        f."LINNAME"=fzp."LINNAME"
+        AND
+        f."LINROUTENAME"=fzp."LINROUTENAME"
+        AND
+        f."FZPROFILNAME" = fzp."FZPROFILNAME"
+        ;
+
+        UPDATE dino."FAHRPLANFAHRTABSCHNITT" f
+        SET "VONFZPELEMINDEX" = fp."VONFZPELEMINDEX", "NACHFZPELEMINDEX" = fp. "NACHFZPELEMINDEX"
+        FROM dino."FAHRPLANFAHRT" fp
+        WHERE
+        fp."NR"=f."FPLFAHRTNR"
+        ;
+"""
+        c.execute(sql)
 
         c.close()
         conn.commit()

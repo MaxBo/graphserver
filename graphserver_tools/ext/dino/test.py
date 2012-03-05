@@ -50,7 +50,8 @@ def test_import():
     for tn in tables:
         print tn
 ##        read_dino.read_table(tn, folder=r'D:\GIT\gs\graphserver_tools\graphserver_tools\msp\Eingangsdaten\01 Dino\Fahrplan DVG')
-        read_dino.read_table(tn, folder=r'D:\GIT\gs\graphserver_tools\graphserver_tools\msp\Eingangsdaten\01 Dino\Fahrplan VMS')
+##        read_dino.read_table(tn, folder=r'D:\GIT\gs\graphserver_tools\graphserver_tools\msp\Eingangsdaten\01 Dino\Fahrplan VMS')
+        read_dino.read_table(tn, folder=r'D:\GIT\gs\graphserver_tools\graphserver_tools\msp\Eingangsdaten\01 Dino\Fahrplan PVM')
 
 ##test_import()
 
@@ -59,8 +60,8 @@ D = DinoToVisum()
 D._getDirections()
 D._processBetreiber()
 D._processVsysset()
-#D._processZwischenpunkte()
-##D._processHstHstBereichHstPunkt()
+
+D._processHstHstBereichHstPunkt()
 D._processLinie()
 D._processLinienroutenelement()
 D._processFahrzeitprofil()
