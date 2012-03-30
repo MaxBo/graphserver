@@ -73,7 +73,8 @@ class NetToGtf():
         while True:
             entry = self.input_file.next().split(';')
             if entry[0][0] == '*': break # end of this table
-            self.route_types_map[entry[code_column]] = self.net_route_types_map.get(entry[name_column], '3')
+            if entry[0][-1] <> u'\n':
+                self.route_types_map[entry[code_column]] = self.net_route_types_map.get(entry[name_column], '3')
 
         if self.debug: print u'route_types_map: %s' % self.route_types_map
 
@@ -94,7 +95,8 @@ class NetToGtf():
         while True:
             entry = self.input_file.next().split(';')
             if entry[0][0] == '*': break # end of this table
-            writer.writerow((entry[id_column], entry[name_column], u'http://www.example.com', u'Europe/Berlin'))
+            if entry[0][-1] <> u'\n':
+                writer.writerow((entry[id_column], entry[name_column], u'http://www.example.com', u'Europe/Berlin'))
         f.close()
 
         try:
@@ -118,9 +120,10 @@ class NetToGtf():
             entry = self.input_file.next().split(';')
             if entry[0][0] == '*': break # end of this table
 
-            lat, lon, h = coord_to_wgs84(self.from_proj, entry[x_coord_column], entry[y_coord_column])
+            if entry[0][-1] <> u'\n':
+                lat, lon, h = coord_to_wgs84(self.from_proj, entry[x_coord_column], entry[y_coord_column])
 
-            self.vertices[entry[id_column]] = ( str(lon), str(lat) )
+                self.vertices[entry[id_column]] = ( str(lon), str(lat) )
 
 
     def _write_stations(self, table_header_line): # reads from $HALTESTELLE
@@ -137,11 +140,12 @@ class NetToGtf():
         while True:
             entry = self.input_file.next().split(';')
             if entry[0][0] == '*': break # end of this table
+            if entry[0][-1] <> u'\n':
 
-            (lat, lon, h) = coord_to_wgs84(self.from_proj, entry[x_coord_column], entry[y_coord_column])
-            stop_name = entry[name_column] if entry[name_column] else 'Unbenannter Stop'
+                (lat, lon, h) = coord_to_wgs84(self.from_proj, entry[x_coord_column], entry[y_coord_column])
+                stop_name = entry[name_column] if entry[name_column] else 'Unbenannter Stop'
 
-            self.stations.append(( 'S'+entry[id_column], stop_name, str(lon), str(lat), '1', '' ))
+                self.stations.append(( 'S'+entry[id_column], stop_name, str(lon), str(lat), '1', '' ))
 
 
 
@@ -167,10 +171,11 @@ class NetToGtf():
             entry = self.input_file.next().split(';')
             if entry[0][0] == '*': break # end of this table
 
-            (lat, lon, h) = coord_to_wgs84(self.from_proj, entry[x_coord_column], entry[y_coord_column])
-            stop_name = entry[name_column] if entry[name_column] else 'Unbenannter Stop'
+            if entry[0][-1] <> u'\n':
+                (lat, lon, h) = coord_to_wgs84(self.from_proj, entry[x_coord_column], entry[y_coord_column])
+                stop_name = entry[name_column] if entry[name_column] else 'Unbenannter Stop'
 
-            writer.writerow(( entry[id_column], stop_name, str(lon), str(lat), '0', 'S'+entry[station_id_column] ))
+                writer.writerow(( entry[id_column], stop_name, str(lon), str(lat), '0', 'S'+entry[station_id_column] ))
 
         f.close()
 
@@ -198,8 +203,9 @@ class NetToGtf():
         while True:
             entry = self.input_file.next().split(';')
             if entry[0][0] == '*': break # end of this table
-            self.vertex_to_stop_mapper[entry[vertex_id_column]] = entry[stop_id_column]
-            self.stop_point_to_stop_mapper[entry[stop_point_id_column]] = entry[stop_id_column]
+            if entry[0][-1] <> u'\n':
+                self.vertex_to_stop_mapper[entry[vertex_id_column]] = entry[stop_id_column]
+                self.stop_point_to_stop_mapper[entry[stop_point_id_column]] = entry[stop_id_column]
 
 
     def _write_routes(self, table_header_line): # reads form $LINIE
@@ -219,7 +225,8 @@ class NetToGtf():
         while True:
             entry = self.input_file.next().split(';')
             if entry[0][0] == '*': break # end of this table
-            writer.writerow(( entry[id_column],  '1', entry[name_column],'', self.route_types_map[entry[route_type_column]] ))
+            if entry[0][-1] <> u'\n':
+                writer.writerow(( entry[id_column],  '1', entry[name_column],'', self.route_types_map[entry[route_type_column]] ))
         f.close()
 
         try:
@@ -265,77 +272,81 @@ class NetToGtf():
                 break
 
 
+            if entry[0][-1] <> u'\n':
 
-            lr_id = '_'.join([entry[route_id_column], entry[lr_id_column], entry[direction_column]])
+                lr_id = '_'.join([entry[route_id_column], entry[lr_id_column], entry[direction_column]])
 
-            # add entry to the shapes
-            if lr_id not in self.shapes:
-                self.shapes[lr_id] = [ ( entry[index_column], entry[vertex_id_column] ) ]
-            else:
-                self.shapes[lr_id].append(( entry[index_column], entry[vertex_id_column] ))
+                # add entry to the shapes
+                if lr_id not in self.shapes:
+                    self.shapes[lr_id] = [ ( entry[index_column], entry[vertex_id_column] ) ]
+                else:
+                    self.shapes[lr_id].append(( entry[index_column], entry[vertex_id_column] ))
 
-            if not entry[is_stop_column] == '0' and entry[stop_id_column]: # entry is a stop
-                if not lr_id == dict_lr_id:
-                    self.stop_id_mapper[dict_lr_id] = lre_dict
-                    lre_dict = {}
-                    dict_lr_id = lr_id
+                if not entry[is_stop_column] == '0' and entry[stop_id_column]: # entry is a stop
+                    if not lr_id == dict_lr_id:
+                        self.stop_id_mapper[dict_lr_id] = lre_dict
+                        lre_dict = {}
+                        dict_lr_id = lr_id
 
-                lre_dict[entry[index_column]] = self.stop_point_to_stop_mapper[entry[stop_id_column]]
-
-
-    def _process_fzp_stop_id_mapper(self, table_header_line): # reads from $FAHRZEITPROFILELEMENT
-        ''' This method provides a dictionary to map from 'INDEX' via the 'LRELEMINDEX' keys in the
-            '$FAHRZEITPROFILELEMENT' table to actual 'stop_id's.
-            It contains a dictionary for each trip, which maps betwen indexes and stop_ids.
-            See 'mapping net to gtf.txt' for further information.
-        '''
-        self.fzp_stop_id_mapper = {}
-
-        columns = table_header_line.split(':')[1].split(';')
-        for i,stuff in enumerate(columns): # find the position of the required columns
-            if stuff == 'LINNAME':
-                route_id_column = i
-            elif stuff == 'LINROUTENAME':
-                lr_id_column = i # not actual the lr_id (see 'mapping net to gtf.txt')
-            elif stuff == 'RICHTUNGCODE':
-                direction_column = i
-            elif stuff == 'FZPROFILNAME':
-                fzprofilname_column = i
-            elif stuff == 'INDEX':
-                index_column = i
-            elif stuff == 'LRELEMINDEX':
-                lrelemindex_column = i
-
-
-        dict_fzp_id = fzpe_dict = None
-        while True:
-            entry = self.input_file.next().split(';')
-            if entry[0][0] == '*': # end of this table
-                self.fzp_stop_id_mapper[dict_fzp_id] = fzpe_dict
-                break
-
-
-
-            lr_id = '_'.join([entry[route_id_column], entry[lr_id_column], entry[direction_column]])
-            fzp_id = '_'.join([entry[route_id_column], entry[lr_id_column], entry[direction_column], entry[fzprofilname_column]])
-
-
-            if not fzp_id == dict_fzp_id:
-                self.fzp_stop_id_mapper[dict_fzp_id] = fzpe_dict
-                fzpe_dict = {}
-                dict_fzp_id = fzp_id
-
-            fzpe_dict[entry[index_column]] = self.stop_id_mapper[lr_id][entry[lrelemindex_column]]
+                    lre_dict[entry[index_column]] = self.stop_point_to_stop_mapper[entry[stop_id_column]]
+##
+##
+##    def _process_fzp_stop_id_mapper(self, table_header_line): # reads from $FAHRZEITPROFILELEMENT
+##        ''' This method provides a dictionary to map from 'INDEX' via the 'LRELEMINDEX' keys in the
+##            '$FAHRZEITPROFILELEMENT' table to actual 'stop_id's.
+##            It contains a dictionary for each trip, which maps betwen indexes and stop_ids.
+##            See 'mapping net to gtf.txt' for further information.
+##        '''
+##        self.fzp_stop_id_mapper = {}
+##
+##        columns = table_header_line.split(':')[1].split(';')
+##        for i,stuff in enumerate(columns): # find the position of the required columns
+##            if stuff == 'LINNAME':
+##                route_id_column = i
+##            elif stuff == 'LINROUTENAME':
+##                lr_id_column = i # not actual the lr_id (see 'mapping net to gtf.txt')
+##            elif stuff == 'RICHTUNGCODE':
+##                direction_column = i
+##            elif stuff == 'FZPROFILNAME':
+##                fzprofilname_column = i
+##            elif stuff == 'INDEX':
+##                index_column = i
+##            elif stuff == 'LRELEMINDEX':
+##                lrelemindex_column = i
+##
+##
+##        dict_fzp_id = fzpe_dict = None
+##        while True:
+##            entry = self.input_file.next().split(';')
+##            if entry[0][0] == '*': # end of this table
+##                self.fzp_stop_id_mapper[dict_fzp_id] = fzpe_dict
+##                break
+##
+##            if entry[0][-1] <> u'\n':
+##
+##
+##                lr_name = '_'.join([entry[route_id_column], entry[lr_id_column], entry[direction_column]])
+##                fzp_id = '_'.join([entry[route_id_column], entry[lr_id_column], entry[direction_column], entry[fzprofilname_column]])
+##
+##
+##                if not fzp_id == dict_fzp_id:
+##                    self.fzp_stop_id_mapper[dict_fzp_id] = fzpe_dict
+##                    fzpe_dict = {}
+##                    dict_fzp_id = fzp_id
+##
+##                fzpe_dict[entry[index_column]] = self.stop_id_mapper[lr_name][entry[lrelemindex_column]]
 
 
 
     def _process_raw_stop_times(self, table_header_line): # reads from $FAHRZEITPROFILELEMENT
         if self.debug: print 'processing raw stop times'
+        self.fzp_stop_id_mapper = {}
+        dict_fzp_id = fzpe_dict = None
 
         columns = table_header_line.split(':')[1].split(';')
 
         route_id_column = columns.index('LINNAME')
-        lr_id_column = columns.index('LINROUTENAME')
+        lrname_column = columns.index('LINROUTENAME')
         direction_column = columns.index('RICHTUNGCODE')
         fzprofilname_column = columns.index('FZPROFILNAME')
         arrival_time_column = columns.index('ANKUNFT')
@@ -348,19 +359,31 @@ class NetToGtf():
         while True:
             entry = self.input_file.next().split(';')
             if entry[0][0] == '*': break # end of this table
-            rst_id = '_'.join([entry[route_id_column], entry[lr_id_column], entry[direction_column]])
-            fzp_id = '_'.join([entry[route_id_column], entry[lr_id_column], entry[direction_column], entry[fzprofilname_column]])
 
-            if self.debug: print rst_id, fzp_id
+            if entry[0][-1] <> u'\n':
 
-            lre = self.stop_id_mapper[rst_id]
-            fzpe = self.fzp_stop_id_mapper[fzp_id]
-            if entry[stop_column] in lre:
-                stop_id = lre[entry[stop_column]]
-                if fzp_id in self.raw_stop_times:
-                    self.raw_stop_times[fzp_id].append(( entry[stop_sequence_column], stop_id, entry[arrival_time_column], entry[departure_time_column] ))
-                else:
-                    self.raw_stop_times[fzp_id] = [ ( entry[stop_sequence_column], stop_id, entry[arrival_time_column], entry[departure_time_column] ) ]
+                rst_id = '_'.join([entry[route_id_column], entry[lrname_column], entry[direction_column]])
+                fzp_id = '_'.join([entry[route_id_column], entry[lrname_column], entry[direction_column], entry[fzprofilname_column]])
+
+                if self.debug: print rst_id, fzp_id
+
+
+                if not fzp_id == dict_fzp_id:
+                    self.fzp_stop_id_mapper[dict_fzp_id] = fzpe_dict
+                    fzpe_dict = {}
+                    dict_fzp_id = fzp_id
+
+                fzpe_dict[entry[stop_sequence_column]] = self.stop_id_mapper[rst_id][entry[stop_column]]
+
+
+                lre = self.stop_id_mapper[rst_id]
+##                fzpe = self.fzp_stop_id_mapper[fzp_id]
+                if entry[stop_column] in lre:
+                    stop_id = lre[entry[stop_column]]
+                    if fzp_id in self.raw_stop_times:
+                        self.raw_stop_times[fzp_id].append(( entry[stop_sequence_column], stop_id, entry[arrival_time_column], entry[departure_time_column] ))
+                    else:
+                        self.raw_stop_times[fzp_id] = [ ( entry[stop_sequence_column], stop_id, entry[arrival_time_column], entry[departure_time_column] ) ]
 
         if self.debug: print self.raw_stop_times
 
@@ -380,7 +403,7 @@ class NetToGtf():
         lr_id_column = columns.index('NR')
         departure_column = columns.index('ABFAHRT')
         route_id_column = columns.index('LINNAME')
-        lin_id_column = columns.index('LINROUTENAME')
+        lrname_column = columns.index('LINROUTENAME')
         direction_column = columns.index('RICHTUNGCODE')
         fzprofilname_column = columns.index('FZPROFILNAME')
 
@@ -389,18 +412,19 @@ class NetToGtf():
             entry = self.input_file.next().split(';')
             if entry[0][0] == '*': break # end of this table
 
-            lr_id += 1
-            rst_id = '_'.join([entry[route_id_column], entry[lin_id_column], entry[direction_column]])
-            fzp_id = '_'.join([entry[route_id_column], entry[lr_id_column], entry[direction_column], entry[fzprofilname_column]])
-            fzp = self.raw_stop_times[fzp_id]
-            if self.debug: print 'writing trip: %s' % lr_id
+            if entry[0][-1] <> u'\n':
+                lr_id += 1
+                rst_id = '_'.join([entry[route_id_column], entry[lrname_column], entry[direction_column]])
+                fzp_id = '_'.join([entry[route_id_column], entry[lrname_column], entry[direction_column], entry[fzprofilname_column]])
+                fzp = self.raw_stop_times[fzp_id]
+                if self.debug: print 'writing trip: %s' % lr_id
 
-            t_writer.writerow(( entry[route_id_column], '1', str(lr_id), fzp_id if fzp_id in self.shapes else u'' )) # TODO: service_id
+                t_writer.writerow(( entry[route_id_column], '1', str(lr_id), fzp_id if fzp_id in self.shapes else u'' )) # TODO: service_id
 
-            for stop in fzp:
-                arrival_time = time_adder(stop[2], entry[departure_column])
-                departure_time = time_adder(stop[3], entry[departure_column])
-                st_writer.writerow(( str(lr_id), arrival_time, departure_time, stop[1], stop[0] ))
+                for stop in fzp:
+                    arrival_time = time_adder(stop[2], entry[departure_column])
+                    departure_time = time_adder(stop[3], entry[departure_column])
+                    st_writer.writerow(( str(lr_id), arrival_time, departure_time, stop[1], stop[0] ))
 
         st_file.close()
         t_file.close()
@@ -409,6 +433,8 @@ class NetToGtf():
             zip_file = ZipFile(self.output_file, 'a')
             zip_file.write('stop_times.txt')
             zip_file.write('trips.txt')
+        except:
+            raise 'hallo'
         finally:
             zip_file.close()
 
@@ -433,8 +459,9 @@ class NetToGtf():
         while True:
             entry = self.input_file.next().split(';')
             if entry[0][0] == '*': break # end of this table
-            transfer_time = entry[time_column][:-3] if len(self.eol) == 2 else entry[time_column][:-2]
-            writer.writerow(( entry[from_stop_id_column], entry[to_stop_id_column], '2', transfer_time ))
+            if entry[0][-1] <> u'\n':
+                transfer_time = entry[time_column][:-3] if len(self.eol) == 2 else entry[time_column][:-2]
+                writer.writerow(( entry[from_stop_id_column], entry[to_stop_id_column], '2', transfer_time ))
 
         f.close()
 
@@ -528,9 +555,9 @@ class NetToGtf():
                                       '$HALTEPUNKT':self._process_stop_points,
                                       '$LINIE':self._write_routes,
                                       '$LINIENROUTENELEMENT':self._process_stop_id_mapper,
-                                      '$FAHRZEITPROFILELEMENT':self._process_fzp_stop_id_mapper,
+##                                      '$FAHRZEITPROFILELEMENT':self._process_fzp_stop_id_mapper,
                                       '$FAHRZEITPROFILELEMENT':self._process_raw_stop_times,
-                                      '$FAHRPLANFAHRT':self._write_stop_times_and_trips,
+                                      '$FZGFAHRT':self._write_stop_times_and_trips,
                                       '$UEBERGANGSGEHZEITHSTBER':self._write_tranfers,
                                       '$KNOTEN':self._process_vertices }
 
@@ -569,5 +596,11 @@ def main():
         parser.print_help()
         exit(-1)
 
+netfile = r'D:\temp\MP\Fahrplandaten_MSP.net'
+outfile = r'D:\temp\MP\test'
+ntg = NetToGtf(netfile, outfile, debug=False, net_types_map={},
+                   calendar_types=None, from_proj=Proj(init='epsg:4326'))
+
+ntg.write_gtf()
 
 if __name__ == '__main__': main()
