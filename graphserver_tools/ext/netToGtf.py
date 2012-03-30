@@ -509,7 +509,7 @@ class NetToGtf():
                                       '$LINIENROUTENELEMENT':self._process_stop_id_mapper,
 ##                                      '$FAHRZEITPROFILELEMENT':self._process_fzp_stop_id_mapper,
                                       '$FAHRZEITPROFILELEMENT':self._process_raw_stop_times,
-                                      '$FZGFAHRT':self._write_stop_times_and_trips,
+                                      '$FAHRPLANFAHRT':self._write_stop_times_and_trips,
                                       '$UEBERGANGSGEHZEITHSTBER':self._write_tranfers,
                                       '$KNOTEN':self._process_vertices }
 
