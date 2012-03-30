@@ -289,54 +289,6 @@ class NetToGtf():
                         dict_lr_id = lr_id
 
                     lre_dict[entry[index_column]] = self.stop_point_to_stop_mapper[entry[stop_id_column]]
-##
-##
-##    def _process_fzp_stop_id_mapper(self, table_header_line): # reads from $FAHRZEITPROFILELEMENT
-##        ''' This method provides a dictionary to map from 'INDEX' via the 'LRELEMINDEX' keys in the
-##            '$FAHRZEITPROFILELEMENT' table to actual 'stop_id's.
-##            It contains a dictionary for each trip, which maps betwen indexes and stop_ids.
-##            See 'mapping net to gtf.txt' for further information.
-##        '''
-##        self.fzp_stop_id_mapper = {}
-##
-##        columns = table_header_line.split(':')[1].split(';')
-##        for i,stuff in enumerate(columns): # find the position of the required columns
-##            if stuff == 'LINNAME':
-##                route_id_column = i
-##            elif stuff == 'LINROUTENAME':
-##                lr_id_column = i # not actual the lr_id (see 'mapping net to gtf.txt')
-##            elif stuff == 'RICHTUNGCODE':
-##                direction_column = i
-##            elif stuff == 'FZPROFILNAME':
-##                fzprofilname_column = i
-##            elif stuff == 'INDEX':
-##                index_column = i
-##            elif stuff == 'LRELEMINDEX':
-##                lrelemindex_column = i
-##
-##
-##        dict_fzp_id = fzpe_dict = None
-##        while True:
-##            entry = self.input_file.next().split(';')
-##            if entry[0][0] == '*': # end of this table
-##                self.fzp_stop_id_mapper[dict_fzp_id] = fzpe_dict
-##                break
-##
-##            if entry[0][-1] <> u'\n':
-##
-##
-##                lr_name = '_'.join([entry[route_id_column], entry[lr_id_column], entry[direction_column]])
-##                fzp_id = '_'.join([entry[route_id_column], entry[lr_id_column], entry[direction_column], entry[fzprofilname_column]])
-##
-##
-##                if not fzp_id == dict_fzp_id:
-##                    self.fzp_stop_id_mapper[dict_fzp_id] = fzpe_dict
-##                    fzpe_dict = {}
-##                    dict_fzp_id = fzp_id
-##
-##                fzpe_dict[entry[index_column]] = self.stop_id_mapper[lr_name][entry[lrelemindex_column]]
-
-
 
     def _process_raw_stop_times(self, table_header_line): # reads from $FAHRZEITPROFILELEMENT
         if self.debug: print 'processing raw stop times'
@@ -596,10 +548,10 @@ def main():
         parser.print_help()
         exit(-1)
 
-netfile = r'D:\temp\MP\Fahrplandaten_MSP.net'
-outfile = r'D:\temp\MP\test'
-ntg = NetToGtf(netfile, outfile, debug=False, net_types_map={},
-                   calendar_types=None, from_proj=Proj(init='epsg:4326'))
+##netfile = r'D:\temp\MP\Fahrplandaten_MSP.net'
+##outfile = r'D:\temp\MP\test'
+##ntg = NetToGtf(netfile, outfile, debug=False, net_types_map={},
+##                   calendar_types=None, from_proj=Proj(init='epsg:4326'))
 
 ntg.write_gtf()
 
