@@ -344,11 +344,11 @@ class NetToGtf():
 
         st_file = open('stop_times.txt', 'w')
         st_writer = UnicodeWriter(st_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        st_writer.writerow(( u'lr_id', u'arrival_time', u'departure_time', u'stop_id', u'stop_sequence' )) # header
+        st_writer.writerow(( u'trip_id', u'arrival_time', u'departure_time', u'stop_id', u'stop_sequence' )) # header
 
         t_file = open('trips.txt', 'w')
         t_writer = UnicodeWriter(t_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        t_writer.writerow(( u'route_id', u'service_id', u'lr_id', u'shape_id' ))
+        t_writer.writerow(( u'route_id', u'service_id', u'trip_id', u'shape_id' ))
 
         columns = table_header_line.split(':')[1].split(';')
 
