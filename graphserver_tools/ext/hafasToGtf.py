@@ -201,7 +201,7 @@ def write_calendar_calendar_dates(bitfield_file_name, eckdaten_file_name):
 
     for line in f:
         date = start_date
-        id, hex_field = line.split()
+        id, hex_field = line.split()[:2]
 
         bool_list = hex_to_bool_list(hex_field)
 
@@ -279,25 +279,25 @@ def find_files(input_dir):
     for f in os.listdir(input_dir):
         ff = f.lower().split('.')[0]
 
-        if ff == 'bitfeld':
+        if ff.lower() == 'bitfeld' or ff.lower() == 'bitfield':
             found_dic['bitfeld'] = f
 
-        elif ff == 'fplan':
+        elif ff.lower().startswith('fplan'):
             if 'fplan' in found_dic:
-                return {}
+                found_dic['fplan'].append(f)
             else:
-                found_dic['fplan'] = ( f, )
+                found_dic['fplan'] = [f]
 
-        elif ff == 'eckdaten':
+        elif ff.lower() == 'eckdaten':
             found_dic['eckdaten'] = f
 
-        elif ff == 'alldat':
+        elif ff.lower() == 'alldat':
             if 'fplan' in found_dic:
-                return {}
-            else:
                 found_dic['fplan'] = [ l[:-2] for l in open(os.path.join(input_dir, f)) ]
+            else:
+                found_dic['fplan'] += [ l[:-2] for l in open(os.path.join(input_dir, f)) ]
 
-        elif ff == 'bfkoord':
+        elif ff.lower() == 'bfkoord' or ff.lower() == 'dbkoord':
             found_dic['bfkoord'] = f
 
     return found_dic
