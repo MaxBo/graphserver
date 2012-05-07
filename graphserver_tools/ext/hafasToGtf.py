@@ -140,6 +140,7 @@ def write_routes_tripes_stop_times(input_file_names):
     stop_times = []
 
     for f in input_file_names:
+        print f
         r, t, st = get_routes_tripes_stop_times(f)
         routes.extend(r)
         trips.extend(t)
