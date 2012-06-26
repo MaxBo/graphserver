@@ -1,6 +1,0 @@
-[submodule "graphserver_tools"]
-	path = graphserver_tools
-	url = git://192.168.198.24/git/graphserver_tools
-[submodule "graphserver"]
-	path = graphserver
-	url = git://192.168.198.24/git/graphserver
