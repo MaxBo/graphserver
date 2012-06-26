@@ -1,0 +1,8 @@
+To run all tests, use 'nosetests'
+
+$ nosetests -v
+
+To run a specific test file:
+
+$ nosetests -v unit_test.py
+
