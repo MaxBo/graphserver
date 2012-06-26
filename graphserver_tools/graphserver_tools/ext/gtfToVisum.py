@@ -186,21 +186,23 @@ class GtfsToVisum(VisumPuTTables):
             linroute_counter = 1
 
             for trip in route._trips:
-                trip_stops = tuple([ st.stop for st in trip.GetStopTimes() ])
+                tripStopTimes = trip.GetStopTimes()
+                if tripStopTimes:
+                    trip_stops = tuple([ st.stop for st in tripStopTimes ])
 
-                if not trip_stops in stops_linroute_mapper:
-                    direction = self.direction_mapper.get(trip.direction_id, '>')
+                    if not trip_stops in stops_linroute_mapper:
+                        direction = self.direction_mapper.get(trip.direction_id, '>')
 
-                    linroutename = str(linroute_counter) + '_' + direction
-                    stops_linroute_mapper[trip_stops] = linroutename
+                        linroutename = str(linroute_counter) + '_' + direction
+                        stops_linroute_mapper[trip_stops] = linroutename
 
-                    linroute_counter += 1
+                        linroute_counter += 1
 
-                    self.linroute_mapper[( route.route_id, linroutename)] = [ trip.trip_id, ]
+                        self.linroute_mapper[( route.route_id, linroutename)] = [ trip.trip_id, ]
 
-                else:
-                    key = ( route.route_id, stops_linroute_mapper[trip_stops] )
-                    self.linroute_mapper[key].append(trip.trip_id)
+                    else:
+                        key = ( route.route_id, stops_linroute_mapper[trip_stops] )
+                        self.linroute_mapper[key].append(trip.trip_id)
 
 
     def _processVerkehrssysteme(self):
@@ -747,7 +749,7 @@ class GtfsToVisum(VisumPuTTables):
 
 def main():
     from optparse import OptionParser
-    usage = """usage: python netToVisum.py config_file gtfs_feed"""
+    usage = """usage: python gtfToVisum.py config_file gtfs_feed"""
     parser = OptionParser(usage=usage)
     (options, args) = parser.parse_args()
 
