@@ -1,0 +1,54 @@
+Grundsatz:
+    - jede Klasse bekommt ein zusätzliches 'id'-Felds
+    - primary keys werden unique gesetzt
+    - LONG(n) wird auf Integer gemappt (mögliches Problem, sollten jemals IVO exportiert werden)
+    - Felder über die Anzahl von Relationen (z.B Anzahl der Haltestellen einer Linie) werden weglassen
+
+    - Leerzeichen am Anfang _und_ Ende werden vor dem Einsetzen in die Datenbank entfernt
+
+    - Einträge in der Tabelle linie sind keine Linien sondern Unterlinien!
+
+Aufteilung von Dateien in Tabellen:
+    - ldxxxxxx.asc
+        -> linien
+        -> linienprofile
+
+
+    - strecken.asc
+        -> strecken
+        -> zwischenpunkte
+
+
+Weggelassene Dateien/Tabellen:
+    - aequival.asc
+    - lfxxxxxx.asc
+    - betrtage.asc (implementierung in Zukunft evt. nötig)
+    - kalendar.asc (implementierung in Zukunft evt. nötig)
+    - regeldur.asc
+    - durchbin.asc
+    - zielrubr.asc
+    - besziel.asc
+
+
+Weggelassene Abschnitte:
+    - Tarifinformationen
+    - Besondere Ziele
+    - Attribute
+    - Fahrplandarstellung
+    - Umsteigebauwerke
+
+
+
+Sonstiges:
+    - Fahrt:
+        - weglassen von Version, Betrieb, Richtung + Unterlinie
+        - auflösen der (unnötigen) zweigeteilten Darstellung
+        - Bitfelder werden ignoriert - es ist unklar, was es überhaupt bewirkt!
+
+    - Fahrtenprofil
+        - weglassen von Abfahrtshaltestelle und Ankunftshaltestelle + Ankunftszeit
+        - Wartezeit optional (bzw. unklar!!!) -> optional in .asc-files, _nicht_ optional in Datenbank!
+
+    - Fußwege
+        - weglassen von Attribut
+        - auflösen der hin und zurück Wege in einfache Wege

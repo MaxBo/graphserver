@@ -1,0 +1,89 @@
+Probleme und Fragestellungen
+
+    TYPNR
+    VSYSSET (Standard-Wert verwenden? oder Mapping entwickeln -> kein Verlust bei Umwandlung in beide Richtungen)
+            (Mapping nach route_type von GTFS)
+    STRECKEN & STRECKENPOLY (hoffentlich nicht benötigt, da nicht abbildbar)
+    TARIFSYSTEMMENGE
+    BETREIBER (fehlt, wäre gute Ergänzung)
+
+
+
+Durchführung
+
+    Bemerkungen
+
+        - LINIENROUTEN sind bei zwei Richtungen doppelt vorhanden
+        - Wochentage, Feiertage, … werden nicht berücksichtigt
+        - direction_id - 1:<, 0:>
+
+                -> VERSION
+
+
+    HALTESTELLE, HALTESTELLENBEREICH, HALTEPUNKT, KNOTEN
+
+        Stations    -> HALTESTELLE
+        Stops       -> HALTESTELLENBEREICH + KNOTEN (inkl. HALTESTELLE, wenn benötigt)
+        Stops       -> HALTEPUNKT + KNOTEN (inkl. Mapping auf HALTESTELLENBEREICH)
+
+
+    LINIENROUTENELEMENT
+
+        LINNAME         - route_id (trip/route)
+        LINROUTENAME    - route_short_name (route)
+        RICHTUNGSCODE   - direction_id (trip) [falls vorhanden (mapping nach '>', '<'), sonst '>' als Standardwert]
+        INDEX           - stop_sequence (stop_times) [wobei alle jemals angefahrenen Stops berrücksichtigt werden müssen]
+        ISTROUTENPUNKT  - Standardwert '1' [TODO: Shapes-Punkte bekommen '0']
+        KNOTNR          - nicht vorhanden -> über stop_id (stop/stop_times)
+        HPUNKTNR        - stop_id (stop_times)
+
+
+    LINIE
+
+        NAME                - route_id (route)
+        VSYSCODE            - route_type (route)
+        TARIFSYSTEMMENGE    - Standardwert 1 [???]
+        BETREIBERNR         - agency_id (route)
+
+
+    LINIENROUTE
+
+        LINNAME         - route_id (route)
+        NAME            - route_short_name (route)
+        RICHTUNGSCODE   - direction_id (trip) [falls vorhanden (mapping nach '>', '<'), sonst '>' als Standardwert]
+        ISTRINGLINIE    - Standardwert '0' [Information nicht vorhanden]
+
+
+    FAHRZEITPROFILELEMENT
+
+        LINNAME         - route_id (route/trip)
+        LINROUTENAME    - route_short_name (route)
+        RICHTUNGSCODE   - direction_id (trip) [falls vorhanden (mapping nach '>', '<'), sonst '>' als Standardwert]
+        FZPROFILNAME    - Standardwert '1' [nicht vorhanden -> NAME aus FAHRZEITPROFIL]
+        INDEX           - stop_sequence (stop_times)
+        LRELEMINDEX     - stop_sequence (stop_times) [wobei alle jemals angefahrenen Stops berrücksichtigt werden müssen]
+        AUS             - drop_off_type (stop_times)
+        EIN             - pickup_type (stop_times)
+        ANKUNFT         - arrival_time (stop_times)
+        ABFAHRT         - departure_time (stop_times)
+
+
+    FAHRZEITPROFIL
+
+        LINNAME         - route_id (route/trip)
+        LINROUTENAME    - route_short_name (route)
+        RICHTUNGSCODE   - direction_id (trip) [falls vorhanden (mapping nach '>', '<'), sonst '>' als Standardwert]
+        NAME            - Standardwert '1' [hier kann Visum mehr, als GTFS]
+
+
+    FZGFAHRT
+
+        NR                  - trip_id (trip)
+        NAME                - trip_short_name (trip) [wenn vorhanden - sonst trip_headsign, wenn vorhanden, sonst trip_id]
+        ABFAHRT             - departure_time (stop_times) [erster Eintrag von trip]
+        LINNAME             - route_id (trip/route)
+        LINROUTENANME       - route_short_name (route)
+        RICHTUNGSCODE       - direction_id (trip) [falls vorhanden (mapping nach '>', '<'), sonst '>' als Standardwert]
+        FZPROFILNAME        - Standardwert '1' [nicht vorhanden -> NAME aus FAHRZEITPROFIL]
+        VONFZPELEMINDEX     - INDEX (FAHRZEITPROFILELEMENT) via stop_id (stop_times) [erste stop_id von stop_times]
+        NACHFZPELEMINDEX    - INDEX (FAHRZEITPROFILELEMENT) via stop_id (stop_times) [letzte stop_id von stop_times]
