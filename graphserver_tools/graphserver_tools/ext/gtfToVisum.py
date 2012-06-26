@@ -198,10 +198,12 @@ class GtfsToVisum(VisumPuTTables):
 
                         linroute_counter += 1
 
-                        self.linroute_mapper[( route.route_id, linroutename)] = [ trip.trip_id, ]
+                        self.linroute_mapper[( route.route_short_name, linroutename)] = [ trip.trip_id, ]
+##                        self.linroute_mapper[( route.route_id, linroutename)] = [ trip.trip_id, ]
 
                     else:
-                        key = ( route.route_id, stops_linroute_mapper[trip_stops] )
+                        key = ( route.route_short_name, stops_linroute_mapper[trip_stops] )
+##                        key = ( route.route_id, stops_linroute_mapper[trip_stops] )
                         self.linroute_mapper[key].append(trip.trip_id)
 
 
@@ -491,13 +493,16 @@ class GtfsToVisum(VisumPuTTables):
         '''
 
         linien = []
+        linien_names = {}
 
         for r in self._schedule.GetRouteList():
-            linien.append({ 'name' : r.route_id,
-                            'vsyscode' : self.route_type_mapper[r.route_type],
-                            'tarifsystemmenge' : 1,
-                            'betreibernr' : self.agency_id_mapper[r.agency_id]
-                          })
+            if not linien_names.has_key(r.route_short_name):
+                linien.append({ 'name' : r.route_short_name, #r.route_id,
+                                'vsyscode' : self.route_type_mapper[r.route_type],
+                                'tarifsystemmenge' : 1,
+                                'betreibernr' : self.agency_id_mapper[r.agency_id]
+                              })
+                linien_names[r.route_short_name] = True
 
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
