@@ -190,45 +190,45 @@ class GtfsToVisum(VisumPuTTables):
         for route in self._schedule.GetRouteList():
             stops_linroute_mapper = {} # maps between list of stops and linroutenames
             linroute_counter = 1
-
             for trip in route._trips:
                 tripStopTimes = trip.GetStopTimes()
                 if tripStopTimes:
-                    trip_stops = tuple([ st.stop for st in tripStopTimes ])
-                    trip_start_endstop = (trip_stops[0], trip_stops[-1])
+                    trip_stops = tuple([ st.stop for st in tripStopTimes if st.pickup_type <> 1 or st.drop_off_type <> 1])
+                    if trip_stops:
+                        trip_start_endstop = (trip_stops[0], trip_stops[-1])
 
-                    if not trip_stops in stops_linroute_mapper:
-                        if trip.direction_id is not None:
-                            direction = self.direction_mapper.get(trip.direction_id, '>')
-                        else:
-                            # no direction specified
-                            if trip_start_endstop[::-1] in route_start_endstops:
-                                # if start and endstop in opposite direction already exists
-                                direction = self.direction_mapper.get('0') # suppose back-direction
-                            elif trip_start_endstop[1] in [start_end[0] for start_end in route_start_endstops] \
-                            or trip_start_endstop[0] in [start_end[1] for start_end in route_start_endstops]:
-                                # if at least end_stop exists as start_stop
-                                # or start_stop exists as end_stop then suppose back-direction
-                                direction = self.direction_mapper.get('0')
+                        if not trip_stops in stops_linroute_mapper:
+                            if trip.direction_id is not None:
+                                direction = self.direction_mapper.get(trip.direction_id, '>')
                             else:
-                                # suppose forward-direction
-                                direction = self.direction_mapper.get('1')
-                                if trip_start_endstop not in route_start_endstops:
-                                    # add start_end_stop as forward_direction to route
-                                    route_start_endstops.append(trip_start_endstop)
+                                # no direction specified
+                                if trip_start_endstop[::-1] in route_start_endstops:
+                                    # if start and endstop in opposite direction already exists
+                                    direction = self.direction_mapper.get('0') # suppose back-direction
+                                elif trip_start_endstop[1] in [start_end[0] for start_end in route_start_endstops] \
+                                or trip_start_endstop[0] in [start_end[1] for start_end in route_start_endstops]:
+                                    # if at least end_stop exists as start_stop
+                                    # or start_stop exists as end_stop then suppose back-direction
+                                    direction = self.direction_mapper.get('0')
+                                else:
+                                    # suppose forward-direction
+                                    direction = self.direction_mapper.get('1')
+                                    if trip_start_endstop not in route_start_endstops:
+                                        # add start_end_stop as forward_direction to route
+                                        route_start_endstops.append(trip_start_endstop)
 
-                        linroutename = str(linroute_counter) + '_' + direction
-                        stops_linroute_mapper[trip_stops] = linroutename
+                            linroutename = str(linroute_counter) + '_' + direction
+                            stops_linroute_mapper[trip_stops] = linroutename
 
-                        linroute_counter += 1
+                            linroute_counter += 1
 
-                        self.linroute_mapper[( route.route_short_name, linroutename)] = [ trip.trip_id, ]
-##                        self.linroute_mapper[( route.route_id, linroutename)] = [ trip.trip_id, ]
+                            self.linroute_mapper[( route.route_short_name, linroutename)] = [ trip.trip_id, ]
+            ##                        self.linroute_mapper[( route.route_id, linroutename)] = [ trip.trip_id, ]
 
-                    else:
-                        key = ( route.route_short_name, stops_linroute_mapper[trip_stops] )
-##                        key = ( route.route_id, stops_linroute_mapper[trip_stops] )
-                        self.linroute_mapper[key].append(trip.trip_id)
+                        else:
+                            key = ( route.route_short_name, stops_linroute_mapper[trip_stops] )
+            ##                        key = ( route.route_id, stops_linroute_mapper[trip_stops] )
+                            self.linroute_mapper[key].append(trip.trip_id)
 
 
     def _processVerkehrssysteme(self):
@@ -586,16 +586,18 @@ class GtfsToVisum(VisumPuTTables):
                 direction = linroutename[-1]
 
 
-
+            lrelemindex = 1
             for st in trip.GetStopTimes():
-                linienroutenelemente.append({   'linname' : linname,
-                                                'linroutename' : linroutename,
-                                                'richtungscode' : direction,
-                                                'index' : st.stop_sequence,
-                                                'istroutenpunkt' : 1,
-                                                'knotnr' : self.stop_id_mapper[st.stop.stop_id],
-                                                'hpunktnr' : self.stop_id_mapper[st.stop.stop_id]
-                                            })
+                if st.pickup_type <> 1 or st.drop_off_type <> 1:
+                    linienroutenelemente.append({   'linname' : linname,
+                                                    'linroutename' : linroutename,
+                                                    'richtungscode' : direction,
+                                                    'index' : lrelemindex,
+                                                    'istroutenpunkt' : 1,
+                                                    'knotnr' : self.stop_id_mapper[st.stop.stop_id],
+                                                    'hpunktnr' : self.stop_id_mapper[st.stop.stop_id]
+                                                })
+                    lrelemindexm += 1
 
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
@@ -665,6 +667,7 @@ class GtfsToVisum(VisumPuTTables):
             trip = self._schedule.GetTrip(trip_ids[0])
 
             fzpindex = 1
+            lrelemindex = 1
 ##            start_time = trip.GetStartTime() + EPOCH_TO_1899 # make the result on 1899-12-30
             fzpindex_mapper = {}
             for st in trip.GetStopTimes():
@@ -688,7 +691,7 @@ class GtfsToVisum(VisumPuTTables):
                                         'richtungscode' : direction,
                                         'fzprofilname' : fzprofilname,
                                         'index' : fzpindex,
-                                        'lrelemindex' : st.stop_sequence,
+                                        'lrelemindex' : lrelemindex,
                                         'aus' : aus,
                                         'ein' : ein,
                                         'ankunft' : arrival,
@@ -697,6 +700,7 @@ class GtfsToVisum(VisumPuTTables):
 
                     nachfzpelemindex = fzpindex
                     fzpindex += 1
+                    lrelemindex += 1
 
             # add fahrplanfahrten and fahrplanfahrtabschnitte
             if has_valid_fahrten:
