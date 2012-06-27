@@ -731,13 +731,20 @@ class GtfsToVisum(VisumPuTTables):
 
                     # only put trips into visum that which are valid on the selected date
                     if self.date in trip.service_period.ActiveDates():
+                        # search for first valid stop
+                        for st in trip.GetStopTimes():
+                            ein = 0 if st.pickup_type == 1 else 1
+                            aus = 0 if st.drop_off_type == 1 else 1
 
-##                        departure = datetime.datetime.fromtimestamp(trip.GetStartTime() - EPOCH_TO_1899)
+                            if ein or aus:
+                                departure = datetime.datetime.fromtimestamp(st.departure_secs - EPOCH_TO_1899)
+                                break
+
                         name = trip.trip_headsign if trip.trip_headsign else None
 
                         fahrten.append({    'nr' : nr,
                                             'name' : name,
-                                            'abfahrt' : trip_departure,
+                                            'abfahrt' : departure,
                                             'linname' : linname,
                                             'linroutename' : linroutename,
                                             'richtungscode' : direction,
