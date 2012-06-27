@@ -677,6 +677,7 @@ class GtfsToVisum(VisumPuTTables):
                         has_valid_fahrten = True
                         start_time = st.departure_secs + EPOCH_TO_1899 # make the result on 1899-12-30
                         vonfzpelemindex = fzpindex
+                        trip_departure = datetime.datetime.fromtimestamp(st.departure_secs - EPOCH_TO_1899)
                     fzpindex_mapper = {st.stop_sequence: fzpindex}
 
                     arrival = datetime.datetime.fromtimestamp(st.arrival_secs - start_time)
@@ -706,12 +707,12 @@ class GtfsToVisum(VisumPuTTables):
                     # only put trips into visum that which are valid on the selected date
                     if self.date in trip.service_period.ActiveDates():
 
-                        departure = datetime.datetime.fromtimestamp(trip.GetStartTime() - EPOCH_TO_1899)
+##                        departure = datetime.datetime.fromtimestamp(trip.GetStartTime() - EPOCH_TO_1899)
                         name = trip.trip_headsign if trip.trip_headsign else None
 
                         fahrten.append({    'nr' : nr,
                                             'name' : name,
-                                            'abfahrt' : departure,
+                                            'abfahrt' : trip_departure,
                                             'linname' : linname,
                                             'linroutename' : linroutename,
                                             'richtungscode' : direction,
