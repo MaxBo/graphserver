@@ -204,15 +204,15 @@ class GtfsToVisum(VisumPuTTables):
                             # no direction specified
                             if trip_start_endstop[::-1] in route_start_endstops:
                                 # if start and endstop in opposite direction already exists
-                                direction = self.direction_mapper.get(0) # suppose back-direction
+                                direction = self.direction_mapper.get('0') # suppose back-direction
                             elif trip_start_endstop[1] in [start_end[0] for start_end in route_start_endstops] \
                             or trip_start_endstop[0] in [start_end[1] for start_end in route_start_endstops]:
                                 # if at least end_stop exists as start_stop
                                 # or start_stop exists as end_stop then suppose back-direction
-                                direction = self.direction_mapper.get(0)
+                                direction = self.direction_mapper.get('0')
                             else:
                                 # suppose forward-direction
-                                direction = self.direction_mapper.get(1)
+                                direction = self.direction_mapper.get('1')
                                 if trip_start_endstop not in route_start_endstops:
                                     # add start_end_stop as forward_direction to route
                                     route_start_endstops.append(trip_start_endstop)
