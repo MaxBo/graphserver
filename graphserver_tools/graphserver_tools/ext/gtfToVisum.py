@@ -659,6 +659,7 @@ class GtfsToVisum(VisumPuTTables):
             if linroutename.endswith('<') or linroutename.endswith('>'):
                 direction = linroutename[-1]
 
+            has_valid_fahrten = False
 
 
             trip = self._schedule.GetTrip(trip_ids[0])
@@ -673,6 +674,7 @@ class GtfsToVisum(VisumPuTTables):
 
                 if ein or aus:
                     if fzpindex == 1:
+                        has_valid_fahrten = True
                         start_time = st.departure_secs + EPOCH_TO_1899 # make the result on 1899-12-30
                         vonfzpelemindex = fzpindex
                     fzpindex_mapper = {st.stop_sequence: fzpindex}
@@ -696,51 +698,51 @@ class GtfsToVisum(VisumPuTTables):
                     fzpindex += 1
 
             # add fahrplanfahrten and fahrplanfahrtabschnitte
+            if has_valid_fahrten:
+                for trip_id in trip_ids:
+                    trip = self._schedule.GetTrip(trip_id)
+                    nr = trip.trip_id
 
-            for trip_id in trip_ids:
-                trip = self._schedule.GetTrip(trip_id)
-                nr = trip.trip_id
+                    # only put trips into visum that which are valid on the selected date
+                    if self.date in trip.service_period.ActiveDates():
 
-                # only put trips into visum that which are valid on the selected date
-                if self.date in trip.service_period.ActiveDates():
+                        departure = datetime.datetime.fromtimestamp(trip.GetStartTime() - EPOCH_TO_1899)
+                        name = trip.trip_headsign if trip.trip_headsign else None
 
-                    departure = datetime.datetime.fromtimestamp(trip.GetStartTime() - EPOCH_TO_1899)
-                    name = trip.trip_headsign if trip.trip_headsign else None
-
-                    fahrten.append({    'nr' : nr,
-                                        'name' : name,
-                                        'abfahrt' : departure,
-                                        'linname' : linname,
-                                        'linroutename' : linroutename,
-                                        'richtungscode' : direction,
-                                        'fzprofilname' : fzprofilname,
-                                        'vonfzpelemindex' : vonfzpelemindex,
-                                        'nachfzpelemindex' : nachfzpelemindex
-                                  })
+                        fahrten.append({    'nr' : nr,
+                                            'name' : name,
+                                            'abfahrt' : departure,
+                                            'linname' : linname,
+                                            'linroutename' : linroutename,
+                                            'richtungscode' : direction,
+                                            'fzprofilname' : fzprofilname,
+                                            'vonfzpelemindex' : vonfzpelemindex,
+                                            'nachfzpelemindex' : nachfzpelemindex
+                                      })
 
 
-                    # add frequency trips
-                    for st in trip.GetFrequencyStartTimes():
-                        st_departure = datetime.datetime.fromtimestamp(st - EPOCH_TO_1899)
+                        # add frequency trips
+                        for st in trip.GetFrequencyStartTimes():
+                            st_departure = datetime.datetime.fromtimestamp(st - EPOCH_TO_1899)
 
-                        if st_departure != departure:
+                            if st_departure != departure:
 
-                            fahrten.append({    'nr' : nr,
-                                                'name' : name,
-                                                'abfahrt' : st_departure,
-                                                'linname' : linname,
-                                                'linroutename' : linroutename,
-                                                'richtungscode' : direction,
-                                                'fzprofilname' : fzprofilname,
-                                                'vonfzpelemindex' : vonfzpelemindex,
-                                                'nachfzpelemindex' : nachfzpelemindex
-                                          })
+                                fahrten.append({    'nr' : nr,
+                                                    'name' : name,
+                                                    'abfahrt' : st_departure,
+                                                    'linname' : linname,
+                                                    'linroutename' : linroutename,
+                                                    'richtungscode' : direction,
+                                                    'fzprofilname' : fzprofilname,
+                                                    'vonfzpelemindex' : vonfzpelemindex,
+                                                    'nachfzpelemindex' : nachfzpelemindex
+                                              })
 
-            fahrplanfahrtabschnitte = [{'nr': 1,
-                                        'fplfahrtnr': f['nr'],
-                                        'vonfzpelemindex' : f['vonfzpelemindex'],
-                                        'nachfzpelemindex' : f['nachfzpelemindex']} \
-                                        for f in fahrten]
+                fahrplanfahrtabschnitte = [{'nr': 1,
+                                            'fplfahrtnr': f['nr'],
+                                            'vonfzpelemindex' : f['vonfzpelemindex'],
+                                            'nachfzpelemindex' : f['nachfzpelemindex']} \
+                                            for f in fahrten]
 
 
 
