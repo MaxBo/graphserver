@@ -692,8 +692,8 @@ class GtfsToVisum(VisumPuTTables):
                                         'abfahrt' : departure,
                                     })
 
-                    fzpindex += 1
                     nachfzpelemindex = fzpindex
+                    fzpindex += 1
 
             # add fahrplanfahrten and fahrplanfahrtabschnitte
 
