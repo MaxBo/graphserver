@@ -15,7 +15,7 @@ import transitfeed
 from graphserver_tools.ext.visumPuTTables import VisumPuTTables
 from graphserver_tools.utils import utils
 
-
+EPOCH_TO_1899 = 2209165200
 
 class GtfsToVisum(VisumPuTTables):
 
@@ -83,7 +83,7 @@ class GtfsToVisum(VisumPuTTables):
         self._processLinienroutenelement()
         self._processFahrzeitprofil()
         self._processFahrzeitprofilelement()
-        self._processFahrplanfahrt()
+##        self._processFahrplanfahrt()
         self._processUebergangsGehzeitenHaltestellenbereich()
 
 
@@ -96,11 +96,17 @@ class GtfsToVisum(VisumPuTTables):
         '''
 
         self.stop_id_mapper = {}
-        id_counter = 0
+        stopList = self._schedule.GetStopList()
+        try:
+            stopList = [int(stop) for stop in stopList]
+            for s in stopList:
+                self.stop_id_mapper[s.stop_id] = int(s.stop_id)
+        except:
+            id_counter = 1
 
-        for s in self._schedule.GetStopList():
-            self.stop_id_mapper[s.stop_id] = id_counter
-            id_counter += 1
+            for s in stopList:
+                self.stop_id_mapper[s.stop_id] = id_counter
+                id_counter += 1
 
 
     def _createBetreiberIdMapper(self):
@@ -109,7 +115,7 @@ class GtfsToVisum(VisumPuTTables):
         '''
 
         self.agency_id_mapper = {}
-        id_counter = 0
+        id_counter = 1
 
         for a in self._schedule.GetAgencyList():
             self.agency_id_mapper[a.agency_id] = id_counter
@@ -180,7 +186,7 @@ class GtfsToVisum(VisumPuTTables):
         '''
 
         self.linroute_mapper = {}
-
+        route_start_endstops = []
         for route in self._schedule.GetRouteList():
             stops_linroute_mapper = {} # maps between list of stops and linroutenames
             linroute_counter = 1
@@ -189,9 +195,27 @@ class GtfsToVisum(VisumPuTTables):
                 tripStopTimes = trip.GetStopTimes()
                 if tripStopTimes:
                     trip_stops = tuple([ st.stop for st in tripStopTimes ])
+                    trip_start_endstop = (trip_stops[0], trip_stops[-1])
 
                     if not trip_stops in stops_linroute_mapper:
-                        direction = self.direction_mapper.get(trip.direction_id, '>')
+                        if trip.direction_id is not None:
+                            direction = self.direction_mapper.get(trip.direction_id, '>')
+                        else:
+                            # no direction specified
+                            if trip_start_endstop[::-1] in route_start_endstops:
+                                # if start and endstop in opposite direction already exists
+                                direction = self.direction_mapper.get(0) # suppose back-direction
+                            elif trip_start_endstop[1] in [start_end[0] for start_end in route_start_endstops] \
+                            or trip_start_endstop[0] in [start_end[1] for start_end in route_start_endstops]:
+                                # if at least end_stop exists as start_stop
+                                # or start_stop exists as end_stop then suppose back-direction
+                                direction = self.direction_mapper.get(0)
+                            else:
+                                # suppose forward-direction
+                                direction = self.direction_mapper.get(1)
+                                if trip_start_endstop not in route_start_endstops:
+                                    # add start_end_stop as forward_direction to route
+                                    route_start_endstops.append(trip_start_endstop)
 
                         linroutename = str(linroute_counter) + '_' + direction
                         stops_linroute_mapper[trip_stops] = linroutename
@@ -313,8 +337,8 @@ class GtfsToVisum(VisumPuTTables):
         for s in stops:
             if not s.location_type: # stations: don't need a vertex
                 vertices.append({   'id':self.stop_id_mapper[s.stop_id],
-                                    'xkoord':s.stop_lat,
-                                    'ykoord':s.stop_lon
+                                    'xkoord':s.stop_lon,
+                                    'ykoord':s.stop_lat
                                 })
 
         conn = psycopg2.connect(self.db_connect_string)
@@ -366,8 +390,8 @@ class GtfsToVisum(VisumPuTTables):
                                     'code': s.stop_name[:10],
                                     'name': s.stop_name,
                                     'typnr': 1,
-                                    'xkoord': s.stop_lat,
-                                    'ykoord': s.stop_lon
+                                    'xkoord': s.stop_lon,
+                                    'ykoord': s.stop_lat
                                 })
 
         conn = psycopg2.connect(self.db_connect_string)
@@ -398,8 +422,8 @@ class GtfsToVisum(VisumPuTTables):
                                         'code': s.stop_name[:10],
                                         'name': s.stop_name,
                                         'typnr': 1,
-                                        'xkoord': s.stop_lat,
-                                        'ykoord': s.stop_lon
+                                        'xkoord': s.stop_lon,
+                                        'ykoord': s.stop_lat
                                     })
                 hstnr = self.stop_id_mapper[s.stop_id]
             else:
@@ -411,8 +435,8 @@ class GtfsToVisum(VisumPuTTables):
                                             'name': s.stop_name,
                                             'knotnr': self.stop_id_mapper[s.stop_id],
                                             'typnr': 1,
-                                            'xkoord': s.stop_lat,
-                                            'ykoord': s.stop_lon
+                                            'xkoord': s.stop_lon,
+                                            'ykoord': s.stop_lat
                                         })
 
         conn = psycopg2.connect(self.db_connect_string)
@@ -623,60 +647,48 @@ class GtfsToVisum(VisumPuTTables):
 
             trip = self._schedule.GetTrip(trip_ids[0])
 
-            start_time = trip.GetStartTime() + 2209165200 # make the result on 1899-12-30
-
+            fzpindex = 1
+##            start_time = trip.GetStartTime() + EPOCH_TO_1899 # make the result on 1899-12-30
+            fzpindex_mapper = {}
             for st in trip.GetStopTimes():
 
                 ein = 0 if st.pickup_type == 1 else 1
                 aus = 0 if st.drop_off_type == 1 else 1
 
-                arrival = datetime.datetime.fromtimestamp(st.arrival_secs - start_time)
-                departure = datetime.datetime.fromtimestamp(st.departure_secs - start_time)
+                if ein or aus:
+                    if fzpindex == 1:
+                        start_time = st.departure_secs + EPOCH_TO_1899 # make the result on 1899-12-30
+                        vonfzpelemindex = fzpindex
+                    fzpindex_mapper = {st.stop_sequence: fzpindex}
 
-                elements.append({   'linname' : linname,
-                                    'linroutename' : linroutename,
-                                    'richtungscode' : direction,
-                                    'fzprofilname' : fzprofilname,
-                                    'index' : st.stop_sequence,
-                                    'lrelemindex' : st.stop_sequence,
-                                    'aus' : aus,
-                                    'ein' : ein,
-                                    'ankunft' : arrival,
-                                    'abfahrt' : departure,
-                                })
+                    arrival = datetime.datetime.fromtimestamp(st.arrival_secs - start_time)
+                    departure = datetime.datetime.fromtimestamp(st.departure_secs - start_time)
 
-        conn = psycopg2.connect(self.db_connect_string)
-        c = conn.cursor()
+                    elements.append({   'linname' : linname,
+                                        'linroutename' : linroutename,
+                                        'richtungscode' : direction,
+                                        'fzprofilname' : fzprofilname,
+                                        'index' : fzpindex,
+                                        'lrelemindex' : st.stop_sequence,
+                                        'aus' : aus,
+                                        'ein' : ein,
+                                        'ankunft' : arrival,
+                                        'abfahrt' : departure,
+                                    })
 
-        c.executemany('''INSERT INTO "FAHRZEITPROFILELEMENT" VALUES
-                            (%(linname)s, %(linroutename)s, %(richtungscode)s, %(fzprofilname)s,
-                             %(index)s, %(lrelemindex)s, %(aus)s, %(ein)s, %(ankunft)s,
-                             %(abfahrt)s)''',
-                        elements)
+                    fzpindex += 1
+                    nachfzpelemindex = fzpindex
 
-        c.close()
-        conn.commit()
+            # add fahrplanfahrten and fahrplanfahrtabschnitte
 
-    def _processFahrplanfahrt(self):
-        ''' Writes a Fahrzeugfahrt for each trip inside the feed into the visum database.
-            Uses the pre-defined Fahrzeitprofile (fahrzeitprofil_mapper).
-        '''
-        fahrten = []
-
-        nr = 1
-
-        for (linname, linroutename, fzprofilname), trip_ids in self.fahrzeitprofil_mapper.items():
-
-            direction_id = self._schedule.GetTrip(trip_ids[0]).direction_id
-            direction = self.direction_mapper[direction_id] if direction_id else '>'
-
-            for id in trip_ids:
-                trip = self._schedule.GetTrip(id)
+            for trip_id in trip_ids:
+                trip = self._schedule.GetTrip(trip_id)
+                nr = trip.trip_id
 
                 # only put trips into visum that which are valid on the selected date
                 if self.date in trip.service_period.ActiveDates():
 
-                    departure = datetime.datetime.fromtimestamp(trip.GetStartTime() - 2209165200)
+                    departure = datetime.datetime.fromtimestamp(trip.GetStartTime() - EPOCH_TO_1899)
                     name = trip.trip_headsign if trip.trip_headsign else None
 
                     fahrten.append({    'nr' : nr,
@@ -686,15 +698,14 @@ class GtfsToVisum(VisumPuTTables):
                                         'linroutename' : linroutename,
                                         'richtungscode' : direction,
                                         'fzprofilname' : fzprofilname,
-                                        'vonfzpelemindex' : 1,
-                                        'nachfzpelemindex' : trip.GetCountStopTimes()
+                                        'vonfzpelemindex' : vonfzpelemindex,
+                                        'nachfzpelemindex' : nachfzpelemindex
                                   })
 
-                    nr += 1
 
                     # add frequency trips
                     for st in trip.GetFrequencyStartTimes():
-                        st_departure = datetime.datetime.fromtimestamp(st - 2209165200)
+                        st_departure = datetime.datetime.fromtimestamp(st - EPOCH_TO_1899)
 
                         if st_departure != departure:
 
@@ -705,21 +716,28 @@ class GtfsToVisum(VisumPuTTables):
                                                 'linroutename' : linroutename,
                                                 'richtungscode' : direction,
                                                 'fzprofilname' : fzprofilname,
-                                                'vonfzpelemindex' : 1,
-                                                'nachfzpelemindex' : trip.GetCountStopTimes()
+                                                'vonfzpelemindex' : vonfzpelemindex,
+                                                'nachfzpelemindex' : nachfzpelemindex
                                           })
-                            nr += 1
 
-        fahrplanfahrtabschnitte = [{'nr': 1,
-                                    'fplfahrtnr': x['nr'],
-                                    'vonfzpelemindex' : x['vonfzpelemindex'],
-                                    'nachfzpelemindex' : x['nachfzpelemindex']} \
-                                    for x in fahrten]
+            fahrplanfahrtabschnitte = [{'nr': 1,
+                                        'fplfahrtnr': f['nr'],
+                                        'vonfzpelemindex' : f['vonfzpelemindex'],
+                                        'nachfzpelemindex' : f['nachfzpelemindex']} \
+                                        for f in fahrten]
+
 
 
 
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
+
+        c.executemany('''INSERT INTO "FAHRZEITPROFILELEMENT" VALUES
+                            (%(linname)s, %(linroutename)s, %(richtungscode)s, %(fzprofilname)s,
+                             %(index)s, %(lrelemindex)s, %(aus)s, %(ein)s, %(ankunft)s,
+                             %(abfahrt)s)''',
+                        elements)
+
 
         c.executemany('''INSERT INTO "FAHRPLANFAHRT" VALUES
                             (%(nr)s, %(name)s, %(abfahrt)s, %(linname)s, %(linroutename)s,
@@ -735,6 +753,83 @@ class GtfsToVisum(VisumPuTTables):
 
         c.close()
         conn.commit()
+
+##    def _processFahrplanfahrt(self):
+##        ''' Writes a Fahrzeugfahrt for each trip inside the feed into the visum database.
+##            Uses the pre-defined Fahrzeitprofile (fahrzeitprofil_mapper).
+##        '''
+##        fahrten = []
+##
+##
+##        for (linname, linroutename, fzprofilname), trip_ids in self.fahrzeitprofil_mapper.items():
+##
+##            direction_id = self._schedule.GetTrip(trip_ids[0]).direction_id
+##            direction = self.direction_mapper[direction_id] if direction_id else '>'
+##
+##            for id in trip_ids:
+##                trip = self._schedule.GetTrip(id)
+##                nr = trip.trip_id
+##
+##                # only put trips into visum that which are valid on the selected date
+##                if self.date in trip.service_period.ActiveDates():
+##
+##                    departure = datetime.datetime.fromtimestamp(trip.GetStartTime() - EPOCH_TO_1899)
+##                    name = trip.trip_headsign if trip.trip_headsign else None
+##
+##                    fahrten.append({    'nr' : nr,
+##                                        'name' : name,
+##                                        'abfahrt' : departure,
+##                                        'linname' : linname,
+##                                        'linroutename' : linroutename,
+##                                        'richtungscode' : direction,
+##                                        'fzprofilname' : fzprofilname,
+##                                        'vonfzpelemindex' : 1,
+##                                        'nachfzpelemindex' : trip.GetCountStopTimes()
+##                                  })
+##
+##
+##                    # add frequency trips
+##                    for st in trip.GetFrequencyStartTimes():
+##                        st_departure = datetime.datetime.fromtimestamp(st - EPOCH_TO_1899)
+##
+##                        if st_departure != departure:
+##
+##                            fahrten.append({    'nr' : nr,
+##                                                'name' : name,
+##                                                'abfahrt' : st_departure,
+##                                                'linname' : linname,
+##                                                'linroutename' : linroutename,
+##                                                'richtungscode' : direction,
+##                                                'fzprofilname' : fzprofilname,
+##                                                'vonfzpelemindex' : 1,
+##                                                'nachfzpelemindex' : trip.GetCountStopTimes()
+##                                          })
+##
+##        fahrplanfahrtabschnitte = [{'nr': 1,
+##                                    'fplfahrtnr': f['nr'],
+##                                    'vonfzpelemindex' : f['vonfzpelemindex'],
+##                                    'nachfzpelemindex' : f['nachfzpelemindex']} \
+##                                    for f in fahrten]
+##
+##
+##
+##        conn = psycopg2.connect(self.db_connect_string)
+##        c = conn.cursor()
+##
+##        c.executemany('''INSERT INTO "FAHRPLANFAHRT" VALUES
+##                            (%(nr)s, %(name)s, %(abfahrt)s, %(linname)s, %(linroutename)s,
+##                             %(richtungscode)s, %(fzprofilname)s, %(vonfzpelemindex)s,
+##                             %(nachfzpelemindex)s)''',
+##                        fahrten)
+##
+##        c.executemany('''INSERT INTO "FAHRPLANFAHRTABSCHNITT" VALUES
+##                            (%(nr)s, %(fplfahrtnr)s, %(vonfzpelemindex)s,
+##                             %(nachfzpelemindex)s)''',
+##                        fahrplanfahrtabschnitte)
+##
+##
+##        c.close()
+##        conn.commit()
 
 
     def _processUebergangsGehzeitenHaltestellenbereich(self):
