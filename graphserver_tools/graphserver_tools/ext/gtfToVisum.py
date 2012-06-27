@@ -549,6 +549,8 @@ class GtfsToVisum(VisumPuTTables):
 
             direction_id = self._schedule.GetTrip(self.linroute_mapper[( linname, name )][0]).direction_id
             direction = self.direction_mapper[direction_id] if direction_id else '>'
+            if name.endswith('<') or name.endswith('>'):
+                direction = name[-1]
 
             linienrouten.append({   'linname' : linname,
                                     'name' : name,
@@ -580,6 +582,10 @@ class GtfsToVisum(VisumPuTTables):
 
             direction_id = trip.direction_id
             direction = self.direction_mapper[direction_id] if direction_id else '>'
+            if linroutename.endswith('<') or linroutename.endswith('>'):
+                direction = linroutename[-1]
+
+
 
             for st in trip.GetStopTimes():
                 linienroutenelemente.append({   'linname' : linname,
@@ -615,6 +621,10 @@ class GtfsToVisum(VisumPuTTables):
 
             direction_id = trip.direction_id
             direction = self.direction_mapper[direction_id] if direction_id else '>'
+            if linroutename.endswith('<') or linroutename.endswith('>'):
+                direction = linroutename[-1]
+
+
 
             fahrzeitprofile.append({    'linname' : linname,
                                         'linroutename' : linroutename,
@@ -640,10 +650,16 @@ class GtfsToVisum(VisumPuTTables):
         '''
         elements = []
 
+        fahrten = []
+
         for (linname, linroutename, fzprofilname), trip_ids in self.fahrzeitprofil_mapper.items():
 
             direction_id = self._schedule.GetTrip(trip_ids[0]).direction_id
             direction = self.direction_mapper[direction_id] if direction_id else '>'
+            if linroutename.endswith('<') or linroutename.endswith('>'):
+                direction = linroutename[-1]
+
+
 
             trip = self._schedule.GetTrip(trip_ids[0])
 
