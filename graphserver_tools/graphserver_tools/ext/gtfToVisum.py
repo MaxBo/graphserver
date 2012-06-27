@@ -597,7 +597,7 @@ class GtfsToVisum(VisumPuTTables):
                                                     'knotnr' : self.stop_id_mapper[st.stop.stop_id],
                                                     'hpunktnr' : self.stop_id_mapper[st.stop.stop_id]
                                                 })
-                    lrelemindexm += 1
+                    lrelemindex += 1
 
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
