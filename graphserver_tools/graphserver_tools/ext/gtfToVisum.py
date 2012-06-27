@@ -191,8 +191,8 @@ class GtfsToVisum(VisumPuTTables):
         '''
 
         self.linroute_mapper = {}
-        route_start_endstops = []
         for route in self._schedule.GetRouteList():
+            route_start_endstops = []
             stops_linroute_mapper = {} # maps between list of stops and linroutenames
             linroute_counter = 1
             for trip in route._trips:
