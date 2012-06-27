@@ -681,10 +681,14 @@ class GtfsToVisum(VisumPuTTables):
                         start_time = st.departure_secs + EPOCH_TO_1899 # make the result on 1899-12-30
                         vonfzpelemindex = fzpindex
                         trip_departure = datetime.datetime.fromtimestamp(st.departure_secs - EPOCH_TO_1899)
+                        aus = 0
                     fzpindex_mapper = {st.stop_sequence: fzpindex}
 
                     arrival = datetime.datetime.fromtimestamp(st.arrival_secs - start_time)
                     departure = datetime.datetime.fromtimestamp(st.departure_secs - start_time)
+                    if fzpindex == 1:
+                        # setze arrival auf 0 min - keine negativen Zeiten
+                        arrival = departure
 
                     elements.append({   'linname' : linname,
                                         'linroutename' : linroutename,
@@ -701,6 +705,7 @@ class GtfsToVisum(VisumPuTTables):
                     nachfzpelemindex = fzpindex
                     fzpindex += 1
                     lrelemindex += 1
+
 
             # add fahrplanfahrten and fahrplanfahrtabschnitte
             if has_valid_fahrten:
