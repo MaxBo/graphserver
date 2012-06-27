@@ -199,7 +199,7 @@ class GtfsToVisum(VisumPuTTables):
                 tripStopTimes = trip.GetStopTimes()
                 if tripStopTimes:
                     trip_stops = tuple([ st.stop for st in tripStopTimes if st.pickup_type <> 1 or st.drop_off_type <> 1])
-                    if trip_stops:
+                    if len(trip_stops) > 1:
                         trip_start_endstop = (trip_stops[0], trip_stops[-1])
 
                         if not trip_stops in stops_linroute_mapper:
@@ -492,11 +492,11 @@ class GtfsToVisum(VisumPuTTables):
                 vsysset = ','.join([ self.route_type_mapper[rt] for rt in stop_transit_type_mapper[s] ])
             else:
                 vsysset = 'Tram/Light rail,Subway,Railway,Bus,Ferry,Cable Car,Gondola,Funicular'
-
+            stop_name = unescape(s.stop_name)
             haltepunkte.append({    'nr' : self.stop_id_mapper[s.stop_id],
                                     'hstbernr' : self.stop_id_mapper[s.stop_id],
-                                    'code' : s.stop_name[:10],
-                                    'name' : s.stop_name,
+                                    'code' : stop_name[:10],
+                                    'name' : stop_name,
                                     'typnr' : 1,
                                     'vsysset' : vsysset,
                                     'depotfzgkombm' : None,
