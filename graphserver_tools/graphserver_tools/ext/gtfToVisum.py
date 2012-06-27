@@ -627,8 +627,8 @@ class GtfsToVisum(VisumPuTTables):
 
             for st in trip.GetStopTimes():
 
-                pickup_type = st.pickup_type if st.pickup_type else 1
-                drop_off_type = st.drop_off_type if st.drop_off_type else 1
+                ein = 0 if st.pickup_type == 1 else 1
+                aus = 0 if st.drop_off_type == 1 else 1
 
                 arrival = datetime.datetime.fromtimestamp(st.arrival_secs - start_time)
                 departure = datetime.datetime.fromtimestamp(st.departure_secs - start_time)
@@ -639,8 +639,8 @@ class GtfsToVisum(VisumPuTTables):
                                     'fzprofilname' : fzprofilname,
                                     'index' : st.stop_sequence,
                                     'lrelemindex' : st.stop_sequence,
-                                    'aus' : pickup_type,
-                                    'ein' : drop_off_type,
+                                    'aus' : aus,
+                                    'ein' : ein,
                                     'ankunft' : arrival,
                                     'abfahrt' : departure,
                                 })
@@ -710,6 +710,14 @@ class GtfsToVisum(VisumPuTTables):
                                           })
                             nr += 1
 
+        fahrplanfahrtabschnitte = [{'nr': 1,
+                                    'fplfahrtnr': x['nr'],
+                                    'vonfzpelemindex' : x['vonfzpelemindex'],
+                                    'nachfzpelemindex' : x['nachfzpelemindex']} \
+                                    for x in fahrten]
+
+
+
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
 
@@ -718,6 +726,12 @@ class GtfsToVisum(VisumPuTTables):
                              %(richtungscode)s, %(fzprofilname)s, %(vonfzpelemindex)s,
                              %(nachfzpelemindex)s)''',
                         fahrten)
+
+        c.executemany('''INSERT INTO "FAHRPLANFAHRTABSCHNITT" VALUES
+                            (%(nr)s, %(fplfahrtnr)s, %(vonfzpelemindex)s,
+                             %(nachfzpelemindex)s)''',
+                        fahrplanfahrtabschnitte)
+
 
         c.close()
         conn.commit()
