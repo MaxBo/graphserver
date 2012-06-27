@@ -24,12 +24,12 @@ def unescape(s):
 
 class GtfsToVisum(VisumPuTTables):
 
-    route_type_mapper = {   0 : 'Tram/Light rail',
-                            1 : 'Subway',
-                            2 : 'Railway',
+    route_type_mapper = {   0 : 'Tram',
+                            1 : 'UBahn',
+                            2 : 'Zug',
                             3 : 'Bus',
                             4 : 'Ferry',
-                            5 : 'Cable Car',
+                            5 : 'CableCar',
                             6 : 'Gondola',
                             7 : 'Funicular'
                         }
@@ -59,6 +59,7 @@ class GtfsToVisum(VisumPuTTables):
         self._schedule = loader.Load()
 
         self._createStopIdMapper()
+        self._createLineMapper()
         self._createLinrouteMapper()
         self._createFahrzeitprofilMapper()
         self._createBetreiberIdMapper()
@@ -184,6 +185,14 @@ class GtfsToVisum(VisumPuTTables):
                     key = stops_fahrzeitprofil_mapper[trip_stop_times]
                     self.fahrzeitprofil_mapper[key].append(trip.trip_id)
 
+    def _createLineMapper(self):
+        ''' Creates a dictionary mapping between linename and routes
+        '''
+        self.line_mapper = {}
+        for r in self._schedule.GetRouteList():
+            if not r.route_short_name in self.line_mapper:
+                self.line_mapper[r.route_short_name] = []
+            self.line_mapper[r.route_short_name].append(r)
 
     def _createLinrouteMapper(self):
         ''' Creates a dictionary mapping between a (linname, linroutename) and trip_ids.
@@ -191,49 +200,51 @@ class GtfsToVisum(VisumPuTTables):
         '''
 
         self.linroute_mapper = {}
-        for route in self._schedule.GetRouteList():
-            route_start_endstops = []
-            stops_linroute_mapper = {} # maps between list of stops and linroutenames
+        self.linie_count_last_linienroute = {}
+        for linename, routes in self.line_mapper.items():
             linroute_counter = 1
-            for trip in route._trips:
-                tripStopTimes = trip.GetStopTimes()
-                if tripStopTimes:
-                    trip_stops = tuple([ st.stop for st in tripStopTimes if st.pickup_type <> 1 or st.drop_off_type <> 1])
-                    if len(trip_stops) > 1:
-                        trip_start_endstop = (trip_stops[0], trip_stops[-1])
+            route_start_endstops = []
+            for route in routes:
+                stops_linroute_mapper = {} # maps between list of stops and linroutenames
+                for trip in route._trips:
+                    tripStopTimes = trip.GetStopTimes()
+                    if tripStopTimes:
+                        trip_stops = tuple([ st.stop for st in tripStopTimes if st.pickup_type <> 1 or st.drop_off_type <> 1])
+                        if len(trip_stops) > 1:
+                            trip_start_endstop = (trip_stops[0], trip_stops[-1])
 
-                        if not trip_stops in stops_linroute_mapper:
-                            if trip.direction_id is not None:
-                                direction = self.direction_mapper.get(trip.direction_id, '>')
-                            else:
-                                # no direction specified
-                                if trip_start_endstop[::-1] in route_start_endstops:
-                                    # if start and endstop in opposite direction already exists
-                                    direction = self.direction_mapper.get('0') # suppose back-direction
-                                elif trip_start_endstop[1] in [start_end[0] for start_end in route_start_endstops] \
-                                or trip_start_endstop[0] in [start_end[1] for start_end in route_start_endstops]:
-                                    # if at least end_stop exists as start_stop
-                                    # or start_stop exists as end_stop then suppose back-direction
-                                    direction = self.direction_mapper.get('0')
+                            if not trip_stops in stops_linroute_mapper:
+                                if trip.direction_id is not None:
+                                    direction = self.direction_mapper.get(trip.direction_id, '>')
                                 else:
-                                    # suppose forward-direction
-                                    direction = self.direction_mapper.get('1')
-                                    if trip_start_endstop not in route_start_endstops:
-                                        # add start_end_stop as forward_direction to route
-                                        route_start_endstops.append(trip_start_endstop)
+                                    # no direction specified
+                                    if trip_start_endstop[::-1] in route_start_endstops:
+                                        # if start and endstop in opposite direction already exists
+                                        direction = self.direction_mapper.get('0') # suppose back-direction
+                                    elif trip_start_endstop[1] in [start_end[0] for start_end in route_start_endstops] \
+                                    or trip_start_endstop[0] in [start_end[1] for start_end in route_start_endstops]:
+                                        # if at least end_stop exists as start_stop
+                                        # or start_stop exists as end_stop then suppose back-direction
+                                        direction = self.direction_mapper.get('0')
+                                    else:
+                                        # suppose forward-direction
+                                        direction = self.direction_mapper.get('1')
+                                        if trip_start_endstop not in route_start_endstops:
+                                            # add start_end_stop as forward_direction to route
+                                            route_start_endstops.append(trip_start_endstop)
 
-                            linroutename = str(linroute_counter) + '_' + direction
-                            stops_linroute_mapper[trip_stops] = linroutename
+                                linroutename = str(linroute_counter) + '_' + direction
+                                stops_linroute_mapper[trip_stops] = linroutename
 
-                            linroute_counter += 1
+                                linroute_counter += 1
 
-                            self.linroute_mapper[( route.route_short_name, linroutename)] = [ trip.trip_id, ]
-            ##                        self.linroute_mapper[( route.route_id, linroutename)] = [ trip.trip_id, ]
+                                self.linroute_mapper[( route.route_short_name, linroutename)] = [ trip.trip_id, ]
+                ##                        self.linroute_mapper[( route.route_id, linroutename)] = [ trip.trip_id, ]
 
-                        else:
-                            key = ( route.route_short_name, stops_linroute_mapper[trip_stops] )
-            ##                        key = ( route.route_id, stops_linroute_mapper[trip_stops] )
-                            self.linroute_mapper[key].append(trip.trip_id)
+                            else:
+                                key = ( route.route_short_name, stops_linroute_mapper[trip_stops] )
+                ##                        key = ( route.route_id, stops_linroute_mapper[trip_stops] )
+                                self.linroute_mapper[key].append(trip.trip_id)
 
 
     def _processVerkehrssysteme(self):
@@ -524,16 +535,14 @@ class GtfsToVisum(VisumPuTTables):
         '''
 
         linien = []
-        linien_names = {}
+        for linename, routes in self.line_mapper.items():
+            r = routes[0]
+            linien.append({ 'name' : linename,
+                            'vsyscode' : self.route_type_mapper[r.route_type],
+                            'tarifsystemmenge' : 1,
+                            'betreibernr' : self.agency_id_mapper[r.agency_id]
+                          })
 
-        for r in self._schedule.GetRouteList():
-            if not linien_names.has_key(r.route_short_name):
-                linien.append({ 'name' : r.route_short_name, #r.route_id,
-                                'vsyscode' : self.route_type_mapper[r.route_type],
-                                'tarifsystemmenge' : 1,
-                                'betreibernr' : self.agency_id_mapper[r.agency_id]
-                              })
-                linien_names[r.route_short_name] = True
 
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
