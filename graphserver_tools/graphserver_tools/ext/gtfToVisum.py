@@ -753,19 +753,20 @@ class GtfsToVisum(VisumPuTTables):
                              %(index)s, %(lrelemindex)s, %(aus)s, %(ein)s, %(ankunft)s,
                              %(abfahrt)s)''',
                         elements)
-
+        conn.commit()
 
         c.executemany('''INSERT INTO "FAHRPLANFAHRT" VALUES
                             (%(nr)s, %(name)s, %(abfahrt)s, %(linname)s, %(linroutename)s,
                              %(richtungscode)s, %(fzprofilname)s, %(vonfzpelemindex)s,
                              %(nachfzpelemindex)s)''',
                         fahrten)
+        conn.commit()
 
         c.executemany('''INSERT INTO "FAHRPLANFAHRTABSCHNITT" VALUES
                             (%(nr)s, %(fplfahrtnr)s, %(vonfzpelemindex)s,
                              %(nachfzpelemindex)s)''',
                         fahrplanfahrtabschnitte)
-
+        conn.commit()
 
         c.close()
         conn.commit()
