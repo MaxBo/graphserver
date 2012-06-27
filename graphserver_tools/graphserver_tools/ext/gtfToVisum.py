@@ -17,6 +17,11 @@ from graphserver_tools.utils import utils
 
 EPOCH_TO_1899 = 2209165200
 
+def unescape(s):
+    s = s.replace('&apos;', "'")
+    return s
+
+
 class GtfsToVisum(VisumPuTTables):
 
     route_type_mapper = {   0 : 'Tram/Light rail',
@@ -386,9 +391,10 @@ class GtfsToVisum(VisumPuTTables):
         haltestellen = []
 
         for s in stations:
+            stop_name = unescape(s.stop_name)
             haltestellen.append({   'nr': self.stop_id_mapper[s.stop_id],
-                                    'code': s.stop_name[:10],
-                                    'name': s.stop_name,
+                                    'code': stop_name[:10],
+                                    'name': stop_name,
                                     'typnr': 1,
                                     'xkoord': s.stop_lon,
                                     'ykoord': s.stop_lat
@@ -417,10 +423,11 @@ class GtfsToVisum(VisumPuTTables):
         for s in stops:
             if not s.parent_station:
                 # create a new haltestelle
+                stop_name = unescape(s.stop_name)
 
                 haltestellen.append({   'nr': self.stop_id_mapper[s.stop_id],
-                                        'code': s.stop_name[:10],
-                                        'name': s.stop_name,
+                                        'code': stop_name[:10],
+                                        'name': stop_name,
                                         'typnr': 1,
                                         'xkoord': s.stop_lon,
                                         'ykoord': s.stop_lat
@@ -431,8 +438,8 @@ class GtfsToVisum(VisumPuTTables):
 
             hatestellenbereiche.append({   'nr': self.stop_id_mapper[s.stop_id],
                                             'hstnr': hstnr,
-                                            'code': s.stop_name[:10],
-                                            'name': s.stop_name,
+                                            'code': stop_name[:10],
+                                            'name': stop_name,
                                             'knotnr': self.stop_id_mapper[s.stop_id],
                                             'typnr': 1,
                                             'xkoord': s.stop_lon,
