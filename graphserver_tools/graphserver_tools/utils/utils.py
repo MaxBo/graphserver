@@ -17,6 +17,7 @@ from termcolor import colored
 
 
 def read_config(filename, defaults, raise_exception=False):
+    """Read the contents of the configuration file"""
     try:
         config = copy.copy(defaults)
 

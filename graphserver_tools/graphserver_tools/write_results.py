@@ -9,6 +9,7 @@ from graphserver_tools.utils import utf8csv
 
 
 def write_details(conn, filename):
+    """Write detailed information additional to the results into a file""" 
     writer = utf8csv.UnicodeWriter(open(filename, 'w'))
 
     writer.writerow(( u'route_id', u'counter', u'label', u'arrival/departure', u'dist_walked', u'transfers', u'transit_route' ))
@@ -40,6 +41,7 @@ def write_details(conn, filename):
 
 
 def write_results(conn, filename):
+    """Write results (shortest routes and times) out of database into a file"""
     writer = utf8csv.UnicodeWriter(open(filename, 'w'))
 
     writer.writerow(( u'route_id', u'start_time', u'end_time', u'total_time' ))
@@ -65,6 +67,7 @@ def write_results(conn, filename):
 
 
 def get_lat_lon(conn, gs_osm_vertex):
+    """Getter for latitude and longitude"""
     cursor = conn.cursor()
 
     cursor.execute('SELECT lat, lon FROM osm_nodes WHERE id=%s', ( gs_osm_vertex[4:], ))
@@ -80,6 +83,7 @@ def get_lat_lon(conn, gs_osm_vertex):
 
 
 def get_node_name(conn, node_label):
+    """Getter for name of a node"""
     cursor = conn.cursor()
     cursor.execute('SELECT point_id FROM cal_corres_vertices WHERE vertex_label=%s', ( node_label, ))
     try:
@@ -95,6 +99,7 @@ def get_node_name(conn, node_label):
 
 
 def get_station_name(conn, gs_sta_vertex):
+    """Getter for name of the station"""
     cursor = conn.cursor()
 
     cursor.execute('SELECT stop_name FROM gtfs_stops WHERE stop_id=%s', ( gs_sta_vertex[4:], ))
@@ -115,6 +120,7 @@ def get_route_id(conn, gtfs_trip_id):
 
 
 def humanize_details(route_id, details, conn):
+    """Improve readability of the details"""
 
     def add_walk_entry(start_dist, end_dist):
         walk = 'walk (%.0f m)' % (float(start_dist) - float(end_dist))
@@ -213,6 +219,7 @@ def humanize_details(route_id, details, conn):
 
 
 def create_indices(conn):
+    """(Re)create Indices at tables cal_paths and cal_paths_details"""
     c = conn.cursor()
 
     c.execute('DROP INDEX IF EXISTS IDX_route_id')

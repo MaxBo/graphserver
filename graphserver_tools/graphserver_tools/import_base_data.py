@@ -26,6 +26,7 @@ from graphserver_tools.utils.utils import read_config, distance
 
 
 def create_gs_datbases(osm_xml_filename, gtfs_filename, db_conn_string):
+    """Load the OSM and gtfs data from the files into the database"""
 
     def importOsmWrapper(osm_xml_filename, db_conn_string):
 
@@ -64,6 +65,11 @@ def create_gs_datbases(osm_xml_filename, gtfs_filename, db_conn_string):
 
 
 def link_osm_gtfs(db_conn_string, max_link_dist=150):
+    """Link the OSM and the gtfs inside the geodatabase (gdb) 
+    
+    personal note:   HOW?
+    
+    """
 
     conn = psycopg2.connect(db_conn_string)
     cursor = conn.cursor()
@@ -93,8 +99,8 @@ def link_osm_gtfs(db_conn_string, max_link_dist=150):
         if n_label is not None:
             gdb.add_edge('sta-'+s_label, 'osm-'+n_label, Street('gtfs-osm link', meter))
             gdb.add_edge('osm-'+n_label, 'sta-'+s_label, Street('gtfs-osm link', meter))
-        else:
-            print(colored('WARNING: failed linking %s! (%s, %s)' % (s_label, s_lat, s_lon), 'yellow'))
+#        else:
+#            print(colored('WARNING: failed linking %s! (%s, %s)' % (s_label, s_lat, s_lon), 'yellow'))
 
     gdb.commit()
     conn.commit()

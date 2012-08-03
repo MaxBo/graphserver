@@ -22,6 +22,7 @@ from graphserver_tools.utils import utf8csv
 
 
 def read_points(f, conn):
+    """Load points from csv file into database"""
     cursor = conn.cursor()
 
     cursor.execute('DROP TABLE IF EXISTS cal_points CASCADE')
@@ -47,6 +48,7 @@ def read_points(f, conn):
 
 
 def read_times(f, conn):
+    """Load timetables from csv file into database"""
     cursor = conn.cursor()
 
     cursor.execute('DROP TABLE IF EXISTS cal_times CASCADE')
@@ -79,6 +81,8 @@ def read_times(f, conn):
 
 
 def read_routes(f, conn):
+    """Load routes from csv file into database
+    references to points and timetable"""
     cursor = conn.cursor()
 
     cursor.execute('DROP TABLE IF EXISTS cal_routes CASCADE')

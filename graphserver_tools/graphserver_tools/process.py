@@ -17,11 +17,12 @@ from graphserver_tools import write_results
 from graphserver_tools import process_routes
 
 
-DEBUG = False
+DEBUG = True
 
 
 
 def build_base_data(db_conn_string, osm_xml_filename, gtfs_filename):
+    """Import OSM and GTFS data into database and link them"""
     import_base_data.create_gs_datbases(osm_xml_filename, gtfs_filename, db_conn_string)
 
     import_base_data.add_missing_stops(db_conn_string)
@@ -42,6 +43,7 @@ def build_base_data(db_conn_string, osm_xml_filename, gtfs_filename):
 
 
 def build_route_data(graph, psql_connect_string, times_filename, points_filename, routes_filename):
+    """Import route data (routes, timetables and the points to be calculated) from csv files into database"""
     conn = psycopg2.connect(psql_connect_string)
 
     import_route_data.read_times(times_filename, conn)
@@ -57,6 +59,15 @@ def build_route_data(graph, psql_connect_string, times_filename, points_filename
 
 
 def calculate_routes(graph, psql_connect_string, options, num_processes=4):
+    """Calculate the shortest paths
+    
+    Keyword arguments:
+    graph -- the graph
+    psql_connect_string -- database connection
+    options -- passed arguments of the main
+    num_processes -- number of parallel calculations
+    
+    """
     logfile = open('log.txt','w')
     conn = psycopg2.connect(psql_connect_string)
 
@@ -95,6 +106,7 @@ def calculate_routes(graph, psql_connect_string, options, num_processes=4):
 
 
 def export_results(psql_connect_string, results_filename, result_details_filename):
+    """Write the results of the calculation from database into files"""
     conn = psycopg2.connect(psql_connect_string)
 
     write_results.create_indices(conn)
@@ -104,6 +116,7 @@ def export_results(psql_connect_string, results_filename, result_details_filenam
 
 
 def read_config(file_path):
+    """Read the configuration file at the passed file path"""
 
     defaults = { 'time-step':'240',
                  'max-walk':'11080',
@@ -150,7 +163,14 @@ def read_config(file_path):
 
 
 def validate_input(configuration, psql_connect_string, options):
-
+    """Validation of the configuration and the passed options
+    
+    Check if the input data is existing at the specified paths
+    Check the Database
+        
+    Return true if valid
+        
+    """
     valide = True
 
     # check input files
@@ -257,7 +277,7 @@ def validate_input(configuration, psql_connect_string, options):
 def main():
     from optparse import OptionParser
 
-    usage = """Usage: python gst_process <configuration file>
+    usage = """Usage: python process <configuration file>
                See the documentation for layout of the config file."""
 
     parser = OptionParser(usage=usage)
@@ -284,11 +304,11 @@ def main():
         parser.print_help()
         exit(-1)
 
-    valide = validate_input(configuration, psql_connect_string, options)
+#    valide = validate_input(configuration, psql_connect_string, options)
 
-    if not valide:
-        parser.print_help()
-        exit(-1)
+ #   if not valide:
+ #       parser.print_help()
+ #       exit(-1)
 
 
 
@@ -311,6 +331,7 @@ def main():
         print('Calculating shortest paths...')
 
         # only create tables if some importing was done
+        #       UNUSED!
         create_tables = options.import_all or options.import_base or options.import_routes
 
         if not graph: graph = GraphDatabase(psql_connect_string).incarnate()
@@ -331,3 +352,7 @@ def main():
 
 
     print('DONE')
+    
+if __name__ == "__main__":
+    main()
+

@@ -19,16 +19,19 @@ from graphserver_tools.utils import utils
 
 class Proccessing():
     def get_gs_vertex(self, point_id):
+        """getter for vertex label"""
         self.cursor.execute('SELECT vertex_label FROM cal_corres_vertices WHERE point_id=%s', ( point_id, ))
         return self.cursor.fetchone()[0]
 
 
     def get_point(self, vertex_label):
+        """getter for point id"""
         self.cursor.execute('SELECT point_id FROM cal_corres_vertices WHERE vertex_label=%s', ( vertex_label, ))
         return [x[0] for x in self.cursor][0]
 
 
     def prepare_times(self, start_time, end_time):
+        """Convert date format"""
         times = []
 
         start = time.mktime(start_time.timetuple())
@@ -43,6 +46,17 @@ class Proccessing():
 
 
     def get_route_dict(self):
+        """Read the first row of the routes (table cal_routes) that wasn't processed yet (done == false).
+        
+        Return dictionary with the times and the vertex labels of the destination and (multiple) origins 
+        if end point of routes (arrival == true).
+        
+        Return dictionary with the times and the vertex labels of the origin and (multiple) destinations 
+        if starting point of routes (arrival == false).
+        
+        Set row that was processed to "done"
+        
+        """
         self.cursor.execute('SELECT origin, destination, time FROM cal_routes WHERE NOT done LIMIT 1')
         row = self.cursor.fetchone()
         if row:
@@ -84,6 +98,8 @@ class Proccessing():
 
 
     def process_paths(self, routes):
+        """Calculate shortest paths from origin
+        Write results into the tables cal_path and cal_paths and cal_paths_details""" 
         for t in routes['times']:
             s = State(1, t)
 
@@ -117,6 +133,8 @@ class Proccessing():
 
 
     def process_retro_paths(self, routes):
+        """Calculate shortest paths to destination
+        Write results into the tables cal_path and cal_paths and cal_paths_details"""
         for t in routes['times']:
             s = State(1, t)
 
@@ -175,6 +193,7 @@ class Proccessing():
 
 
     def write_trip(self, vertices, route_id):
+        """Write passed routes into database"""
         current_trip_id = str(self.trip_id)
         self.trip_id += 1
 
@@ -194,8 +213,8 @@ class Proccessing():
         self.trips_calculated += 1
 
 
-    ''' this method will write a very long trip into the database. '''
     def write_error_trip(self, start_time, route_id):
+        """Write a long trip (representing "unreachable"?) into database"""
         current_trip_id = str(self.trip_id)
         self.trip_id += 1
 
@@ -233,6 +252,9 @@ class Proccessing():
 
 
 def create_db_tables(connection, recreate=False):
+    """Create the tables cal_paths and cal_paths_details which are needed 
+    to store the results of the calculation of the shortest paths
+    Overwrite existing tables if argument recreate is set to True"""
     cursor = connection.cursor()
 
     cursor.execute("select tablename from pg_tables where schemaname='public'" )
