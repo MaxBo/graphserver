@@ -9,6 +9,7 @@ import xml.sax
 import binascii
 from graphserver.vincenty import vincenty
 from struct import pack, unpack
+from rtree import Rtree
 
 def cons(ary):
     for i in range(len(ary)-1):
@@ -72,7 +73,7 @@ class WayRecord:
         return "<WayRecord id='%s'>"%self.id
 
 class OSMDB:
-    def __init__(self, psql_conn_string, overwrite=False, rtree_index=False, use_postgis=True):
+    def __init__(self, psql_conn_string, overwrite=False, rtree_index=True):
         self.conn = psycopg2.connect(psql_conn_string)
 
 
@@ -86,13 +87,10 @@ class OSMDB:
 
         c.close()
 
-        self.use_postgis = use_postgis
-
         if overwrite:
             self.setup()
 
         if rtree_index:
-            from rtree import Rtree
             self.index = Rtree()
             self.index_endnodes()
         else:
@@ -105,12 +103,6 @@ class OSMDB:
         c.execute( "DROP TABLE IF EXISTS osm_ways CASCADE" )
 
         c.execute( "CREATE TABLE osm_nodes (id TEXT PRIMARY KEY, tags TEXT, lat FLOAT, lon FLOAT, endnode_refs INTEGER DEFAULT 1)" )
-        if self.use_postgis:
-            # add geometry field
-            c.execute( "SELECT AddGeometryColumn('osm_nodes', 'geom', 4326, 'POINT';")
-            c.execute( "CREATE INDEX osm_nodes_geom_idx ON osm_nodes USING gist(geom);")
-            c.execute( "CREATE INDEX osm_nodes_endnote_idx ON osm_nodes USING gist(geom) WHERE endnode_refs > 1;")
-
         c.execute( "CREATE TABLE osm_ways (id TEXT PRIMARY KEY, tags TEXT, nds TEXT)" )
 
         self.conn.commit()
@@ -233,8 +225,7 @@ class OSMDB:
 
     def create_and_populate_edges_table( self, tolerant=False ):
         self.set_endnode_ref_counts()
-        if not self.postgis:
-            self.index_endnodes()
+        self.index_endnodes()
 
         print "splitting ways and inserting into edge table"
 
@@ -337,10 +328,8 @@ class OSMDB:
             close_cursor = True
         else:
             close_cursor = False
-        if self.use_postgis:
-            curs.execute("INSERT INTO osm_nodes (id, tags, lat, lon, geom) VALUES (%s, %s, %s, %s, st_srid(st_makepoint(%s,%s)))", ( node.id, json.dumps(node.tags), node.lat, node.lon, node.lat, node.lon ) )
-        else:
-            curs.execute("INSERT INTO osm_nodes (id, tags, lat, lon, geom) VALUES (%s, %s, %s, %s)", ( node.id, json.dumps(node.tags), node.lat, node.lon ) )
+
+        curs.execute("INSERT INTO osm_nodes (id, tags, lat, lon) VALUES (%s, %s, %s, %s)", ( node.id, json.dumps(node.tags), node.lat, node.lon ) )
 
         if close_cursor:
             self.conn.commit()
@@ -349,7 +338,7 @@ class OSMDB:
     def nodes(self):
         c = self.conn.cursor()
 
-        c.execute( "SELECT id, tags, lat, lon FROM osm_nodes" )
+        c.execute( "SELECT * FROM osm_nodes" )
 
         for node_row in c:
             yield node_row
@@ -359,7 +348,7 @@ class OSMDB:
     def node(self, id):
         c = self.conn.cursor()
 
-        c.execute( "SELECT id, tags, lon, lat, endnode_refs FROM osm_nodes WHERE id = %s", (id,) )
+        c.execute( "SELECT * FROM osm_nodes WHERE id = %s", (id,) )
 
         try:
             ret = c.next()
@@ -370,29 +359,8 @@ class OSMDB:
         c.close()
         return ret
 
-    def nearest_node(self, lat, lon, radius=0.005):
+    def nearest_node(self, lat, lon, range=0.005):
         c = self.conn.cursor()
-
-        if self.postgis:
-            sql = """
-        SELECT
-          id,
-          st_y(o.geom) AS lat,
-          st_x(o.geom) AS lon,
-          st_distance(st_transform(o.geom, 31467), st_transform(st_setsrid(st_makepoint({lon},{lat}), 4326), 31467)) AS meter
-        FROM (
-        SELECT
-          o.id,
-          row_number() OVER(PARTITION BY o.id ORDER BY st_distance(o.geom, st_setsrid(st_makepoint({lon},{lat}), 4326)) AS rn,
-          o.geom
-        FROM osm_nodes o
-        WHERE st_dwithin(g.geom, st_setsrid(st_makepoint({lon},{lat})), {radius})) a
-        WHERE a.rn = 1
-        """.format(radius=radius, lon=lon, lat=lat)
-
-            c.execute( sql )
-            r = c.fetchone()
-            return r
 
         if self.index:
             #print "YOUR'RE USING THE INDEX"
@@ -400,7 +368,7 @@ class OSMDB:
             #print "THE ID IS %d"%id
             c.execute( "SELECT id, lat, lon FROM osm_nodes WHERE id = %s", (id,) )
         else:
-            c.execute( "SELECT id, lat, lon FROM osm_nodes WHERE endnode_refs > 1 AND lat > %s AND lat < %s AND lon > %s AND lon < %s", (lat-radius, lat+radius, lon-radius, lon+radius) )
+            c.execute( "SELECT id, lat, lon FROM osm_nodes WHERE endnode_refs > 1 AND lat > %s AND lat < %s AND lon > %s AND lon < %s", (lat-range, lat+range, lon-range, lon+range) )
 
         dists = [(nid, nlat, nlon, ((nlat-lat)**2+(nlon-lon)**2)**0.5) for nid, nlat, nlon in c]
 
@@ -411,30 +379,8 @@ class OSMDB:
 
     def nearest_of( self, lat, lon, nodes ):
         c = self.conn.cursor()
-        if self.postgis:
-            sql = """
-        SELECT
-          id,
-          st_y(o.geom) AS lat,
-          st_x(o.geom) AS lon,
-          st_distance(st_transform(o.geom, 31467), st_transform(st_setsrid(st_makepoint({lon},{lat}), 4326), 31467)) AS meter
-        FROM (
-        SELECT
-          o.id,
-          row_number() OVER(PARTITION BY o.id ORDER BY st_distance(o.geom, st_setsrid(st_makepoint({lon},{lat}), 4326)) AS rn,
-          o.geom
-        FROM osm_nodes o
-        WHERE id IN ({nodelist})) a
-        WHERE a.rn = 1
-        """.format(lon=lon, lat=lat, nodelist=",".join([str(x) for x in nodes]))
 
-
-            c.execute(sql)
-            row = c.fetchall()
-            if row:
-                return row
-            else:
-                return (None, None, None, None)
+        c.execute( "SELECT id, lat, lon FROM osm_nodes WHERE id IN (%s)"%",".join([str(x) for x in nodes]) )
 
         dists = [(nid, nlat, nlon, ((nlat-lat)**2+(nlon-lon)**2)**0.5) for nid, nlat, nlon in c]
 
@@ -506,8 +452,7 @@ class OSMDB:
 
     def bounds(self):
         c = self.conn.cursor()
-        c.execute( """SELECT st_xmin(bbox), st_ymin(bbox), st_xmax(bbox), st_ymax(bbox) FROM
-        (SELECT st_extent(geom) FROM osm_nodes) a""" )
+        c.execute( "SELECT min(lon), min(lat), max(lon), max(lat) FROM osm_nodes" )
 
         ret = c.next()
         c.close()

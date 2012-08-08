@@ -236,7 +236,8 @@ def validate_input(configuration, psql_connect_string, options):
             if error:
                 print(colored('ERROR: base data not in database - please import base data first', 'red'))
 
-        if not options.import_routes and not options.import_all:
+#        if not options.import_routes and not options.import_all:
+        if options.calculate or options.export:
             error = False
             for nt in route_tables:
                 if (nt,) not in tables:
@@ -290,6 +291,8 @@ def main():
 
     (options, args) = parser.parse_args()
 
+    starttime = time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.localtime())
+
     if DEBUG: print(options)
 
     if len(args) != 1:
@@ -304,11 +307,11 @@ def main():
         parser.print_help()
         exit(-1)
 
-#    valide = validate_input(configuration, psql_connect_string, options)
+    valide = validate_input(configuration, psql_connect_string, options)
 
- #   if not valide:
- #       parser.print_help()
- #       exit(-1)
+    if not valide:
+        parser.print_help()
+        exit(-1)
 
 
 
@@ -350,9 +353,9 @@ def main():
         print('Exporting paths...')
         export_results(psql_connect_string, configuration['results'], configuration['result-details'])
 
-
+    print ("Startzeitpunkt:" + starttime)
+    print ("Endzeitpunkt:" + time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.localtime()))
     print('DONE')
     
 if __name__ == "__main__":
     main()
-
