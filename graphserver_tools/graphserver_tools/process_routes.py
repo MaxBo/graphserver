@@ -106,9 +106,9 @@ class Proccessing():
             # build the shortest path tree at time 't'
             try:
                 if len(routes['destinations']) > 1:
-                    spt = self.graph.shortest_path_tree(routes['origin'], None, s, self.walk_ops)
+                    spt = self.graph.shortest_path_tree(routes['origin'], None, s, self.walk_ops, self.maxtime)
                 else:
-                    spt = self.graph.shortest_path_tree(routes['origin'],routes['destinations'][0][0], s, self.walk_ops) # faster but only ONE destination
+                    spt = self.graph.shortest_path_tree(routes['origin'],routes['destinations'][0][0], s, self.walk_ops, self.maxtime) # faster but only ONE destination
             except:
                 pass
 
@@ -224,10 +224,11 @@ class Proccessing():
         self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', (self.trip_prefix + current_trip_id, route_id, start_date_time, end_time, (time.mktime(end_time.timetuple()) - start_time ) ))
 
 
-    def __init__(self, graph, db_connection_string, time_step=240, walking_speed=1.2, max_walk=1080, walking_reluctance=2, trip_prefix='', logfile = None):
+    def __init__(self, graph, db_connection_string, maxtime = 2000000000, time_step=240, walking_speed=1.2, max_walk=1080, walking_reluctance=2, trip_prefix='', logfile = None):
 
         self.trip_prefix = trip_prefix
         self.time_step = time_step
+        self.maxtime = maxtime
 
         self.walk_ops = WalkOptions()
         self.walk_ops.walking_speed = walking_speed
@@ -259,6 +260,14 @@ def create_db_tables(connection, recreate=False):
 
     cursor.execute("select tablename from pg_tables where schemaname='public'" )
     tables = cursor.fetchall()
+    
+    if ( 'cal_routes', ) not in tables:   #added, was missing for cal_paths reference
+        cursor.execute('''CREATE TABLE cal_routes ( id INTEGER PRIMARY KEY,
+                                                origin INTEGER REFERENCES cal_points,
+                                                destination INTEGER REFERENCES cal_points,
+                                                time INTEGER REFERENCES cal_times,
+                                                done BOOLEAN )''')
+    
 
 
     if ( 'cal_paths', ) not in tables or recreate:
