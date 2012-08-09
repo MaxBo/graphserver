@@ -191,15 +191,13 @@ class Proccessing():
 
         self.write_trip(vertices, route_id)
 
-
     def write_trip(self, vertices, route_id):
-        """Write passed routes into database"""
+        """Write passed routes and calculation id into database"""
         current_trip_id = str(self.trip_id)
         self.trip_id += 1
 
         start_time = datetime.datetime.fromtimestamp(vertices[0].state.time)
         end_time = datetime.datetime.fromtimestamp(vertices[-1].state.time)
-
         self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', ( self.trip_prefix + current_trip_id, route_id, start_time, end_time, (vertices[-1].state.time - vertices[0].state.time ) ))
 
         for c, v in enumerate(vertices):
@@ -242,7 +240,24 @@ class Proccessing():
         self.trips_calculated = 0
         self.logfile = logfile
 
+        self.get_old_trip_id()
         self.run()
+        
+    def get_old_trip_id(self):
+        """continue the trip_id with the id of the last calculation to prevent key conflicts"""
+        
+        qid = '%'+self.trip_prefix+'%'
+        self.cursor.execute('SELECT id FROM cal_paths WHERE id LIKE %(tid)s', {'tid': qid})
+        trip_ids = self.cursor.fetchall()
+        if trip_ids:
+            maxid = 0
+            for i, in trip_ids:
+                i = i.replace(self.trip_prefix, "")
+                if int(i) > maxid:
+                    maxid = int(i)
+            self.trip_id = maxid
+        self.trip_id = self.trip_id + 1        
+
 
 
     def __del__(self):
