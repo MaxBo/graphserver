@@ -59,10 +59,10 @@ def create_gs_datbases(osm_xml_filename, gtfs_filename, db_conn_string):
 
 
 def link_osm_gtfs(db_conn_string, max_link_dist=150):
-    """Link the OSM and the gtfs inside the geodatabase (gdb) 
+    """Link the OSM and the transit-feed
     
-    personal note:   HOW?
-    
+    add edges (to table graph_edges) between a stop-node and an osm-node within a defined range (both directions)
+        
     """
 
     conn = psycopg2.connect(db_conn_string)

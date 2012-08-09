@@ -54,8 +54,8 @@ class GraphDatabase:
         c.execute( "CREATE TABLE graph_payloads (id SERIAL, type TEXT, state TEXT)" )
         c.execute( "CREATE TABLE graph_edges (vertex1 TEXT , vertex2 TEXT, epid INTEGER)" )
         
-        c.execute( "CREATE INDEX graph_edges__vertex1_idx ON graph_edges (vertex1)" )
-        c.execute( "CREATE INDEX graph_edges__vertex2_idx ON graph_edges (vertex2)" )
+        c.execute( "CREATE INDEX graph_edges_vertex1_idx ON graph_edges (vertex1)" )
+        c.execute( "CREATE INDEX graph_edges_vertex2_idx ON graph_edges (vertex2)" )
 
         # much slower, but consistent version
         '''c.execute( "CREATE TABLE graph_vertices (label TEXT PRIMARY KEY)" )
@@ -75,7 +75,7 @@ class GraphDatabase:
 
 
         self.conn.commit()
-
+        
     def put_edge_payload(self, edgepayload, cc):
 
         if edgepayload.__class__ == Combination:

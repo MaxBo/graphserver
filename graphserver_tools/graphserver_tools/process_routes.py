@@ -31,16 +31,16 @@ class Proccessing():
 
 
     def prepare_times(self, start_time, end_time):
-        """Convert date format"""
+        """Return a descending list of times between start_time and end_time at a distance of time_steps (defined in config file)"""
         times = []
 
         start = time.mktime(start_time.timetuple())
         end = time.mktime(end_time.timetuple())
 
-        t = start
-        while t <= end:
+        t = end
+        while t >= start:
             times.append(t)
-            t += self.time_step
+            t -= self.time_step
 
         return times
 
