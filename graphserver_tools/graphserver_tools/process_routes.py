@@ -30,17 +30,24 @@ class Proccessing():
         return [x[0] for x in self.cursor][0]
 
 
-    def prepare_times(self, start_time, end_time):
-        """Return a descending list of times between start_time and end_time at a distance of time_steps (defined in config file)"""
+    def prepare_times(self, start_time, end_time, is_arrival):
+        """If is_arrival return a descending list or if its no arrival return an ascending list
+         of times between start_time and end_time at a distance of time_steps defined in the config file"""
         times = []
 
         start = time.mktime(start_time.timetuple())
         end = time.mktime(end_time.timetuple())
-
-        t = start
-        while t <= end:
-            times.append(t)
-            t += self.time_step
+        
+        if not is_arrival:
+            t = start
+            while t <= end:
+                times.append(t)
+                t += self.time_step
+        else:
+            t = end
+            while t >= start:
+                times.append(t)
+                t -= self.time_step
 
         return times
 
@@ -80,25 +87,25 @@ class Proccessing():
         self.cursor.execute('UPDATE cal_routes SET done=%s WHERE destination=%s AND time=%s', ( True, destination, time ))
         self.conn.commit()
 
-        return { 'destination':self.get_gs_vertex(destination), 'times':self.prepare_times(start_time, end_time),
+        return { 'destination':self.get_gs_vertex(destination), 'times':self.prepare_times(start_time, end_time, True),
                  'arrival':True,
                  'origins':[ ( self.get_gs_vertex(orig[1]), orig[0] ) for orig in origins ] }
 
 
-    def get_dict(self, origin, time, start_time, end_time):
+    def get_dict(self, origin, time, start_time, end_time,  is_arrival):
         self.cursor.execute('''SELECT id, destination FROM cal_routes WHERE origin=%s AND time=%s''', ( origin, time ))
         destinations = list(self.cursor.fetchall())
 
         self.cursor.execute('UPDATE cal_routes SET done=%s WHERE origin=%s AND time=%s', ( True, origin, time ))
         self.conn.commit()
 
-        return { 'origin':self.get_gs_vertex(origin), 'times':self.prepare_times(start_time, end_time),
+        return { 'origin':self.get_gs_vertex(origin), 'times':self.prepare_times(start_time, end_time, False),
                  'arrival':False,
                  'destinations':[ ( self.get_gs_vertex(dest[1]), dest[0] ) for dest in destinations ] }
 
 
     def process_paths(self, routes):
-        """Calculate shortest paths from origin
+        """Calculate shortest paths from one origin to various destinations
         Write results into the tables cal_path and cal_paths and cal_paths_details""" 
         for t in routes['times']:
             s = State(1, t)
@@ -106,25 +113,29 @@ class Proccessing():
             # build the shortest path tree at time 't'
             try:
                 if len(routes['destinations']) > 1:
-                    spt = self.graph.shortest_path_tree(routes['origin'], None, s, self.walk_ops, self.maxtime)
+                    spt = self.graph.shortest_path_tree(routes['origin'], None, s, self.walk_ops)
                 else:
-                    spt = self.graph.shortest_path_tree(routes['origin'],routes['destinations'][0][0], s, self.walk_ops, self.maxtime) # faster but only ONE destination
+                    spt = self.graph.shortest_path_tree(routes['origin'],routes['destinations'][0][0], s, self.walk_ops) # faster but only ONE destination
             except:
                 pass
 
             # extract the actual routes and write them into the database
             for dest in routes['destinations']:
-
+                cceptable = True
                 try:
                     vertices, edges = spt.path(dest[0])
 
                     if not vertices: raise Exception()
 
                 except:
-                    self.write_error_trip(t, dest[1])
+                    self.write_error_trip(t, dest[1]) 
+                    acceptable = False
                 else:
-                    self.write_trip(vertices, dest[1])
-
+                    if self.write_trip(vertices, dest[1]):
+                        acceptable = True
+                #remove destination from calculation if it isn't reachable in acceptable amount of time 
+                if not acceptable:  
+                    routes['destinations'].remove(dest)
             # cleanup
             try:
                 spt.destroy()
@@ -133,7 +144,7 @@ class Proccessing():
 
 
     def process_retro_paths(self, routes):
-        """Calculate shortest paths to destination
+        """Calculate shortest paths from various origins to one destination
         Write results into the tables cal_path and cal_paths and cal_paths_details"""
         for t in routes['times']:
             s = State(1, t)
@@ -149,6 +160,7 @@ class Proccessing():
 
             # extract the actual routes and write them into the database
             for orig in routes['origins']:
+                acceptable = False
                 try:
                     vertices, edges = spt.path_retro(orig[0])
 
@@ -156,8 +168,14 @@ class Proccessing():
 
                 except:
                     self.write_error_trip(t, orig[1])
+                    acceptable = False
                 else:
-                    self.write_retro_trip(vertices, orig[1])
+                    if self.write_retro_trip(vertices, orig[1]): 
+                        acceptable = True
+                #remove origin from calculation if destination isn't reachable in acceptable amount of time 
+                if not acceptable:  
+                    routes['origins'].remove(orig)
+                    
 
             # cleanup
             try:
@@ -185,20 +203,23 @@ class Proccessing():
     def write_retro_trip(self, vertices, route_id):
         ''' in retro_paths the walking distance is counted in the wrong direction.
             this method corrects this.
+            return if travel_time is beneath a defined acceptable traveltime
         '''
 
         # now done in write_results
 
-        self.write_trip(vertices, route_id)
+        return self.write_trip(vertices, route_id)
 
     def write_trip(self, vertices, route_id):
-        """Write passed routes and calculation id into database"""
+        """Write passed routes and calculation id into database
+        return if travel_time is beneath a defined acceptable traveltime"""
         current_trip_id = str(self.trip_id)
         self.trip_id += 1
 
         start_time = datetime.datetime.fromtimestamp(vertices[0].state.time)
         end_time = datetime.datetime.fromtimestamp(vertices[-1].state.time)
-        self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', ( self.trip_prefix + current_trip_id, route_id, start_time, end_time, (vertices[-1].state.time - vertices[0].state.time ) ))
+        travel_time = vertices[-1].state.time - vertices[0].state.time
+        self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', ( self.trip_prefix + current_trip_id, route_id, start_time, end_time, travel_time ))
 
         for c, v in enumerate(vertices):
             time = datetime.datetime.fromtimestamp(v.state.time)
@@ -209,7 +230,10 @@ class Proccessing():
             self.logfile.write('%s routes calculated by %s, last route: %s \n' %(self.trips_calculated, self.trip_prefix, route_id))
             self.logfile.flush()
         self.trips_calculated += 1
-
+        if travel_time < 24000:
+            return True
+        else:
+            return False
 
     def write_error_trip(self, start_time, route_id):
         """Write a long trip (representing "unreachable"?) into database"""
@@ -222,11 +246,10 @@ class Proccessing():
         self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', (self.trip_prefix + current_trip_id, route_id, start_date_time, end_time, (time.mktime(end_time.timetuple()) - start_time ) ))
 
 
-    def __init__(self, graph, db_connection_string, maxtime = 2000000000, time_step=240, walking_speed=1.2, max_walk=1080, walking_reluctance=2, trip_prefix='', logfile = None):
+    def __init__(self, graph, db_connection_string, time_step=240, walking_speed=1.2, max_walk=1080, walking_reluctance=2, trip_prefix='', logfile = None):
 
         self.trip_prefix = trip_prefix
         self.time_step = time_step
-        self.maxtime = maxtime
 
         self.walk_ops = WalkOptions()
         self.walk_ops.walking_speed = walking_speed
