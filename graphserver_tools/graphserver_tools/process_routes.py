@@ -37,10 +37,10 @@ class Proccessing():
         start = time.mktime(start_time.timetuple())
         end = time.mktime(end_time.timetuple())
 
-        t = end
-        while t >= start:
+        t = start
+        while t <= end:
             times.append(t)
-            t -= self.time_step
+            t += self.time_step
 
         return times
 

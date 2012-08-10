@@ -86,7 +86,6 @@ def calculate_routes(graph, psql_connect_string, options, num_processes=4):
     for i in range(int(num_processes)):
         p = multiprocessing.Process(target=process_routes.Proccessing, args=(graph,
                                                                              psql_connect_string,
-                                                                             int(options['maxtime']),
                                                                              int(options['time-step']),
                                                                              float(options['walking-speed']),
                                                                              int(options['max-walk']),
@@ -123,7 +122,6 @@ def read_config(file_path):
                  'max-walk':'11080',
                  'walking-reluctance':'20',
                  'walking-speed':'1.2',
-                 'maxtime':'2000000000',
                  'parallel-calculations': '4',
                  'psql-host':'localhost',
                  'psql-port':'5432',
@@ -358,6 +356,3 @@ def main():
     print ("Startzeitpunkt:" + starttime)
     print ("Endzeitpunkt:" + time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.localtime()))
     print('DONE')
-    
-if __name__ == "__main__":
-    main()
