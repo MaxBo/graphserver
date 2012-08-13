@@ -135,8 +135,8 @@ def read_routes_0(f, conn):
 
     cursor.execute(sql)
 
-    cursor.execute('DROP TABLE IF EXISTS cal_routes CASCADE')
-    cursor.execute('''CREATE TABLE cal_routes ( id INTEGER PRIMARY KEY,
+    #cursor.execute('DROP TABLE IF EXISTS cal_routes_0 CASCADE')
+    cursor.execute('''CREATE OR REPLACE TABLE cal_routes_0 ( id INTEGER PRIMARY KEY,
                                                 origin INTEGER REFERENCES cal_points,
                                                 destination INTEGER REFERENCES cal_points,
                                                 time INTEGER REFERENCES cal_times,
