@@ -58,15 +58,15 @@ def build_route_data(graph, psql_connect_string, times_filename, points_filename
     import_route_data.calc_corresponding_vertices(graph, psql_connect_string)
 
 
-def calculate_routes(graph, psql_connect_string, options, num_processes=4):
+def calculate_routes(graph, psql_connect_string, options, num_processes=4, write_cal_paths_details=False):
     """Calculate the shortest paths
-    
+
     Keyword arguments:
     graph -- the graph
     psql_connect_string -- database connection
     options -- passed arguments of the main
     num_processes -- number of parallel calculations
-    
+
     """
     logfile = open('log.txt','w')
     conn = psycopg2.connect(psql_connect_string)
@@ -91,7 +91,8 @@ def calculate_routes(graph, psql_connect_string, options, num_processes=4):
                                                                              int(options['max-walk']),
                                                                              int(options['walking-reluctance']),
                                                                              socket.gethostname() + prefixes[i],
-                                                                             logfile))
+                                                                             logfile,
+                                                                             write_cal_paths_details))
         p.start()
         sys.stdout.write('started thread %s \n' %i)
         time.sleep(10) #workaround for duplicate calculations - should be temporary
@@ -164,12 +165,12 @@ def read_config(file_path):
 
 def validate_input(configuration, psql_connect_string, options):
     """Validation of the configuration and the passed options
-    
+
     Check if the input data is existing at the specified paths
     Check the Database
-        
+
     Return true if valid
-        
+
     """
     valide = True
 
@@ -287,6 +288,7 @@ def main():
     parser.add_option("-r", "--import-routes", action="store_true", help="imports routing data into the database", dest="import_routes", default=False)
     parser.add_option("-i", "--import-all", action="store_true", help="imports GTFS, OSM and routing data into the database", dest="import_all", default=False)
     parser.add_option("-c", "--calculate", action="store_true", help="calculates shortest paths", dest="calculate", default=False)
+    parser.add_option("-d", "--details", action="store_true", help="exports the calculted paths-details into the database", dest="details", default=False)
     parser.add_option("-e", "--export", action="store_true", help="exports the calculted paths as CSV-files", dest="export", default=False)
 
     (options, args) = parser.parse_args()
@@ -340,7 +342,7 @@ def main():
         if not graph: graph = GraphDatabase(psql_connect_string).incarnate()
 
         start = time.time()
-        calculate_routes(graph, psql_connect_string, configuration, num_processes=configuration['parallel-calculations'])
+        calculate_routes(graph, psql_connect_string, configuration, num_processes=configuration['parallel-calculations'], write_cal_path_details=option.details)
         cprint('total calculation time: %s' % utils.seconds_time_string(time.time() - start), attrs=['bold'])
 
     try:

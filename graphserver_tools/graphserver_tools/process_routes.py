@@ -37,7 +37,7 @@ class Proccessing():
 
         start = time.mktime(start_time.timetuple())
         end = time.mktime(end_time.timetuple())
-        
+
         if not is_arrival:
             t = start
             while t <= end:
@@ -54,15 +54,15 @@ class Proccessing():
 
     def get_route_dict(self):
         """Read the first row of the routes (table cal_routes) that wasn't processed yet (done == false).
-        
-        Return dictionary with the times and the vertex labels of the destination and (multiple) origins 
+
+        Return dictionary with the times and the vertex labels of the destination and (multiple) origins
         if end point of routes (arrival == true).
-        
-        Return dictionary with the times and the vertex labels of the origin and (multiple) destinations 
+
+        Return dictionary with the times and the vertex labels of the origin and (multiple) destinations
         if starting point of routes (arrival == false).
-        
+
         Set row that was processed to "done"
-        
+
         """
         self.cursor.execute('SELECT origin, destination, time FROM cal_routes WHERE NOT done LIMIT 1')
         row = self.cursor.fetchone()
@@ -106,7 +106,7 @@ class Proccessing():
 
     def process_paths(self, routes):
         """Calculate shortest paths from one origin to various destinations
-        Write results into the tables cal_path and cal_paths and cal_paths_details""" 
+        Write results into the tables cal_path and cal_paths and cal_paths_details"""
         for t in routes['times']:
             s = State(1, t)
 
@@ -128,13 +128,13 @@ class Proccessing():
                     if not vertices: raise Exception()
 
                 except:
-                    self.write_error_trip(t, dest[1]) 
+                    self.write_error_trip(t, dest[1])
                     acceptable = False
                 else:
                     if self.write_trip(vertices, dest[1]):
                         acceptable = True
-                #remove destination from calculation if it isn't reachable in acceptable amount of time 
-                if not acceptable:  
+                #remove destination from calculation if it isn't reachable in acceptable amount of time
+                if not acceptable:
                     routes['destinations'].remove(dest)
             # cleanup
             try:
@@ -170,12 +170,12 @@ class Proccessing():
                     self.write_error_trip(t, orig[1])
                     acceptable = False
                 else:
-                    if self.write_retro_trip(vertices, orig[1]): 
+                    if self.write_retro_trip(vertices, orig[1]):
                         acceptable = True
-                #remove origin from calculation if destination isn't reachable in acceptable amount of time 
-                if not acceptable:  
+                #remove origin from calculation if destination isn't reachable in acceptable amount of time
+                if not acceptable:
                     routes['origins'].remove(orig)
-                    
+
 
             # cleanup
             try:
@@ -198,7 +198,7 @@ class Proccessing():
                 self.process_paths(routes)
 
             routes = self.get_route_dict()
-            
+
 
     def write_retro_trip(self, vertices, route_id):
         ''' in retro_paths the walking distance is counted in the wrong direction.
@@ -208,9 +208,9 @@ class Proccessing():
 
         # now done in write_results
 
-        return self.write_trip(vertices, route_id)
+        return self.write_trip(vertices, route_id, isArrival=True)
 
-    def write_trip(self, vertices, route_id):
+    def write_trip(self, vertices, route_id, isArrival=False):
         """Write passed routes and calculation id into database
         return if travel_time is beneath a defined acceptable traveltime"""
         current_trip_id = str(self.trip_id)
@@ -219,12 +219,49 @@ class Proccessing():
         start_time = datetime.datetime.fromtimestamp(vertices[0].state.time)
         end_time = datetime.datetime.fromtimestamp(vertices[-1].state.time)
         travel_time = vertices[-1].state.time - vertices[0].state.time
-        self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', ( self.trip_prefix + current_trip_id, route_id, start_time, end_time, travel_time ))
+
+        # look, if there is a waiting time at the first transit stop (for departure-time search)
+        # of a waiting time at the last trasit stop before going home (for arrival-time search)
+        weight_in_last_row = None
+        num_transfers_in_last_row = None
+        waiting_time = 0
 
         for c, v in enumerate(vertices):
-            time = datetime.datetime.fromtimestamp(v.state.time)
+            if isArrival:
+                # last transit stop for arrival-time search
+                if v.state.num_transfers == 0:
+                    if num_transfers_in_last_row == 1:
+                        waiting_time = weight_in_last_row - v.state.weight - 1
+                        break
+            else:
+                # first transit stop for departure-time search
+                if v.state.num_transfers == 1:
+                    if num_transfers_in_last_row == 0:
+                        waiting_time = v.state.weight - weight_in_last_row -1
+                        break
 
-            self.cursor.execute('INSERT INTO cal_paths_details VALUES (%s,%s,%s,%s,%s,%s,%s,%s)', ( self.trip_prefix + current_trip_id, c, v.label, time, v.state.weight, v.state.dist_walked, v.state.num_transfers, v.state.trip_id ))
+            weight_in_last_row, num_transfers_in_last_row = v.state.weight, v.state.num_transfers
+
+        # reduce travel_time by waiting time
+        travel_time -= waiting_time
+        if isArrival:
+        # actual arriving time is earlier
+            end_time -= datetime.timedelta(0,waiting_time)
+        else:
+        # can depart some minutes later
+            start_time += datetime.timedelta(0,waiting_time)
+
+        self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', ( self.trip_prefix + current_trip_id, route_id, start_time, end_time, travel_time ))
+
+
+
+        if self.write_cal_paths_details:
+            for c, v in enumerate(vertices):
+                self.cursor.execute('INSERT INTO cal_paths_details VALUES (%s,%s,%s,%s,%s,%s,%s,%s)',\
+                                   ( self.trip_prefix + current_trip_id, c, v.label, time,
+                                   v.state.weight, v.state.dist_walked, v.state.num_transfers, v.state.trip_id ))
+
+
         if not self.trips_calculated % 1000:
             self.conn.commit()
             self.logfile.write('%s routes calculated by %s, last route: %s \n' %(self.trips_calculated, self.trip_prefix, route_id))
@@ -246,10 +283,11 @@ class Proccessing():
         self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', (self.trip_prefix + current_trip_id, route_id, start_date_time, end_time, (time.mktime(end_time.timetuple()) - start_time ) ))
 
 
-    def __init__(self, graph, db_connection_string, time_step=240, walking_speed=1.2, max_walk=1080, walking_reluctance=2, trip_prefix='', logfile = None):
+    def __init__(self, graph, db_connection_string, time_step=240, walking_speed=1.2, max_walk=1080, walking_reluctance=2, trip_prefix='', logfile = None, write_cal_paths_details=False):
 
         self.trip_prefix = trip_prefix
         self.time_step = time_step
+        self.write_cal_paths_details = write_cal_paths_details
 
         self.walk_ops = WalkOptions()
         self.walk_ops.walking_speed = walking_speed
@@ -265,10 +303,10 @@ class Proccessing():
 
         self.get_old_trip_id()
         self.run()
-        
+
     def get_old_trip_id(self):
         """continue the trip_id with the id of the last calculation to prevent key conflicts"""
-        
+
         qid = '%'+self.trip_prefix+'%'
         self.cursor.execute('SELECT id FROM cal_paths WHERE id LIKE %(tid)s', {'tid': qid})
         trip_ids = self.cursor.fetchall()
@@ -279,7 +317,7 @@ class Proccessing():
                 if int(i) > maxid:
                     maxid = int(i)
             self.trip_id = maxid
-        self.trip_id = self.trip_id + 1        
+        self.trip_id = self.trip_id + 1
 
 
 
@@ -291,21 +329,21 @@ class Proccessing():
 
 
 def create_db_tables(connection, recreate=False):
-    """Create the tables cal_paths and cal_paths_details which are needed 
+    """Create the tables cal_paths and cal_paths_details which are needed
     to store the results of the calculation of the shortest paths
     Overwrite existing tables if argument recreate is set to True"""
     cursor = connection.cursor()
 
     cursor.execute("select tablename from pg_tables where schemaname='public'" )
     tables = cursor.fetchall()
-    
+
     if ( 'cal_routes', ) not in tables:   #added, was missing for cal_paths reference
         cursor.execute('''CREATE TABLE cal_routes ( id INTEGER PRIMARY KEY,
                                                 origin INTEGER REFERENCES cal_points,
                                                 destination INTEGER REFERENCES cal_points,
                                                 time INTEGER REFERENCES cal_times,
                                                 done BOOLEAN )''')
-    
+
 
 
     if ( 'cal_paths', ) not in tables or recreate:
@@ -337,6 +375,21 @@ def create_db_tables(connection, recreate=False):
                                                            gtfs_trip_id TEXT,
                                                         UNIQUE (path_id, counter)) ''')
 
+
+    cursor.execute('''CREATE OR REPLACE VIEW public.best_time (route_id,
+                                                               start_time,
+                                                               end_time,
+                                                               total_time)
+                    AS
+                    SELECT a.route_id, a.start_time, a.end_time, a.total_time
+                    FROM (
+                        SELECT p.route_id, row_number() OVER (PARTITION BY p.route_id ORDER BY p.total_time) AS rownumber,
+                        p.start_time,
+                        p.end_time,
+                        p.total_time
+                        FROM cal_paths p
+                        ) a
+                    WHERE a.rownumber = 1;''')
     connection.commit()
     cursor.close()
 
