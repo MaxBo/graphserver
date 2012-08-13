@@ -400,10 +400,10 @@ def create_db_tables(connection, recreate=False):
       bt.total_time
     FROM
       public.origins o
-      INNER JOIN public.cal_points_0 p_o ON (o.name = p_o.name)
+      INNER JOIN public.cal_points_view p_o ON (o.name = p_o.name)
       INNER JOIN public.cal_routes r ON (p_o.id = r.origin)
       INNER JOIN public.best_time bt ON (r.id = bt.route_id)
-      INNER JOIN public.cal_points_0 p_d ON (r.destination = p_d.id)
+      INNER JOIN public.cal_points_view p_d ON (r.destination = p_d.id)
       INNER JOIN public.destinations d ON (p_d.name = d.name)
     '''
     cursor.execute(sql)
