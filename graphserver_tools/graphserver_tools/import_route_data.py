@@ -24,9 +24,9 @@ from graphserver_tools.utils import utf8csv
 def read_points_0(f, conn):
     """Load points from csv file into database"""
     cursor = conn.cursor()
-    cursor.execute('DROP TABLE IF EXISTS cal_points CASCADE')
+
     sql = '''
-    CREATE OR REPLACE VIEW public.cal_points_0(
+    CREATE OR REPLACE VIEW public.cal_points_view(
     id,
     lat,
     lon,
@@ -48,12 +48,13 @@ def read_points_0(f, conn):
        '''
     cursor.execute(sql)
 
+    cursor.execute('DROP TABLE IF EXISTS cal_points CASCADE')
     cursor.execute('''CREATE TABLE cal_points ( id INTEGER PRIMARY KEY,
                                             lat REAL NOT NULL,
                                             lon REAL NOT NULL,
                                             name TEXT )''')
 
-    cursor.execute('INSERT INTO cal_points SELECT * FROM cal_points_0;')
+    cursor.execute('INSERT INTO cal_points SELECT * FROM cal_points_view;')
     cursor.close()
     conn.commit()
 
@@ -119,13 +120,13 @@ def read_times(f, conn):
 
 
 def read_routes_0(f, conn):
-    """Load routes from cal_routes_0_view into cal_routes
+    """Load routes from cal_routes_view into cal_routes
     references to points and timetable"""
     cursor = conn.cursor()
 
 
     sql = '''
-    CREATE OR REPLACE VIEW cal_routes_0 AS
+    CREATE OR REPLACE VIEW cal_routes_view AS
 
     SELECT
     row_number() OVER(ORDER BY origin.id,d.id):: integer AS id,
@@ -142,15 +143,15 @@ def read_routes_0(f, conn):
 
     cursor.execute(sql)
 
-    #cursor.execute('DROP TABLE IF EXISTS cal_routes_0 CASCADE')
-    cursor.execute('''CREATE OR REPLACE TABLE cal_routes_0 ( id INTEGER PRIMARY KEY,
+    cursor.execute('DROP TABLE IF EXISTS cal_routes CASCADE')
+    cursor.execute('''CREATE TABLE cal_routes ( id INTEGER PRIMARY KEY,
                                                 origin INTEGER REFERENCES cal_points,
                                                 destination INTEGER REFERENCES cal_points,
                                                 time INTEGER REFERENCES cal_times,
                                                 done BOOLEAN )''')
 
 
-    cursor.execute('INSERT INTO cal_routes SELECT * FROM cal_routes_0')
+    cursor.execute('INSERT INTO cal_routes SELECT * FROM cal_routes_view')
     cursor.execute('CREATE INDEX IDX_time ON cal_routes ( time )')
     cursor.execute('CREATE INDEX IDX_origin ON cal_routes ( origin )')
     cursor.execute('CREATE INDEX IDX_destination ON cal_routes ( destination )')
