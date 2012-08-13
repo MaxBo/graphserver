@@ -47,6 +47,13 @@ def read_points_0(f, conn):
       FROM destinations;
        '''
     cursor.execute(sql)
+
+    cursor.execute('''CREATE TABLE cal_points ( id INTEGER PRIMARY KEY,
+                                            lat REAL NOT NULL,
+                                            lon REAL NOT NULL,
+                                            name TEXT )''')
+
+    cursor.execute('INSERT INTO cal_points SELECT * FROM cal_points_0;')
     cursor.close()
     conn.commit()
 
@@ -127,8 +134,8 @@ def read_routes_0(f, conn):
     destinations.time_id,
     FALSE AS done
     FROM
-    (SELECT cal_points_0.id FROM cal_points_0 WHERE cal_points_0.id < 1000000) AS origin,
-    (SELECT cal_points_0.id,cal_points_0.name FROM cal_points_0 WHERE cal_points_0.id >= 1000000) AS d,
+    (SELECT c.id FROM cal_points c WHERE c.id < 1000000) AS origin,
+    (SELECT c.id,cal_points_0.name FROM cal_points c WHERE c.id >= 1000000) AS d,
     destinations
     WHERE d.name=destinations.name;
     '''
