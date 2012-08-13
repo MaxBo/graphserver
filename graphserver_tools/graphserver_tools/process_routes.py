@@ -61,8 +61,6 @@ class Proccessing():
         Return dictionary with the times and the vertex labels of the origin and (multiple) destinations 
         if starting point of routes (arrival == false).
         
-        Set row that was processed to "done"
-        
         """
         self.cursor.execute('SELECT origin, destination, time FROM cal_routes WHERE NOT done LIMIT 1')
         row = self.cursor.fetchone()
@@ -78,6 +76,7 @@ class Proccessing():
             return self.get_retro_dict(destination, time, start_time, end_time)
         else:
             return self.get_dict(origin, time, start_time, end_time)
+
 
 
     def get_retro_dict(self, destination, time, start_time, end_time):
@@ -121,7 +120,7 @@ class Proccessing():
 
             # extract the actual routes and write them into the database
             for dest in routes['destinations']:
-                cceptable = True
+                acceptable = True
                 try:
                     vertices, edges = spt.path(dest[0])
 
@@ -176,12 +175,12 @@ class Proccessing():
                 if not acceptable:  
                     routes['origins'].remove(orig)
                     
-
             # cleanup
             try:
                 spt.destroy()
             except:
                 pass
+
 
 
     def run(self):
@@ -196,7 +195,6 @@ class Proccessing():
                 self.process_retro_paths(routes)
             else:
                 self.process_paths(routes)
-
             routes = self.get_route_dict()
             
 
@@ -372,7 +370,7 @@ def print_status(connection, logfile=None):
         time.sleep(1.0)
         cursor.execute('SELECT count(*) FROM cal_routes WHERE NOT done')
         routes_waiting = cursor.fetchone()[0]
-        if not all_routes:
+        if not routes_waiting:
             finished = True
 
         else:
