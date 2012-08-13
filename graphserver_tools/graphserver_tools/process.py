@@ -47,8 +47,8 @@ def build_route_data(graph, psql_connect_string, times_filename, points_filename
     conn = psycopg2.connect(psql_connect_string)
 
     import_route_data.read_times(times_filename, conn)
-    import_route_data.read_points(points_filename, conn)
-    import_route_data.read_routes(routes_filename, conn)
+    import_route_data.read_points_0(points_filename, conn)
+    import_route_data.read_routes_0(routes_filename, conn)
 
     # recreate all calculation tables
     process_routes.create_db_tables(conn, True)

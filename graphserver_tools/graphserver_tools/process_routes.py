@@ -390,6 +390,24 @@ def create_db_tables(connection, recreate=False):
                         FROM cal_paths p
                         ) a
                     WHERE a.rownumber = 1;''')
+    sql = '''
+    CREATE OR REPLACE VIEW
+    SELECT
+      o.name AS origin_name,
+      d.name AS destination_name,
+      bt.start_time,
+      bt.end_time,
+      bt.total_time
+    FROM
+      public.origins o
+      INNER JOIN public.cal_points_0 p_o ON (o.name = p_o.name)
+      INNER JOIN public.cal_routes r ON (p_o.id = r.origin)
+      INNER JOIN public.best_time bt ON (r.id = bt.route_id)
+      INNER JOIN public.cal_points_0 p_d ON (r.destination = p_d.id)
+      INNER JOIN public.destinations d ON (p_d.name = d.name)
+    '''
+    cursor.execute(sql)
+
     connection.commit()
     cursor.close()
 
