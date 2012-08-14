@@ -372,7 +372,7 @@ def print_status(connection, logfile=None):
         time.sleep(1.0)
         cursor.execute('SELECT count(*) FROM cal_routes WHERE NOT done')
         routes_waiting = cursor.fetchone()[0]
-        if not all_routes:
+        if not routes_waiting:
             finished = True
 
         else:
