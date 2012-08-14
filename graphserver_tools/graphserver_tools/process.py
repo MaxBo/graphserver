@@ -91,7 +91,8 @@ def calculate_routes(graph, psql_connect_string, options, num_processes=4):
                                                                              int(options['max-walk']),
                                                                              int(options['walking-reluctance']),
                                                                              socket.gethostname() + prefixes[i],
-                                                                             logfile))
+                                                                             logfile,
+                                                                             int(options['max-travel-time'])))
         p.start()
         sys.stdout.write('started thread %s \n' %i)
         time.sleep(10) #workaround for duplicate calculations - should be temporary
@@ -123,6 +124,7 @@ def read_config(file_path):
                  'walking-reluctance':'20',
                  'walking-speed':'1.2',
                  'parallel-calculations': '4',
+                 'max-travel-time': '25200',
                  'psql-host':'localhost',
                  'psql-port':'5432',
                  'psql-user':'postgres',

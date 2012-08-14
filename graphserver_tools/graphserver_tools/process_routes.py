@@ -121,20 +121,21 @@ class Proccessing():
 
             # extract the actual routes and write them into the database
             for dest in routes['destinations']:
-                acceptable = True
+                acceptable = False
                 try:
                     vertices, edges = spt.path(dest[0])
-
                     if not vertices: raise Exception()
-
                 except:
-                    self.write_error_trip(t, dest[1]) 
                     acceptable = False
                 else:
                     if self.write_trip(vertices, dest[1]):
                         acceptable = True
-                #remove destination from calculation if it isn't reachable in acceptable amount of time 
+                #remove destination from pathfinding if it isn't reachable in acceptable amount of time 
+                #write very long times into db for the times, that wont be calculated
                 if not acceptable:  
+                    for t2 in routes['times'[:]]:
+                        if t2 >= t:
+                            self.write_error_trip(t2, dest[1],False)
                     routes['destinations'].remove(dest)
             # cleanup
             try:
@@ -157,7 +158,7 @@ class Proccessing():
                     spt = self.graph.shortest_path_tree_retro(routes['origins'][0][0], routes['destination'], s, self.walk_ops) # faster but only ONE destination
             except:
                 pass
-
+            
             # extract the actual routes and write them into the database
             for orig in routes['origins']:
                 acceptable = False
@@ -165,18 +166,18 @@ class Proccessing():
                     vertices, edges = spt.path_retro(orig[0])
 
                     if not vertices: raise Exception()
-
                 except:
-                    self.write_error_trip(t, orig[1])
                     acceptable = False
                 else:
                     if self.write_retro_trip(vertices, orig[1]): 
                         acceptable = True
-                #remove origin from calculation if destination isn't reachable in acceptable amount of time 
+                #remove origin from pathfinding if destination isn't reachable in acceptable amount of time 
+                #write very long times into db for the times, that wont be calculated
                 if not acceptable:  
+                    for t2 in routes['times'[:]]:
+                        if t2 <= t:
+                            self.write_error_trip(t2, orig[1], True)
                     routes['origins'].remove(orig)
-                    
-
             # cleanup
             try:
                 spt.destroy()
@@ -211,7 +212,7 @@ class Proccessing():
         return self.write_trip(vertices, route_id)
 
     def write_trip(self, vertices, route_id):
-        """Write passed routes and calculation id into database
+        """Write passed routes and calculation id into database if traveltime is acceptable
         return if travel_time is beneath a defined acceptable traveltime"""
         current_trip_id = str(self.trip_id)
         self.trip_id += 1
@@ -219,34 +220,35 @@ class Proccessing():
         start_time = datetime.datetime.fromtimestamp(vertices[0].state.time)
         end_time = datetime.datetime.fromtimestamp(vertices[-1].state.time)
         travel_time = vertices[-1].state.time - vertices[0].state.time
-        self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', ( self.trip_prefix + current_trip_id, route_id, start_time, end_time, travel_time ))
-
-        for c, v in enumerate(vertices):
-            time = datetime.datetime.fromtimestamp(v.state.time)
-
-            self.cursor.execute('INSERT INTO cal_paths_details VALUES (%s,%s,%s,%s,%s,%s,%s,%s)', ( self.trip_prefix + current_trip_id, c, v.label, time, v.state.weight, v.state.dist_walked, v.state.num_transfers, v.state.trip_id ))
-        if not self.trips_calculated % 1000:
-            self.conn.commit()
-            self.logfile.write('%s routes calculated by %s, last route: %s \n' %(self.trips_calculated, self.trip_prefix, route_id))
-            self.logfile.flush()
-        self.trips_calculated += 1
-        if travel_time < 24000:
-            return True
-        else:
+        
+        if travel_time > self.max_travel_time:
             return False
+        else:
+            self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', ( self.trip_prefix + current_trip_id, route_id, start_time, end_time, travel_time )) 
+            for c, v in enumerate(vertices):
+                time = datetime.datetime.fromtimestamp(v.state.time)
+            self.cursor.execute('INSERT INTO cal_paths_details VALUES (%s,%s,%s,%s,%s,%s,%s,%s)', ( self.trip_prefix + current_trip_id, c, v.label, time, v.state.weight, v.state.dist_walked, v.state.num_transfers, v.state.trip_id ))
+            if not self.trips_calculated % 1000:
+                self.logfile.write('%s routes calculated by %s, last route: %s \n' %(self.trips_calculated, self.trip_prefix, route_id))
+                self.logfile.flush()
+                self.trips_calculated += 1
+            return True
 
-    def write_error_trip(self, start_time, route_id):
-        """Write a long trip (representing "unreachable"?) into database"""
+    def write_error_trip(self, start_end_time, route_id, is_arrival):
+        """Write a long trip representing unreachable into database"""
         current_trip_id = str(self.trip_id)
         self.trip_id += 1
+        if is_arrival:
+            end_date_time = datetime.datetime.fromtimestamp(start_end_time)
+            start_time = datetime.datetime(1985,12,31)      
+            self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', (self.trip_prefix + current_trip_id, route_id, start_time, end_date_time, (start_end_time - time.mktime(start_time.timetuple()))))
+        else:    
+            start_date_time = datetime.datetime.fromtimestamp(start_end_time)
+            end_time = datetime.datetime(2030,12,31)
+            self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', (self.trip_prefix + current_trip_id, route_id, start_date_time, end_time, (time.mktime(end_time.timetuple()) - start_end_time ) ))
 
-        start_date_time = datetime.datetime.fromtimestamp(start_time)
-        end_time = datetime.datetime(2030,12,31)
 
-        self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', (self.trip_prefix + current_trip_id, route_id, start_date_time, end_time, (time.mktime(end_time.timetuple()) - start_time ) ))
-
-
-    def __init__(self, graph, db_connection_string, time_step=240, walking_speed=1.2, max_walk=1080, walking_reluctance=2, trip_prefix='', logfile = None):
+    def __init__(self, graph, db_connection_string, time_step=240, walking_speed=1.2, max_walk=1080, walking_reluctance=2, trip_prefix='', logfile = None, max_travel_time = 25200):
 
         self.trip_prefix = trip_prefix
         self.time_step = time_step
@@ -255,7 +257,7 @@ class Proccessing():
         self.walk_ops.walking_speed = walking_speed
         self.walk_ops.max_walk = max_walk
         self.walk_ops.walking_reluctance = walking_reluctance
-
+        self.max_travel_time = max_travel_time
         self.graph = graph
         self.conn = psycopg2.connect(db_connection_string)
         self.cursor = self.conn.cursor()
