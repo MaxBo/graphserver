@@ -120,23 +120,24 @@ class Proccessing():
                 pass
 
             # extract the actual routes and write them into the database
+            inacc_dests = []
             for dest in routes['destinations']:
-                acceptable = False
                 try:
                     vertices, edges = spt.path(dest[0])
                     if not vertices: raise Exception()
                 except:
                     acceptable = False
                 else:
-                    if self.write_trip(vertices, dest[1]):
-                        acceptable = True
-                #remove destination from pathfinding if it isn't reachable in acceptable amount of time 
-                #write very long times into db for the times, that wont be calculated
-                if not acceptable:  
-                    for t2 in routes['times'[:]]:
-                        if t2 >= t:
-                            self.write_error_trip(t2, dest[1],False)
-                    routes['destinations'].remove(dest)
+                    acceptable = self.write_trip(vertices, dest[1])          #check if trip was accepted
+                if not acceptable:
+                    inacc_dests.append(dest)                    
+            #remove destination from pathfinding if it isn't reachable in acceptable amount of time 
+            #write very long times into db for the routes with times, that wont be calculated
+            for dest in inacc_dests:
+                for t2 in routes['times'[:]]:
+                    if t2 >= t:
+                        self.write_error_trip(t2, dest[1], True)
+                routes['destinations'].remove(dest)
             # cleanup
             try:
                 spt.destroy()
@@ -160,8 +161,8 @@ class Proccessing():
                 pass
             
             # extract the actual routes and write them into the database
+            inacc_origs = []
             for orig in routes['origins']:
-                acceptable = False
                 try:
                     vertices, edges = spt.path_retro(orig[0])
 
@@ -169,15 +170,16 @@ class Proccessing():
                 except:
                     acceptable = False
                 else:
-                    if self.write_retro_trip(vertices, orig[1]): 
-                        acceptable = True
-                #remove origin from pathfinding if destination isn't reachable in acceptable amount of time 
-                #write very long times into db for the times, that wont be calculated
+                    acceptable = self.write_retro_trip(vertices, orig[1]) #check if trip was accepted
                 if not acceptable:  
-                    for t2 in routes['times'[:]]:
-                        if t2 <= t:
-                            self.write_error_trip(t2, orig[1], True)
-                    routes['origins'].remove(orig)
+                    inacc_origs.append(orig)
+            #remove origin from pathfinding if destination isn't reachable in acceptable amount of time 
+            #write very long times into db for the routes with times, that wont be calculated    
+            for orig in inacc_origs:
+                for t2 in routes['times'[:]]:
+                    if t2 <= t:
+                        self.write_error_trip(t2, orig[1], True)
+                routes['origins'].remove(orig)
             # cleanup
             try:
                 spt.destroy()
@@ -222,7 +224,7 @@ class Proccessing():
         travel_time = vertices[-1].state.time - vertices[0].state.time
         
         if travel_time > self.max_travel_time:
-            return False
+            return False                        #don't write trip if it isn't accepted
         else:
             self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', ( self.trip_prefix + current_trip_id, route_id, start_time, end_time, travel_time )) 
             for c, v in enumerate(vertices):
