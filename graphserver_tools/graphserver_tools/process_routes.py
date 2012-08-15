@@ -121,7 +121,6 @@ class Proccessing():
 
             # extract the actual routes and write them into the database
             for dest in routes['destinations']:
-                cceptable = True
                 try:
                     vertices, edges = spt.path(dest[0])
 
@@ -129,13 +128,9 @@ class Proccessing():
 
                 except:
                     self.write_error_trip(t, dest[1])
-                    acceptable = False
                 else:
-                    if self.write_trip(vertices, dest[1]):
-                        acceptable = True
-                #remove destination from calculation if it isn't reachable in acceptable amount of time
-                if not acceptable:
-                    routes['destinations'].remove(dest)
+                    self.write_trip(vertices, dest[1])
+                    
             # cleanup
             try:
                 spt.destroy()
@@ -160,7 +155,6 @@ class Proccessing():
 
             # extract the actual routes and write them into the database
             for orig in routes['origins']:
-                acceptable = False
                 try:
                     vertices, edges = spt.path_retro(orig[0])
 
@@ -168,15 +162,9 @@ class Proccessing():
 
                 except:
                     self.write_error_trip(t, orig[1])
-                    acceptable = False
                 else:
-                    if self.write_retro_trip(vertices, orig[1]):
-                        acceptable = True
-                #remove origin from calculation if destination isn't reachable in acceptable amount of time
-                if not acceptable:
-                    routes['origins'].remove(orig)
-
-
+                    self.write_retro_trip(vertices, orig[1])
+                    
             # cleanup
             try:
                 spt.destroy()
@@ -203,16 +191,14 @@ class Proccessing():
     def write_retro_trip(self, vertices, route_id):
         ''' in retro_paths the walking distance is counted in the wrong direction.
             this method corrects this.
-            return if travel_time is beneath a defined acceptable traveltime
         '''
 
         # now done in write_results
 
-        return self.write_trip(vertices, route_id, isArrival=True)
+        self.write_trip(vertices, route_id, isArrival=True)
 
     def write_trip(self, vertices, route_id, isArrival=False):
-        """Write passed routes and calculation id into database
-        return if travel_time is beneath a defined acceptable traveltime"""
+        """Write passed routes and calculation id into database"""
         current_trip_id = str(self.trip_id)
         self.trip_id += 1
 
@@ -267,10 +253,6 @@ class Proccessing():
             self.logfile.write('%s routes calculated by %s, last route: %s \n' %(self.trips_calculated, self.trip_prefix, route_id))
             self.logfile.flush()
         self.trips_calculated += 1
-        if travel_time < 24000:
-            return True
-        else:
-            return False
 
     def write_error_trip(self, start_time, route_id):
         """Write a long trip (representing "unreachable"?) into database"""
