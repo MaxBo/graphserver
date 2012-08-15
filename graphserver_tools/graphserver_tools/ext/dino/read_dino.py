@@ -108,9 +108,9 @@ def read(folder, db_connect_string):
     ''' Wrapper methods from multiprocessing '''
 
     def bitfeldVersionaeWrapper(folder, db_connect_string):
-
-        read_versionen(codecs.open(folder+'/set_version.din', encoding='latin-1'), db_connect_string)
-        read_daytype(codecs.open(folder+'/set_day_type.din', encoding='latin-1'), db_connect_string)
+        pass
+##        read_versionen(codecs.open(folder+'/set_version.din', encoding='latin-1'), db_connect_string)
+##        read_daytype(codecs.open(folder+'/set_day_type.din', encoding='latin-1'), db_connect_string)
 
 
     def lieferanHaltesteBetriebeWrapper(folder, db_connect_string):
@@ -216,8 +216,8 @@ def read(folder, db_connect_string):
     bitfeld_versionae_process = Process(target=bitfeldVersionaeWrapper, args=(folder, db_connect_string))
     bitfeld_versionae_process.start()
 
-    koordsys_process = Process(target=read_koordinatensystem, args=(codecs.open(os.path.join(folder, 'koordsys.asc'), encoding='latin-1'), db_connect_string))
-    koordsys_process.start()
+##    koordsys_process = Process(target=read_koordinatensystem, args=(codecs.open(os.path.join(folder, 'koordsys.asc'), encoding='latin-1'), db_connect_string))
+##    koordsys_process.start()
 
     lieferan_halteste_betriebe_process = Process(target=lieferanHaltesteBetriebeWrapper, args=(folder, db_connect_string))
     lieferan_halteste_betriebe_process.start()
