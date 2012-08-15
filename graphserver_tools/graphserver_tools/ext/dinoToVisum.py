@@ -56,7 +56,7 @@ class DinoToVisum(VisumPuTTables):
         self._session = self._getNewSession()
 
         if self.read_dino_data:
-            readdinoToDb(dino_data, self.db_connect_string)
+            readDinoToDb(dino_data, self.db_connect_string)
 
 
     def getDinoData(self):

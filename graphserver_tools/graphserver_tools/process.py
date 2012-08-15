@@ -342,7 +342,7 @@ def main():
         if not graph: graph = GraphDatabase(psql_connect_string).incarnate()
 
         start = time.time()
-        calculate_routes(graph, psql_connect_string, configuration, num_processes=configuration['parallel-calculations'], write_cal_path_details=option.details)
+        calculate_routes(graph, psql_connect_string, configuration, num_processes=configuration['parallel-calculations'], write_cal_paths_details=options.details)
         cprint('total calculation time: %s' % utils.seconds_time_string(time.time() - start), attrs=['bold'])
 
     try:

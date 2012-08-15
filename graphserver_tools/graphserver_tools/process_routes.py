@@ -373,7 +373,7 @@ def create_db_tables(connection, recreate=False):
                         ) a
                     WHERE a.rownumber = 1;''')
     sql = '''
-    CREATE OR REPLACE VIEW
+    CREATE OR REPLACE VIEW Ergebnis AS
     SELECT
       o.name AS origin_name,
       d.name AS destination_name,
@@ -388,7 +388,7 @@ def create_db_tables(connection, recreate=False):
       INNER JOIN public.cal_points_view p_d ON (r.destination = p_d.id)
       INNER JOIN public.destinations d ON (p_d.name = d.name)
     '''
-    cursor.execute(sql)
+    #cursor.execute(sql)
 
     connection.commit()
     cursor.close()
