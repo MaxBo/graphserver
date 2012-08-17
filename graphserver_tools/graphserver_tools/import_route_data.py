@@ -27,24 +27,27 @@ def read_points_0(f, conn):
 
     sql = '''
     CREATE OR REPLACE VIEW public.cal_points_view(
-    id,
-    lat,
-    lon,
-    name)
+        id,
+        lat,
+        lon,
+        name,
+        time_id)
     AS
       SELECT row_number() OVER(
       ORDER BY origins.name) ::integer AS id,
                origins.lat,
                origins.lon,
-               origins.name
+               origins.name,
+               NULL::unknown AS time_id
       FROM origins
       UNION ALL
       SELECT row_number() OVER(
       ORDER BY destinations.name) ::integer + 1000000 AS id,
                destinations.lat,
                destinations.lon,
-               destinations.name
-      FROM destinations;
+               destinations.name,
+               destinations.time_id
+      FROM destinations;;
        '''
     cursor.execute(sql)
 
@@ -52,7 +55,8 @@ def read_points_0(f, conn):
     cursor.execute('''CREATE TABLE cal_points ( id INTEGER PRIMARY KEY,
                                             lat REAL NOT NULL,
                                             lon REAL NOT NULL,
-                                            name TEXT )''')
+                                            name TEXT,
+                                            time_id INTEGER )''')
 
     cursor.execute('INSERT INTO cal_points SELECT * FROM cal_points_view;')
     cursor.close()
@@ -68,7 +72,8 @@ def read_points(f, conn):
     cursor.execute('''CREATE TABLE cal_points ( id INTEGER PRIMARY KEY,
                                             lat REAL NOT NULL,
                                             lon REAL NOT NULL,
-                                            name TEXT )''')
+                                            name TEXT,
+                                            time_id INTEGER  )''')
     reader = utf8csv.UnicodeReader(open(f))
 
     header = reader.next()
@@ -136,9 +141,9 @@ def read_routes_0(f, conn):
     FALSE AS done
     FROM
     (SELECT c.id FROM cal_points c WHERE c.id < 1000000) AS origin,
-    (SELECT c.id,c.name FROM cal_points c WHERE c.id >= 1000000) AS d,
+    (SELECT c.id,c.name,c.time_id FROM cal_points c WHERE c.id >= 1000000) AS d,
     destinations
-    WHERE d.name=destinations.name;
+    WHERE d.name=destinations.name AND d.time_id = destinations.time_id;
     '''
 
     cursor.execute(sql)
