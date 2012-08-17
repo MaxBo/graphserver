@@ -47,8 +47,8 @@ def build_route_data(graph, psql_connect_string, times_filename, points_filename
     conn = psycopg2.connect(psql_connect_string)
 
     import_route_data.read_times(times_filename, conn)
-    import_route_data.read_points(points_filename, conn)
-    import_route_data.read_routes(routes_filename, conn)
+    import_route_data.read_points_0(points_filename, conn)
+    import_route_data.read_routes_0(routes_filename, conn)
 
     # recreate all calculation tables
     process_routes.create_db_tables(conn, True)
@@ -92,7 +92,8 @@ def calculate_routes(graph, psql_connect_string, options, num_processes=4, write
                                                                              int(options['walking-reluctance']),
                                                                              socket.gethostname() + prefixes[i],
                                                                              logfile,
-                                                                             write_cal_paths_details))
+                                                                             write_cal_paths_details,
+                                                                             int(options['max-travel-time'])))
         p.start()
         sys.stdout.write('started thread %s \n' %i)
         time.sleep(10) #workaround for duplicate calculations - should be temporary
@@ -124,6 +125,7 @@ def read_config(file_path):
                  'walking-reluctance':'20',
                  'walking-speed':'1.2',
                  'parallel-calculations': '4',
+                 'max-travel-time': '25200',
                  'psql-host':'localhost',
                  'psql-port':'5432',
                  'psql-user':'postgres',
@@ -342,7 +344,7 @@ def main():
         if not graph: graph = GraphDatabase(psql_connect_string).incarnate()
 
         start = time.time()
-        calculate_routes(graph, psql_connect_string, configuration, num_processes=configuration['parallel-calculations'], write_cal_path_details=option.details)
+        calculate_routes(graph, psql_connect_string, configuration, num_processes=configuration['parallel-calculations'], write_cal_paths_details=options.details)
         cprint('total calculation time: %s' % utils.seconds_time_string(time.time() - start), attrs=['bold'])
 
     try:

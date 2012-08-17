@@ -21,6 +21,45 @@ from graphserver_tools.utils.utils import distance, string_to_datetime
 from graphserver_tools.utils import utf8csv
 
 
+def read_points_0(f, conn):
+    """Load points from csv file into database"""
+    cursor = conn.cursor()
+
+    sql = '''
+    CREATE OR REPLACE VIEW public.cal_points_view(
+    id,
+    lat,
+    lon,
+    name)
+    AS
+      SELECT row_number() OVER(
+      ORDER BY origins.name) ::integer AS id,
+               origins.lat,
+               origins.lon,
+               origins.name
+      FROM origins
+      UNION ALL
+      SELECT row_number() OVER(
+      ORDER BY destinations.name) ::integer + 1000000 AS id,
+               destinations.lat,
+               destinations.lon,
+               destinations.name
+      FROM destinations;
+       '''
+    cursor.execute(sql)
+
+    cursor.execute('DROP TABLE IF EXISTS cal_points CASCADE')
+    cursor.execute('''CREATE TABLE cal_points ( id INTEGER PRIMARY KEY,
+                                            lat REAL NOT NULL,
+                                            lon REAL NOT NULL,
+                                            name TEXT )''')
+
+    cursor.execute('INSERT INTO cal_points SELECT * FROM cal_points_view;')
+    cursor.close()
+    conn.commit()
+
+
+
 def read_points(f, conn):
     """Load points from csv file into database"""
     cursor = conn.cursor()
@@ -80,6 +119,48 @@ def read_times(f, conn):
     conn.commit()
 
 
+def read_routes_0(f, conn):
+    """Load routes from cal_routes_view into cal_routes
+    references to points and timetable"""
+    cursor = conn.cursor()
+
+
+    sql = '''
+    CREATE OR REPLACE VIEW cal_routes_view AS
+
+    SELECT
+    row_number() OVER(ORDER BY origin.id,d.id):: integer AS id,
+    origin.id AS origin,
+    d.id AS destination,
+    destinations.time_id,
+    FALSE AS done
+    FROM
+    (SELECT c.id FROM cal_points c WHERE c.id < 1000000) AS origin,
+    (SELECT c.id,c.name FROM cal_points c WHERE c.id >= 1000000) AS d,
+    destinations
+    WHERE d.name=destinations.name;
+    '''
+
+    cursor.execute(sql)
+
+    cursor.execute('DROP TABLE IF EXISTS cal_routes CASCADE')
+    cursor.execute('''CREATE TABLE cal_routes ( id INTEGER PRIMARY KEY,
+                                                origin INTEGER REFERENCES cal_points,
+                                                destination INTEGER REFERENCES cal_points,
+                                                time INTEGER REFERENCES cal_times,
+                                                done BOOLEAN )''')
+
+
+    cursor.execute('INSERT INTO cal_routes SELECT * FROM cal_routes_view')
+    cursor.execute('CREATE INDEX IDX_time ON cal_routes ( time )')
+    cursor.execute('CREATE INDEX IDX_origin ON cal_routes ( origin )')
+    cursor.execute('CREATE INDEX IDX_destination ON cal_routes ( destination )')
+    cursor.execute('CREATE INDEX IDX_done ON cal_routes ( done )')
+
+    cursor.close()
+    conn.commit()
+
+
 def read_routes(f, conn):
     """Load routes from csv file into database
     references to points and timetable"""
@@ -91,7 +172,6 @@ def read_routes(f, conn):
                                                 destination INTEGER REFERENCES cal_points,
                                                 time INTEGER REFERENCES cal_times,
                                                 done BOOLEAN )''')
-
 
     cursor.execute('CREATE INDEX IDX_time ON cal_routes ( time )')
     cursor.execute('CREATE INDEX IDX_origin ON cal_routes ( origin )')
