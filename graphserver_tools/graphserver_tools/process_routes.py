@@ -102,16 +102,20 @@ class Proccessing():
 
         self.cursor.execute('UPDATE cal_routes SET done=%s WHERE origin=%s AND time=%s', ( True, origin, time ))
         self.conn.commit()
+        times = self.prepare_times(start_time, end_time, True)
+        is_calc_time = []
+        for t in times:
+            is_calc_time.append(True)
 
-        return { 'origin':self.get_gs_vertex(origin), 'times':self.prepare_times(start_time, end_time, False),
+        return { 'origin':self.get_gs_vertex(origin), 'times': times,
                  'arrival':False,
-                 'destinations':[ ( self.get_gs_vertex(dest[1]), dest[0] ) for dest in destinations ] }
+                 'destinations':[ ( self.get_gs_vertex(dest[1]), dest[0], is_calc_time[:] ) for dest in destinations ] }
 
 
     def process_paths(self, routes):
         """Calculate shortest paths from one origin to various destinations
         Write results into the tables cal_path and cal_paths and cal_paths_details"""
-        for t in routes['times']:
+        for time_index, t in enumerate(routes['times']):
             s = State(1, t)
 
             # build the shortest path tree at time 't'
@@ -124,17 +128,26 @@ class Proccessing():
                 pass
 
             # extract the actual routes and write them into the database
-            for dest in routes['destinations']:
-                try:
-                    vertices, edges = spt.path(dest[0])
+            for dest_index, dest in enumerate(routes['destinations']):
+                if dest[2][time_index]:
+                    waiting_time = 0
+                    try:
+                        vertices, edges = spt.path(dest[0])
+                        if not vertices: raise Exception()
 
-                    if not vertices: raise Exception()
-
-                except:
-                    self.write_error_trip(t, dest[1])
-                else:
-                    self.write_trip(vertices, dest[1])
+                    except:
+                        waiting_time = 999999999  #infinite waiting time if not reachable
+                    else:
+                        waiting_time = self.write_trip(vertices, dest[1])
                     
+                    #for testing: write error trips for inacceptable travel times and duplicate entries
+                    #resulting from subtracting waiting time
+                    if abs(waiting_time) >= self.time_step:
+                        for time_index2, t2 in enumerate(routes['times'[:]]):
+                            if t+waiting_time >= t2 >= t:
+                                self.write_error_trip(t2, dest[1], True)
+                                routes['destinations'][dest_index][2][time_index2] = False
+                            if waiting_time == 999999999: del routes['destinations'][dest_index]
             # cleanup
             try:
                 spt.destroy()
@@ -168,13 +181,15 @@ class Proccessing():
                         waiting_time = 999999999  #infinite waiting time if not reachable
                     else:
                         waiting_time = self.write_retro_trip(vertices, orig[1])
-
-                    if waiting_time >= 999999999:
+                    
+                    #for testing: write error trips for inacceptable travel times and duplicate entries
+                    #resulting from subtracting waiting time
+                    if abs(waiting_time) >= self.time_step:
                         for time_index2, t2 in enumerate(routes['times'[:]]):
-                            if t2 <= t:
+                            if t-waiting_time <= t2 <= t:
                                 self.write_error_trip(t2, orig[1], True)
                                 routes['origins'][orig_index][2][time_index2] = False
-                        del routes['origins'][orig_index] #remove element to fasten iteration over origins
+                        if waiting_time == 999999999: del routes['origins'][orig_index] #remove element to fasten iteration over origins
                             
             # cleanup
             try:
