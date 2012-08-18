@@ -174,6 +174,7 @@ class Proccessing():
                             if t2 <= t:
                                 self.write_error_trip(t2, orig[1], True)
                                 routes['origins'][orig_index][2][time_index2] = False
+                        del routes['origins'][orig_index] #remove element to fasten iteration over origins
                             
             # cleanup
             try:
