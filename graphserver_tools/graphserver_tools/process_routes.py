@@ -128,29 +128,29 @@ class Proccessing():
                 pass
 
             # extract the actual routes and write them into the database
-            for dest_index, dest in enumerate(routes['destinations']):
-                if dest[2][time_index]:
-                    waiting_time = 0
+            del_dest=[]
+            for dest in routes['destinations']:
+                if dest[2][time_index]:   #check if vertex is to be calculated at this time step
                     try:
                         vertices, edges = spt.path(dest[0])
                         if not vertices: raise Exception()
-
                     except:
                         waiting_time = 999999999  #infinite waiting time if not reachable
-                    else:
-                        waiting_time = self.write_trip(vertices, dest[1])
+                    else:                        
+                        waiting_time = self.get_waiting_time(vertices, False)
                     
-                    #for testing: write error trips for inacceptable travel times and duplicate entries
-                    #resulting from subtracting waiting time
-                    if waiting_time >= self.time_step:
-                        for time_index2, t2 in enumerate(routes['times'[:]]):
-                            if waiting_time >= 999999999:                                
-                                if t2 >= t: 
-                                    self.write_error_trip(t2, dest[1], True)
-                                    routes['origins'][dest_index][2][time_index2] = False
-                            elif t + waiting_time >= t2 > t:
-                                temp = self.write_retro_trip(vertices, dest[1]) # write the same entry again
-                                routes['destinations'][dest_index][2][time_index2] = False #set to false, so that it will be ignored at this time stamp
+                    #for testing: write error trips for inacceptable travel times and duplicate entries if there is a waiting time
+                    entries = 0                            
+                    for time_index2, t2 in enumerate(routes['times'[:]]):
+                        if t <= t2 <= t + waiting_time:
+                            entries+=1
+                            dest[2][time_index2] = False #set to false, so that it will be ignored at this time step
+                            if waiting_time >= 999999999: self.write_error_trip(t2, dest[1], True)                              
+                    if waiting_time < 999999999: self.write_trip(vertices, dest[1], waiting_time, entries, False)
+                    if t + waiting_time > routes['times'][-1]: del_dest.append(dest)
+            for dest in del_dest:
+                routes['destinations'].remove(dest) #remove origins that don't need to be calculated anymore to fasten iteration
+                                
             # cleanup
             try:
                 spt.destroy()
@@ -174,8 +174,9 @@ class Proccessing():
                 pass
 
             # extract the actual routes and write them into the database
-            for orig_index, orig in enumerate(routes['origins']):
-                if routes['origins'][orig_index][2][time_index]:
+            del_orig=[]
+            for orig in routes['origins']:
+                if orig[2][time_index]:   #check if vertex is to be calculated at this time step
                     try:
                         vertices, edges = spt.path_retro(orig[0])
                         if not vertices: raise Exception()
@@ -189,9 +190,12 @@ class Proccessing():
                     for time_index2, t2 in enumerate(routes['times'[:]]):
                         if t - waiting_time <= t2 <= t:
                             entries+=1
-                            routes['origins'][orig_index][2][time_index2] = False #set to false, so that it will be ignored at this time step
+                            orig[2][time_index2] = False #set to false, so that it will be ignored at this time step
                             if waiting_time >= 999999999: self.write_error_trip(t2, orig[1], True)                              
                     if waiting_time < 999999999: self.write_trip(vertices, orig[1], waiting_time, entries, True)
+                    if t - waiting_time < routes['times'][-1]: del_orig.append(orig)
+            for orig in del_orig:
+                routes['origins'].remove(orig) #remove origins that don't need to be calculated anymore to fasten iteration
                                 
                             
             # cleanup
