@@ -26,37 +26,37 @@ def read_points_0(f, conn):
     cursor = conn.cursor()
 
     sql = '''
-CREATE OR REPLACE VIEW public.cal_points_view(
-id,
-lat,
-lon,
-name,
-time_id)
-AS
-SELECT row_number() OVER(
-ORDER BY origins.name) ::integer AS id,
-origins.lat,
-origins.lon,
-origins.name,
-NULL::unknown AS time_id
-FROM origins
-UNION ALL
-SELECT row_number() OVER(
-ORDER BY destinations.name) ::integer + 1000000 AS id,
-destinations.lat,
-destinations.lon,
-destinations.name,
-destinations.time_id
-FROM destinations;;
-'''
+    CREATE OR REPLACE VIEW public.cal_points_view(
+        id,
+        lat,
+        lon,
+        name,
+        time_id)
+    AS
+      SELECT row_number() OVER(
+      ORDER BY origins.name) ::integer AS id,
+               origins.lat,
+               origins.lon,
+               origins.name,
+               NULL::unknown AS time_id
+      FROM origins
+      UNION ALL
+      SELECT row_number() OVER(
+      ORDER BY destinations.name) ::integer + 1000000 AS id,
+               destinations.lat,
+               destinations.lon,
+               destinations.name,
+               destinations.time_id
+      FROM destinations;;
+       '''
     cursor.execute(sql)
 
     cursor.execute('DROP TABLE IF EXISTS cal_points CASCADE')
     cursor.execute('''CREATE TABLE cal_points ( id INTEGER PRIMARY KEY,
-lat REAL NOT NULL,
-lon REAL NOT NULL,
-name TEXT,
-time_id INTEGER )''')
+                                            lat REAL NOT NULL,
+                                            lon REAL NOT NULL,
+                                            name TEXT,
+                                            time_id INTEGER )''')
 
     cursor.execute('INSERT INTO cal_points SELECT * FROM cal_points_view;')
     cursor.close()
@@ -70,10 +70,10 @@ def read_points(f, conn):
 
     cursor.execute('DROP TABLE IF EXISTS cal_points CASCADE')
     cursor.execute('''CREATE TABLE cal_points ( id INTEGER PRIMARY KEY,
-lat REAL NOT NULL,
-lon REAL NOT NULL,
-name TEXT,
-time_id INTEGER )''')
+                                            lat REAL NOT NULL,
+                                            lon REAL NOT NULL,
+                                            name TEXT,
+                                            time_id INTEGER  )''')
     reader = utf8csv.UnicodeReader(open(f))
 
     header = reader.next()
@@ -97,9 +97,9 @@ def read_times(f, conn):
 
     cursor.execute('DROP TABLE IF EXISTS cal_times CASCADE')
     cursor.execute('''CREATE TABLE cal_times ( id INTEGER PRIMARY KEY,
-start_time TIMESTAMP NOT NULL,
-end_time TIMESTAMP NOT NULL,
-is_arrival_time BOOLEAN NOT NULL )''')
+                                               start_time TIMESTAMP NOT NULL,
+                                               end_time TIMESTAMP NOT NULL,
+                                               is_arrival_time BOOLEAN NOT NULL  )''')
 
     reader = utf8csv.UnicodeReader(open(f))
 
@@ -126,34 +126,34 @@ is_arrival_time BOOLEAN NOT NULL )''')
 
 def read_routes_0(f, conn):
     """Load routes from cal_routes_view into cal_routes
-references to points and timetable"""
+    references to points and timetable"""
     cursor = conn.cursor()
 
 
     sql = '''
-CREATE OR REPLACE VIEW cal_routes_view AS
+    CREATE OR REPLACE VIEW cal_routes_view AS
 
-SELECT
-row_number() OVER(ORDER BY origin.id,d.id):: integer AS id,
-origin.id AS origin,
-d.id AS destination,
-destinations.time_id,
-FALSE AS done
-FROM
-(SELECT c.id FROM cal_points c WHERE c.id < 1000000) AS origin,
-(SELECT c.id,c.name,c.time_id FROM cal_points c WHERE c.id >= 1000000) AS d,
-destinations
-WHERE d.name=destinations.name AND d.time_id = destinations.time_id;
-'''
+    SELECT
+    row_number() OVER(ORDER BY origin.id,d.id):: integer AS id,
+    origin.id AS origin,
+    d.id AS destination,
+    destinations.time_id,
+    FALSE AS done
+    FROM
+    (SELECT c.id FROM cal_points c WHERE c.id < 1000000) AS origin,
+    (SELECT c.id,c.name,c.time_id FROM cal_points c WHERE c.id >= 1000000) AS d,
+    destinations
+    WHERE d.name=destinations.name AND d.time_id = destinations.time_id;
+    '''
 
     cursor.execute(sql)
 
     cursor.execute('DROP TABLE IF EXISTS cal_routes CASCADE')
     cursor.execute('''CREATE TABLE cal_routes ( id INTEGER PRIMARY KEY,
-origin INTEGER REFERENCES cal_points,
-destination INTEGER REFERENCES cal_points,
-time INTEGER REFERENCES cal_times,
-done BOOLEAN )''')
+                                                origin INTEGER REFERENCES cal_points,
+                                                destination INTEGER REFERENCES cal_points,
+                                                time INTEGER REFERENCES cal_times,
+                                                done BOOLEAN )''')
 
 
     cursor.execute('INSERT INTO cal_routes SELECT * FROM cal_routes_view')
@@ -168,15 +168,15 @@ done BOOLEAN )''')
 
 def read_routes(f, conn):
     """Load routes from csv file into database
-references to points and timetable"""
+    references to points and timetable"""
     cursor = conn.cursor()
 
     cursor.execute('DROP TABLE IF EXISTS cal_routes CASCADE')
     cursor.execute('''CREATE TABLE cal_routes ( id INTEGER PRIMARY KEY,
-origin INTEGER REFERENCES cal_points,
-destination INTEGER REFERENCES cal_points,
-time INTEGER REFERENCES cal_times,
-done BOOLEAN )''')
+                                                origin INTEGER REFERENCES cal_points,
+                                                destination INTEGER REFERENCES cal_points,
+                                                time INTEGER REFERENCES cal_times,
+                                                done BOOLEAN )''')
 
     cursor.execute('CREATE INDEX IDX_time ON cal_routes ( time )')
     cursor.execute('CREATE INDEX IDX_origin ON cal_routes ( origin )')
@@ -201,7 +201,7 @@ done BOOLEAN )''')
                                                                       line[origin_column],
                                                                       line[dest_column],
                                                                       line[time_id_column],
-                                                                      False ))
+                                                                      False                 ))
 
     except:
         print(colored("ERROR: time, origin or desitionation could not be found on route %s!" % i, "red"))
@@ -239,7 +239,7 @@ def calc_corresponding_vertices(graph, db_conn_string):
         conn = psycopg2.connect(db_conn_string)
         c = conn.cursor()
 
-        c.execute('''SELECT id, lat, lon FROM osm_nodes WHERE endnode_refs > 1 AND lat > %s AND lat < %s AND lon > %s AND lon < %s''',
+        c.execute('''SELECT id, lat, lon FROM osm_nodes WHERE endnode_refs > 1 AND lat > %s AND lat < %s  AND lon > %s AND lon < %s''',
                                                                                             ( lat-range, lat+range, lon-range, lon+range ))
         nodes = [n for n in c]
 
@@ -269,7 +269,7 @@ def calc_corresponding_vertices(graph, db_conn_string):
     corres_vertices = [] # will contain tuples of points with their corresponding vertices
 
     # start a few threads for calculating
-    num_threads = 32 # there will actualy be one more
+    num_threads = 32 #  there will actualy be one more
     num_calculations_per_thread = len(points) / num_threads
 
     for i in range(num_threads):
@@ -291,7 +291,7 @@ def calc_corresponding_vertices(graph, db_conn_string):
             finished = True
 
 
-    print('\r%s corresponding points found ' % len(points))
+    print('\r%s corresponding points found                  ' % len(points))
 
     if conn.closed:
         conn = psycopg2.connect(db_conn_string)
@@ -310,3 +310,4 @@ def calc_corresponding_vertices(graph, db_conn_string):
 
     conn.commit()
     c.close()
+
