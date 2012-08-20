@@ -144,8 +144,8 @@ class Proccessing():
                     #resulting from subtracting waiting time
                     if waiting_time >= self.time_step:
                         for time_index2, t2 in enumerate(routes['times'[:]]):
-                            if waiting_time >= 999999999:
-                                self.write_error_trip(t2, dest[1], True)
+                            if waiting_time >= 999999999:                                
+                                if t2 >= t: self.write_error_trip(t2, dest[1], True)
                             elif t + waiting_time >= t2 > t:
                                 temp = self.write_retro_trip(vertices, dest[1]) # write the same entry again
                                 routes['destinations'][dest_index][2][time_index2] = False #set to false, so that it will be ignored at this time stamp
@@ -174,7 +174,7 @@ class Proccessing():
 
             # extract the actual routes and write them into the database
             for orig_index, orig in enumerate(routes['origins']):
-                if orig[2][time_index]:
+                if routes['origins'][orig_index][2][time_index]:
                     waiting_time = 0
                     try:
                         vertices, edges = spt.path_retro(orig[0])
@@ -187,12 +187,13 @@ class Proccessing():
                     #for testing: write error trips for inacceptable travel times and duplicate entries if there is a waiting time
                     if waiting_time >= self.time_step:
                         for time_index2, t2 in enumerate(routes['times'[:]]):
-                            if waiting_time >= 999999999:
-                                self.write_error_trip(t2, orig[1], True)
+                            if waiting_time >= 999999999: 
+                                if t2 <= t: 
+                                    self.write_error_trip(t2, orig[1], True)
+                                    routes['origins'][orig_index][2][time_index2] = False
                             elif t - waiting_time <= t2 < t:
                                 temp = self.write_retro_trip(vertices, orig[1]) # write the same entry again
                                 routes['origins'][orig_index][2][time_index2] = False #set to false, so that it will be ignored at this time step
-                        if waiting_time >= 999999999: del routes['origins'][orig_index]  #remove element to fasten iteration 
                             
             # cleanup
             try:
