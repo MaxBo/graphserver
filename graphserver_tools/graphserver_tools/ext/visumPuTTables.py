@@ -11,7 +11,7 @@ import threading
 class VisumPuTTables(object):
 
 
-    def _createDbTables(self, drop=False, user='public'):
+    def _createDbTables(self, drop=True, user='dino'):
         """ Creates all necessary database tables. Won't overwrite tables unless 'drop' is
             set to True.
         """
@@ -20,24 +20,24 @@ class VisumPuTTables(object):
         connection = psycopg2.connect(self.db_connect_string)
         cursor = connection.cursor()
 
-        if drop:
-            cursor.execute('''DROP TABLE IF EXISTS  "BETREIBER",
-                                                    "FAHRZEITPROFIL",
-                                                    "FAHRZEITPROFILELEMENT",
-                                                    "FAHRPLANFAHRT",
-                                                    "FAHRPLANFAHRTABSCHNITT",
-                                                    "HALTESTELLE",
-                                                    "HALTESTELLENBEREICH",
-                                                    "HALTEPUNKT",
-                                                    "KNOTEN",
-                                                    "RICHTUNG",
-                                                    "VSYS",
-                                                    "LINIE",
-                                                    "LINIENROUTE",
-                                                    "LINIENROUTENELEMENT",
-                                                    "STRECKE",
-                                                    "STRECKENPOLY",
-                                                    "VERSION"
+        #if drop:
+        cursor.execute('''DROP TABLE IF EXISTS "BETREIBER",
+                                                "FAHRZEITPROFIL",
+                                                "FAHRZEITPROFILELEMENT",
+                                                "FAHRPLANFAHRT",
+                                                "FAHRPLANFAHRTABSCHNITT",
+                                                "HALTESTELLE",
+                                                "HALTESTELLENBEREICH",
+                                                "HALTEPUNKT",
+                                                "KNOTEN",
+                                                "RICHTUNG",
+                                                "VSYS",
+                                                "LINIE",
+                                                "LINIENROUTE",
+                                                "LINIENROUTENELEMENT",
+                                                "STRECKE",
+                                                "STRECKENPOLY",
+                                                "VERSION"
                               CASCADE''')
 
 
