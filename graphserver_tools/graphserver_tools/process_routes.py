@@ -145,11 +145,12 @@ class Proccessing():
                     if waiting_time >= self.time_step:
                         for time_index2, t2 in enumerate(routes['times'[:]]):
                             if waiting_time >= 999999999:                                
-                                if t2 >= t: self.write_error_trip(t2, dest[1], True)
+                                if t2 >= t: 
+                                    self.write_error_trip(t2, dest[1], True)
+                                    routes['origins'][dest_index][2][time_index2] = False
                             elif t + waiting_time >= t2 > t:
                                 temp = self.write_retro_trip(vertices, dest[1]) # write the same entry again
                                 routes['destinations'][dest_index][2][time_index2] = False #set to false, so that it will be ignored at this time stamp
-                        if waiting_time >= 999999999: del routes['destinations'][dest_index]  #remove element to fasten iteration 
             # cleanup
             try:
                 spt.destroy()
@@ -175,25 +176,23 @@ class Proccessing():
             # extract the actual routes and write them into the database
             for orig_index, orig in enumerate(routes['origins']):
                 if routes['origins'][orig_index][2][time_index]:
-                    waiting_time = 0
                     try:
                         vertices, edges = spt.path_retro(orig[0])
                         if not vertices: raise Exception()
                     except:
                         waiting_time = 999999999  #infinite waiting time if not reachable
-                    else:
-                        waiting_time = self.write_retro_trip(vertices, orig[1])
+                    else:                        
+                        waiting_time = self.get_waiting_time(vertices, True)
                     
                     #for testing: write error trips for inacceptable travel times and duplicate entries if there is a waiting time
-                    if waiting_time >= self.time_step:
-                        for time_index2, t2 in enumerate(routes['times'[:]]):
-                            if waiting_time >= 999999999: 
-                                if t2 <= t: 
-                                    self.write_error_trip(t2, orig[1], True)
-                                    routes['origins'][orig_index][2][time_index2] = False
-                            elif t - waiting_time <= t2 < t:
-                                temp = self.write_retro_trip(vertices, orig[1]) # write the same entry again
-                                routes['origins'][orig_index][2][time_index2] = False #set to false, so that it will be ignored at this time step
+                    entries = 0                            
+                    for time_index2, t2 in enumerate(routes['times'[:]]):
+                        if t - waiting_time <= t2 <= t:
+                            entries+=1
+                            routes['origins'][orig_index][2][time_index2] = False #set to false, so that it will be ignored at this time step
+                            if waiting_time >= 999999999: self.write_error_trip(t2, orig[1], True)                              
+                    if waiting_time < 999999999: self.write_trip(vertices, orig[1], waiting_time, entries, True)
+                                
                             
             # cleanup
             try:
@@ -216,38 +215,21 @@ class Proccessing():
                 self.process_paths(routes)
 
             routes = self.get_route_dict()
-
-
-    def write_retro_trip(self, vertices, route_id):
-        ''' in retro_paths the walking distance is counted in the wrong direction.
-        this method corrects this.
-        '''
-
-        # now done in write_results
-
-        return self.write_trip(vertices, route_id, isArrival=True)
-
-    def write_trip(self, vertices, route_id, isArrival=False):
-        """Write passed routes and calculation id into database, 
-        if there is a waiting time it will be substracted from the arrival time
-        Return the waiting time"""
-        current_trip_id = str(self.trip_id)
-        self.trip_id += 1
-
-        start_time = datetime.datetime.fromtimestamp(vertices[0].state.time)
-        end_time = datetime.datetime.fromtimestamp(vertices[-1].state.time)
+            
+    def get_waiting_time(self, vertices, is_arrival=False):
+        """look, if there is a waiting time at the first transit stop (for departure-time search)
+        of a waiting time at the last trasit stop before going home (for arrival-time search)"""
         travel_time = vertices[-1].state.time - vertices[0].state.time
         if travel_time > self.max_travel_time:
             return 999999999          #if traveltime is not acceptable return "infinite" waiting time
 
-        # look, if there is a waiting time at the first transit stop (for departure-time search)
-        # of a waiting time at the last trasit stop before going home (for arrival-time search)
+
         weight_in_last_row = None
         num_transfers_in_last_row = None
         waiting_time = 0
 
         for c, v in enumerate(vertices):
-            if isArrival:
+            if is_arrival:
                 # last transit stop for arrival-time search
                 if v.state.num_transfers == 0:
                     if num_transfers_in_last_row == 1:
@@ -260,42 +242,51 @@ class Proccessing():
                         waiting_time = v.state.weight - weight_in_last_row -1
                         break
 
-            weight_in_last_row, num_transfers_in_last_row = v.state.weight, v.state.num_transfers
+            weight_in_last_row, num_transfers_in_last_row = v.state.weight, v.state.num_transfers        
+        return waiting_time
 
+
+    def write_trip(self, vertices, route_id, waiting_time, entries, is_arrival=False):
+        """Write passed routes and calculation id into database, 
+        the waiting time will be substracted from the arrival time"""
+        
+        start_time = datetime.datetime.fromtimestamp(vertices[0].state.time)
+        end_time = datetime.datetime.fromtimestamp(vertices[-1].state.time)
+        travel_time = vertices[-1].state.time - vertices[0].state.time
         # reduce travel_time by waiting time
         travel_time -= waiting_time
-        if isArrival:
+        if is_arrival:
         # actual arriving time is earlier
             end_time -= datetime.timedelta(0,waiting_time)
         else:
         # can depart some minutes later
             start_time += datetime.timedelta(0,waiting_time)
 
-        self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', ( self.trip_prefix + current_trip_id, route_id, start_time, end_time, travel_time ))
+        for i in range(entries):
+            current_trip_id = str(self.trip_id) 
+            self.trip_id += 1
+            self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', ( self.trip_prefix + current_trip_id, route_id, start_time, end_time, travel_time ))
 
-
-
-        if self.write_cal_paths_details:
-            for c, v in enumerate(vertices):
-                self.cursor.execute('INSERT INTO cal_paths_details VALUES (%s,%s,%s,%s,%s,%s,%s,%s)',\
-                                   ( self.trip_prefix + current_trip_id, c, v.label, time,
-                                   v.state.weight, v.state.dist_walked, v.state.num_transfers, v.state.trip_id ))
+            if self.write_cal_paths_details:
+                for c, v in enumerate(vertices):
+                    self.cursor.execute('INSERT INTO cal_paths_details VALUES (%s,%s,%s,%s,%s,%s,%s,%s)',\
+                                        ( self.trip_prefix + current_trip_id, c, v.label, time,
+                                          v.state.weight, v.state.dist_walked, v.state.num_transfers, v.state.trip_id ))
 
 
         if not self.trips_calculated % 1000:
             self.conn.commit()
             self.logfile.write('%s routes calculated by %s, last route: %s \n' %(self.trips_calculated, self.trip_prefix, route_id))
             self.logfile.flush()
-        self.trips_calculated += 1
-        return waiting_time
+        self.trips_calculated += entries
 
-    def write_error_trip(self, start_end_time, route_id, is_arrival):
+    def write_error_trip(self, start_end_time, route_id, is_arrival = False):
         """Write a long trip (representing "unreachable"?) into database"""
         current_trip_id = str(self.trip_id)
         self.trip_id += 1
         if is_arrival:
             end_date_time = datetime.datetime.fromtimestamp(start_end_time)
-            start_time = datetime.datetime(1985,12,31)      
+            start_time = datetime.datetime(1985,12,31)
             self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', (self.trip_prefix + current_trip_id, route_id, start_time, end_date_time, (start_end_time - time.mktime(start_time.timetuple()))))
         else:    
             start_date_time = datetime.datetime.fromtimestamp(start_end_time)
