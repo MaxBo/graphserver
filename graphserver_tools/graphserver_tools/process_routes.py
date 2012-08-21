@@ -96,13 +96,13 @@ class Proccessing():
                  'origins':[ ( self.get_gs_vertex(orig[1]), orig[0], is_calc_time[:]) for orig in origins ] }
 
 
-    def get_dict(self, origin, time, start_time, end_time, is_arrival):
+    def get_dict(self, origin, time, start_time, end_time):
         self.cursor.execute('''SELECT id, destination FROM cal_routes WHERE origin=%s AND time=%s''', ( origin, time ))
         destinations = list(self.cursor.fetchall())
 
         self.cursor.execute('UPDATE cal_routes SET done=%s WHERE origin=%s AND time=%s', ( True, origin, time ))
         self.conn.commit()
-        times = self.prepare_times(start_time, end_time, True)
+        times = self.prepare_times(start_time, end_time, False)
         is_calc_time = []
         for t in times:
             is_calc_time.append(True)
@@ -145,7 +145,7 @@ class Proccessing():
                         if t <= t2 <= t + waiting_time:
                             entries+=1
                             dest[2][time_index2] = False #set to false, so that it will be ignored at this time step
-                            if waiting_time >= 999999999: self.write_error_trip(t2, dest[1], True)                              
+                            if waiting_time >= 999999999: self.write_error_trip(t2, dest[1], False)                              
                     if waiting_time < 999999999: self.write_trip(vertices, dest[1], waiting_time, entries, False)
                     if t + waiting_time > routes['times'][-1]: del_dest.append(dest)
             for dest in del_dest:
