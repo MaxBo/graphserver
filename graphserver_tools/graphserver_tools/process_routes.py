@@ -92,7 +92,7 @@ class Proccessing():
                  'origins':[ ( self.get_gs_vertex(orig[1]), orig[0] ) for orig in origins ] }
 
 
-    def get_dict(self, origin, time, start_time, end_time,  is_arrival):
+    def get_dict(self, origin, time, start_time, end_time):
         self.cursor.execute('''SELECT id, destination FROM cal_routes WHERE origin=%s AND time=%s''', ( origin, time ))
         destinations = list(self.cursor.fetchall())
 
