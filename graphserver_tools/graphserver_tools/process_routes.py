@@ -149,7 +149,7 @@ class Proccessing():
                     if waiting_time < 999999999: self.write_trip(vertices, dest[1], waiting_time, entries, False)
                     if t + waiting_time > routes['times'][-1]: del_dest.append(dest)
             for dest in del_dest:
-                routes['destinations'].remove(dest) #remove origins that don't need to be calculated anymore to fasten iteration
+                routes['destinations'].remove(dest) #remove destinations that don't need to be calculated anymore to fasten iteration
                                 
             # cleanup
             try:
@@ -167,9 +167,9 @@ class Proccessing():
             # build the shortest path tree at time 't'
             try:
                 if len(routes['origins']) > 1:
-                    spt = self.graph.shortest_path_tree_retro(None, routes['destination'], s,self.walk_ops, weightlimit = int(1.5 * self.max_travel_time) + 1000)
+                    spt = self.graph.shortest_path_tree_retro(None, routes['destination'], s,self.walk_ops, weightlimit = self.max_travel_time + self.walk_ops.max_walk)
                 else:
-                    spt = self.graph.shortest_path_tree_retro(routes['origins'][0][0], routes['destination'], s, self.walk_ops, weightlimit = int(1.5 * self.max_travel_time) + 1000)# faster but only ONE destination
+                    spt = self.graph.shortest_path_tree_retro(routes['origins'][0][0], routes['destination'], s, self.walk_ops, weightlimit = self.max_travel_time + self.walk_ops.max_walk)# faster but only ONE destination
             except:
                 pass
 
@@ -222,9 +222,9 @@ class Proccessing():
             
     def get_waiting_time(self, vertices, is_arrival=False):
         """look, if there is a waiting time at the first transit stop (for departure-time search)
-        of a waiting time at the last trasit stop before going home (for arrival-time search)"""
+        of a waiting time at the last transit stop before going home (for arrival-time search)"""
         travel_time = vertices[-1].state.time - vertices[0].state.time
-        if travel_time > self.max_travel_time:
+        if travel_time > (self.max_travel_time + self.walk_ops.max_walk):
             return 999999999          #if traveltime is not acceptable return "infinite" waiting time
 
 
