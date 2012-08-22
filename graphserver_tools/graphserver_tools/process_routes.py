@@ -167,9 +167,9 @@ class Proccessing():
             # build the shortest path tree at time 't'
             try:
                 if len(routes['origins']) > 1:
-                    spt = self.graph.shortest_path_tree_retro(None, routes['destination'], s,self.walk_ops)
+                    spt = self.graph.shortest_path_tree_retro(None, routes['destination'], s,self.walk_ops, weightlimit = self.max_travel_time)
                 else:
-                    spt = self.graph.shortest_path_tree_retro(routes['origins'][0][0], routes['destination'], s, self.walk_ops) # faster but only ONE destination
+                    spt = self.graph.shortest_path_tree_retro(routes['origins'][0][0], routes['destination'], s, self.walk_ops, weightlimit = self.max_travel_time) # faster but only ONE destination
             except:
                 pass
 
