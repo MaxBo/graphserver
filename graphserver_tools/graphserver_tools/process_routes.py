@@ -167,9 +167,9 @@ class Proccessing():
             # build the shortest path tree at time 't'
             try:
                 if len(routes['origins']) > 1:
-                    spt = self.graph.shortest_path_tree_retro(None, routes['destination'], s,self.walk_ops, weightlimit = self.max_travel_time)
+                    spt = self.graph.shortest_path_tree_retro(None, routes['destination'], s,self.walk_ops, weightlimit = int(1.5 * self.max_travel_time) + 1000)
                 else:
-                    spt = self.graph.shortest_path_tree_retro(routes['origins'][0][0], routes['destination'], s, self.walk_ops, weightlimit = self.max_travel_time) # faster but only ONE destination
+                    spt = self.graph.shortest_path_tree_retro(routes['origins'][0][0], routes['destination'], s, self.walk_ops, weightlimit = int(1.5 * self.max_travel_time) + 1000)# faster but only ONE destination
             except:
                 pass
 
@@ -427,26 +427,26 @@ def create_db_tables(connection, recreate=False):
     cursor.close()
 
 
-def print_status(connection, logfile=None):
+def print_status(connection, time_step, logfile=None):
 
-    def calc_calculation_time(routes_previously_wating, routes_waiting, all_routes, time_finished):
-        if routes_previously_wating != routes_waiting:
+    def calc_calculation_time(routes_previously_waiting, routes_waiting, all_routes, time_finished):
+        if routes_previously_waiting != routes_waiting:
 
-            if (not routes_previously_wating) or (all_routes - routes_previously_wating == 0):
+            if (not routes_previously_waiting) or (all_routes - routes_previously_waiting == 0):
                 return None, routes_waiting
 
-            routes_processed = all_routes - routes_previously_wating
-            routes_previously_wating = routes_waiting
+            routes_processed = all_routes - routes_previously_waiting
+            routes_previously_waiting = routes_waiting
 
             routes_per_second = (time.time() - time_started) / routes_processed
             time_finished = (all_routes - routes_processed) * routes_per_second
 
-        return time_finished, routes_previously_wating
+        return time_finished, routes_previously_waiting
 
 
     time_started = time.time()
     time_finished = None
-    routes_previously_wating = None
+    routes_previously_waiting = None
     routes_waiting = None
 
     cursor = connection.cursor()
@@ -456,15 +456,15 @@ def print_status(connection, logfile=None):
     finished = False
     while not finished:
         time.sleep(1.0)
-        cursor.execute('SELECT count(*) FROM cal_routes WHERE NOT done')
-        routes_waiting = cursor.fetchone()[0]
+        cursor.execute('SELECT count(*) FROM cal_routes WHERE NOT done')        
+        routes_waiting = cursor.fetchone()[0]     
+           
         if not routes_waiting:
             finished = True
 
         else:
             if time_finished:
-                text = '\r%s routes waiting to be processed. Finished in about %s ' % (routes_waiting,
-                                                                                                    utils.seconds_time_string(time_finished))
+                text = '\r%s routes waiting to be processed. Finished in about %s ' % (routes_waiting, utils.seconds_time_string(time_finished))
                 sys.stdout.write(text)
                 sys.stdout.flush()
 ## if logfile:
@@ -479,7 +479,7 @@ def print_status(connection, logfile=None):
 ## logfile.write(text)
 ## logfile.flush()
 
-        time_finished, routes_previously_wating = calc_calculation_time(routes_previously_wating, routes_waiting, all_routes, time_finished)
+        time_finished, routes_previously_waiting = calc_calculation_time(routes_previously_waiting, routes_waiting, all_routes, time_finished)
 
     connection.close()
 
