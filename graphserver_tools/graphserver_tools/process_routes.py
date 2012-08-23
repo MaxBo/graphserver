@@ -121,9 +121,9 @@ class Proccessing():
             # build the shortest path tree at time 't'
             try:
                 if len(routes['destinations']) > 1:
-                    spt = self.graph.shortest_path_tree(routes['origin'], None, s, self.walk_ops)
+                    spt = self.graph.shortest_path_tree(routes['origin'], None, s, self.walk_ops, weightlimit = self.max_travel_time + self.walk_ops.max_walk)
                 else:
-                    spt = self.graph.shortest_path_tree(routes['origin'],routes['destinations'][0][0], s, self.walk_ops) # faster but only ONE destination
+                    spt = self.graph.shortest_path_tree(routes['origin'],routes['destinations'][0][0], s, self.walk_ops, weightlimit = self.max_travel_time + self.walk_ops.max_walk) # faster but only ONE destination
             except:
                 pass
 
@@ -186,14 +186,15 @@ class Proccessing():
                         waiting_time = self.get_waiting_time(vertices, True)
                     
                     #for testing: write error trips for inacceptable travel times and duplicate entries if there is a waiting time
-                    entries = 0                            
-                    for time_index2, t2 in enumerate(routes['times'[:]]):
-                        if t - waiting_time <= t2 <= t:
-                            entries+=1
-                            orig[2][time_index2] = False #set to false, so that it will be ignored at this time step
-                            if waiting_time >= 999999999: self.write_error_trip(t2, orig[1], True)                              
-                    if waiting_time < 999999999: self.write_trip(vertices, orig[1], waiting_time, entries, True)
-                    if t - waiting_time < routes['times'][-1]: del_orig.append(orig)
+                    entries = 0
+                    if waiting_time >= self.time_step:                            
+                        for time_index2, t2 in enumerate(routes['times'[:]]):
+                            if t - waiting_time <= t2 <= t:
+                                entries+=1
+                                orig[2][time_index2] = False #set to false, so that it will be ignored at this time step
+                                if waiting_time >= 999999999: self.write_error_trip(t2, orig[1], True)                              
+                        if waiting_time < 999999999: self.write_trip(vertices, orig[1], waiting_time, entries, True)
+                        if t - waiting_time < routes['times'][-1]: del_orig.append(orig)
             for orig in del_orig:
                 routes['origins'].remove(orig) #remove origins that don't need to be calculated anymore to fasten iteration
                                 
