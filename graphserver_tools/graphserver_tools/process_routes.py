@@ -87,14 +87,14 @@ class Proccessing():
         self.cursor.execute('UPDATE cal_routes SET done=%s WHERE destination=%s AND time=%s', ( True, destination, time ))
         self.conn.commit()
         times = self.prepare_times(start_time, end_time, True)
-        is_calc_time = []
-        for t in times:
-            is_calc_time.append(True)
+        #is_calc_time = []
+        #for t in times:
+        #    is_calc_time.append(True)
 
         return { 'destination':self.get_gs_vertex(destination), 'times': times,
                  'arrival':True,
-                 'origins':[ ( self.get_gs_vertex(orig[1]), orig[0], is_calc_time[:]) for orig in origins ] }
-
+                 #'origins':[ ( self.get_gs_vertex(orig[1]), orig[0], is_calc_time[:]) for orig in origins ] }
+                 'origins':[ ( self.get_gs_vertex(orig[1]), orig[0]) for orig in origins ] }
 
     def get_dict(self, origin, time, start_time, end_time):
         self.cursor.execute('''SELECT id, destination FROM cal_routes WHERE origin=%s AND time=%s''', ( origin, time ))
@@ -176,7 +176,8 @@ class Proccessing():
             # extract the actual routes and write them into the database
             del_orig=[]
             for orig in routes['origins']:
-                if orig[2][time_index]:   #check if vertex is to be calculated at this time step
+                #if orig[2][time_index]:   #check if vertex is to be calculated at this time step
+                if True:
                     try:
                         vertices, edges = spt.path_retro(orig[0])
                         if not vertices: raise Exception()
@@ -186,15 +187,19 @@ class Proccessing():
                         waiting_time = self.get_waiting_time(vertices, True)
                     
                     #for testing: write error trips for inacceptable travel times and duplicate entries if there is a waiting time
-                    entries = 0
-                    if waiting_time >= self.time_step:                            
+#                    entries = 0
+                    if waiting_time >= 999999999:
                         for time_index2, t2 in enumerate(routes['times'[:]]):
                             if t - waiting_time <= t2 <= t:
-                                entries+=1
-                                orig[2][time_index2] = False #set to false, so that it will be ignored at this time step
-                                if waiting_time >= 999999999: self.write_error_trip(t2, orig[1], True)                              
-                        if waiting_time < 999999999: self.write_trip(vertices, orig[1], waiting_time, entries, True)
-                        if t - waiting_time < routes['times'][-1]: del_orig.append(orig)
+                                self.write_error_trip(t2, orig[1], True)
+                        del_orig.append(orig)
+                    else: self.write_trip(vertices, orig[1], waiting_time, 1, True)
+#                    if waiting_time >= self.time_step:                            
+#                                entries+=1
+#                                orig[2][time_index2] = False #set to false, so that it will be ignored at this time step
+#                                if waiting_time >= 999999999: self.write_error_trip(t2, orig[1], True)                              
+#                        if waiting_time < 999999999: self.write_trip(vertices, orig[1], waiting_time, entries, True)
+#                        if t - waiting_time < routes['times'][-1]: del_orig.append(orig)
             for orig in del_orig:
                 routes['origins'].remove(orig) #remove origins that don't need to be calculated anymore to fasten iteration
                                 
