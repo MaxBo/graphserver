@@ -87,14 +87,13 @@ class Proccessing():
         self.cursor.execute('UPDATE cal_routes SET done=%s WHERE destination=%s AND time=%s', ( True, destination, time ))
         self.conn.commit()
         times = self.prepare_times(start_time, end_time, True)
-        #is_calc_time = []
-        #for t in times:
-        #    is_calc_time.append(True)
+        is_calc_time = []
+        for t in times:
+            is_calc_time.append(True)
 
         return { 'destination':self.get_gs_vertex(destination), 'times': times,
                  'arrival':True,
-                 #'origins':[ ( self.get_gs_vertex(orig[1]), orig[0], is_calc_time[:]) for orig in origins ] }
-                 'origins':[ ( self.get_gs_vertex(orig[1]), orig[0]) for orig in origins ] }
+                 'origins':[ ( self.get_gs_vertex(orig[1]), orig[0], is_calc_time[:]) for orig in origins ] }
 
     def get_dict(self, origin, time, start_time, end_time):
         self.cursor.execute('''SELECT id, destination FROM cal_routes WHERE origin=%s AND time=%s''', ( origin, time ))
@@ -167,17 +166,16 @@ class Proccessing():
             # build the shortest path tree at time 't'
             try:
                 if len(routes['origins']) > 1:
-                    spt = self.graph.shortest_path_tree_retro(None, routes['destination'], s,self.walk_ops, weightlimit = self.max_travel_time + self.walk_ops.max_walk)
+                    spt = self.graph.shortest_path_tree_retro(None, routes['destination'], s,self.walk_ops, weightlimit = self.weightlimit)
                 else:
-                    spt = self.graph.shortest_path_tree_retro(routes['origins'][0][0], routes['destination'], s, self.walk_ops, weightlimit = self.max_travel_time + self.walk_ops.max_walk)# faster but only ONE destination
+                    spt = self.graph.shortest_path_tree_retro(routes['origins'][0][0], routes['destination'], s, self.walk_ops, weightlimit = self.weightlimit)# faster but only ONE destination
             except:
                 pass
 
             # extract the actual routes and write them into the database
             del_orig=[]
             for orig in routes['origins']:
-                #if orig[2][time_index]:   #check if vertex is to be calculated at this time step
-                if True:
+                if orig[2][time_index]:   #check if vertex is to be calculated at this time step
                     try:
                         vertices, edges = spt.path_retro(orig[0])
                         if not vertices: raise Exception()
@@ -185,24 +183,21 @@ class Proccessing():
                         waiting_time = 999999999  #infinite waiting time if not reachable
                     else:                        
                         waiting_time = self.get_waiting_time(vertices, True)
-                    
-                    #for testing: write error trips for inacceptable travel times and duplicate entries if there is a waiting time
-#                    entries = 0
-                    if waiting_time >= 999999999:
+                                        
+                    entries = 1
+                    #write error trips for inacceptable travel times  
+                    if waiting_time >= self.time_step: 
+                        entries = 0
                         for time_index2, t2 in enumerate(routes['times'[:]]):
-                            if t - waiting_time <= t2 <= t:
-                                self.write_error_trip(t2, orig[1], True)
-                        del_orig.append(orig)
-                    else: self.write_trip(vertices, orig[1], waiting_time, 1, True)
-#                    if waiting_time >= self.time_step:                            
-#                                entries+=1
-#                                orig[2][time_index2] = False #set to false, so that it will be ignored at this time step
-#                                if waiting_time >= 999999999: self.write_error_trip(t2, orig[1], True)                              
-#                        if waiting_time < 999999999: self.write_trip(vertices, orig[1], waiting_time, entries, True)
-#                        if t - waiting_time < routes['times'][-1]: del_orig.append(orig)
+                            if t >= t2 >= t - waiting_time:                                                   
+                                entries+=1
+                                orig[2][time_index2] = False #set to false, so that it will be ignored at this time step
+                                if waiting_time >= 999999999: self.write_error_trip(t2, orig[1], True)
+                        if t - waiting_time < routes['times'][-1]: del_orig.append(orig)       
+                    if waiting_time < 999999999: self.write_trip(vertices, orig[1], waiting_time, entries, True)
             for orig in del_orig:
                 routes['origins'].remove(orig) #remove origins that don't need to be calculated anymore to fasten iteration
-                                
+                
                             
             # cleanup
             try:
@@ -230,7 +225,7 @@ class Proccessing():
         """look, if there is a waiting time at the first transit stop (for departure-time search)
         of a waiting time at the last transit stop before going home (for arrival-time search)"""
         travel_time = vertices[-1].state.time - vertices[0].state.time
-        if travel_time > (self.max_travel_time + self.walk_ops.max_walk):
+        if travel_time > (self.weightlimit): # and vertices[0].state.dist_walked < self.walk_ops.max_walk / 2:
             return 999999999          #if traveltime is not acceptable return "infinite" waiting time
 
 
@@ -279,6 +274,7 @@ class Proccessing():
 
             if self.write_cal_paths_details:
                 for c, v in enumerate(vertices):
+                    time = datetime.datetime.fromtimestamp(v.state.time)
                     self.cursor.execute('INSERT INTO cal_paths_details VALUES (%s,%s,%s,%s,%s,%s,%s,%s)',\
                                         ( self.trip_prefix + current_trip_id, c, v.label, time,
                                           v.state.weight, v.state.dist_walked, v.state.num_transfers, v.state.trip_id ))
@@ -309,11 +305,12 @@ class Proccessing():
         self.trip_prefix = trip_prefix
         self.time_step = time_step
         self.write_cal_paths_details = write_cal_paths_details
-
+        self.weightlimit = max_travel_time + int(max_walk / walking_speed * walking_reluctance / 2) + 1000 #walking is penalized with higher weights, +1000 if waiting is penalized
         self.walk_ops = WalkOptions()
         self.walk_ops.walking_speed = walking_speed
         self.walk_ops.max_walk = max_walk
         self.walk_ops.walking_reluctance = walking_reluctance
+        self.walk_ops.walking_overage = 0.4
         self.max_travel_time = max_travel_time
         self.graph = graph
         self.conn = psycopg2.connect(db_connection_string)
