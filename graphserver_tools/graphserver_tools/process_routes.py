@@ -243,6 +243,7 @@ class Proccessing():
 
         if self.write_cal_paths_details:
             for c, v in enumerate(vertices):
+                time = datetime.datetime.fromtimestamp(v.state.time)
                 self.cursor.execute('INSERT INTO cal_paths_details VALUES (%s,%s,%s,%s,%s,%s,%s,%s)',\
                                    ( self.trip_prefix + current_trip_id, c, v.label, time,
                                    v.state.weight, v.state.dist_walked, v.state.num_transfers, v.state.trip_id ))
