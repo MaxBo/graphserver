@@ -120,9 +120,9 @@ class Proccessing():
             # build the shortest path tree at time 't'
             try:
                 if len(routes['destinations']) > 1:
-                    spt = self.graph.shortest_path_tree(routes['origin'], None, s, self.walk_ops, weightlimit = self.max_travel_time + self.walk_ops.max_walk)
+                    spt = self.graph.shortest_path_tree(routes['origin'], None, s, self.walk_ops, weightlimit = self.weightlimit)
                 else:
-                    spt = self.graph.shortest_path_tree(routes['origin'],routes['destinations'][0][0], s, self.walk_ops, weightlimit = self.max_travel_time + self.walk_ops.max_walk) # faster but only ONE destination
+                    spt = self.graph.shortest_path_tree(routes['origin'],routes['destinations'][0][0], s, self.walk_ops, weightlimit = self.weightlimit) # faster but only ONE destination
             except:
                 pass
 
@@ -180,9 +180,10 @@ class Proccessing():
                         vertices, edges = spt.path_retro(orig[0])
                         if not vertices: raise Exception()
                     except:
+                        error_trip = True
                         waiting_time = 999999999  #infinite waiting time if not reachable
                     else:                        
-                        waiting_time = self.get_waiting_time(vertices, True)
+                        waiting_time, error_trip = self.get_waiting_time(vertices, True)
                                         
                     entries = 1
                     #write error trips for inacceptable travel times  
@@ -192,9 +193,9 @@ class Proccessing():
                             if t >= t2 >= t - waiting_time:                                                   
                                 entries+=1
                                 orig[2][time_index2] = False #set to false, so that it will be ignored at this time step
-                                if waiting_time >= 999999999: self.write_error_trip(t2, orig[1], True)
+                                if error_trip: self.write_error_trip(t2, orig[1], True)
                         if t - waiting_time < routes['times'][-1]: del_orig.append(orig)       
-                    if waiting_time < 999999999: self.write_trip(vertices, orig[1], waiting_time, entries, True)
+                    if not error_trip: self.write_trip(vertices, orig[1], waiting_time, entries, True)
             for orig in del_orig:
                 routes['origins'].remove(orig) #remove origins that don't need to be calculated anymore to fasten iteration
                 
@@ -226,7 +227,7 @@ class Proccessing():
         of a waiting time at the last transit stop before going home (for arrival-time search)"""
         travel_time = vertices[-1].state.time - vertices[0].state.time
         if travel_time > (self.weightlimit): # and vertices[0].state.dist_walked < self.walk_ops.max_walk / 2:
-            return 999999999          #if traveltime is not acceptable return "infinite" waiting time
+            return 999999999, True          #if traveltime is not acceptable return "infinite" waiting time
 
 
         weight_in_last_row = None
@@ -248,7 +249,7 @@ class Proccessing():
                         break
 
             weight_in_last_row, num_transfers_in_last_row = v.state.weight, v.state.num_transfers        
-        return waiting_time
+        return waiting_time, False
 
 
     def write_trip(self, vertices, route_id, waiting_time, entries, is_arrival=False):
@@ -305,7 +306,7 @@ class Proccessing():
         self.trip_prefix = trip_prefix
         self.time_step = time_step
         self.write_cal_paths_details = write_cal_paths_details
-        self.weightlimit = max_travel_time + int(max_walk / walking_speed * walking_reluctance / 2) + 1000 #walking is penalized with higher weights, +1000 if waiting is penalized
+        self.weightlimit = max_travel_time + int(max_walk / walking_speed * walking_reluctance/2) + 1000 #walking is penalized with higher weights, +1000 if waiting is penalized
         self.walk_ops = WalkOptions()
         self.walk_ops.walking_speed = walking_speed
         self.walk_ops.max_walk = max_walk

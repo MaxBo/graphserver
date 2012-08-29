@@ -89,7 +89,7 @@ def calculate_routes(graph, psql_connect_string, options, num_processes=4, write
                                                                              int(options['time-step']),
                                                                              float(options['walking-speed']),
                                                                              int(options['max-walk']),
-                                                                             int(options['walking-reluctance']),
+                                                                             float(options['walking-reluctance']),
                                                                              socket.gethostname() + prefixes[i],
                                                                              logfile,
                                                                              write_cal_paths_details,
