@@ -245,7 +245,8 @@ def validate_input(configuration, psql_connect_string, options):
                 if (nt,) not in tables:
                     valide = False
                     print(colored('ERROR: path data not in database - please calculate shortest paths first', 'red'))
-                    break   
+                    break
+            if not validate_tables(psql_connect_string, ('cal_paths', 'cal_path_details')): valide = False   
 
         if options.import_routes:
             if not validate_tables(psql_connect_string, ('destinations','origins','cal_times','gtfs_stop_times')): 
@@ -258,7 +259,7 @@ def validate_input(configuration, psql_connect_string, options):
                     options.calculate, valide = False, False
                     print(colored('ERROR: route data not in database - please import route data first', 'red'))
                     break
-            if not validate_tables(psql_connect_string, ('gtfs_stop_times',)):
+            if not validate_tables(psql_connect_string, ('gtfs_stop_times','cal_routes')):
                 options.calculate, valide = False, False
         
         if options.calculate:
@@ -311,6 +312,24 @@ def validate_tables(psql_connect_string, tables):
                 print('arrival time at stop sequence %i: %i'%(row[4], row[1]))
                 print
                 break
+        
+        if table == 'cal_routes':
+            c.execute('SELECT COUNT(id) FROM cal_routes')
+            num_routes = c.fetchone()
+            num_origs = c.execute('SELECT COUNT(name) FROM origins')
+            num_origs = c.fetchone()
+            num_dests = c.execute('SELECT COUNT(name) FROM destinations')
+            num_dests = c.fetchone()
+            if num_routes[0] != num_origs[0] * num_dests[0]:
+                print(colored('The numbers of origins and destinations don\'t match the number of routes, maybe you should import the route data again. Do you want to start the calculation anyway? [ y/n ]', 'yellow'))
+                input = sys.stdin.read(1)
+
+                if input == 'y' or input == 'Y':
+                    c.execute('UPDATE cal_routes SET done=false')
+                    process_routes.create_db_tables(conn, True)
+                else:
+                    valid = False
+                 
                
         c.execute('SELECT * FROM %s' %table)
         row = c.fetchone()
