@@ -248,14 +248,18 @@ def validate_input(configuration, psql_connect_string, options):
                     break   
 
         if options.import_routes:
-            valide = validate_tables(psql_connect_string, ('destinations','origins'))
+            if not validate_tables(psql_connect_string, ('destinations','origins','cal_times','gtfs_stop_times')): 
+                valide, options.calculate = False, False
+            
 
         if options.calculate and ((not options.import_all) and (not options.import_routes)):            
             for nt in route_tables:
                 if (nt,) not in tables:
-                    options.calculate = False
+                    options.calculate, valide = False, False
                     print(colored('ERROR: route data not in database - please import route data first', 'red'))
                     break
+            if not validate_tables(psql_connect_string, ('gtfs_stop_times',)):
+                options.calculate, valide = False, False
         
         if options.calculate:
             if not validate_tables(psql_connect_string, ('cal_times',)): valide = False
@@ -290,19 +294,43 @@ def validate_tables(psql_connect_string, tables):
     if 'destinations' in tables or 'origin' in tables:
         min_lat, max_lat, min_lon, max_lon = get_osm_borders(psql_connect_string)
     valid = True
-    for table in tables:   
+    for table in tables:
+        
+        if table == 'gtfs_stop_times':  #check for time travels (arrival time before departure time)
+            c.execute('''SELECT g2.trip_id, g2.arrival_time, g1.departure_time, g1.stop_sequence, g2.stop_sequence
+                        FROM gtfs_stop_times g1 INNER JOIN gtfs_stop_times g2 ON g1.trip_id = g2.trip_id
+                        WHERE g1.trip_id = g2.trip_id
+                        AND g1.stop_sequence < g2.stop_sequence
+                        AND g2.arrival_time < g1.departure_time
+                        ORDER BY trip_id, g1.stop_sequence''')
+            row = c.fetchone()
+            if row:
+                valid = False
+                print(colored('Time Travel detected in table gtfs_stop_times @ trip_id %s: arrival time earlier than preceding departure time' %row[0], 'red'))
+                print('departure time at stop sequence %i: %i'%(row[3],row[2]))
+                print('arrival time at stop sequence %i: %i'%(row[4], row[1]))
+                print
+                break
+               
         c.execute('SELECT * FROM %s' %table)
         row = c.fetchone()
         if not row:
             print(colored('Table %s is empty' %table, 'red'))
             valid = False
             
-        while row:            
+        while row:
+            if table == 'gtfs_stop_times':
+                if row[1] > row[2]:
+                    valid = False
+                    print(colored('Error in table gtfs_stop_times @ id %s: arrival time is later than departure time in same row' %row[0], 'red'))
+                    print row
+                    print
+                   
             if table=='cal_times':
                 id, start_time, end_time, is_arrival = row
                 if start_time > end_time: 
                     valid = False
-                    print(colored('error cal_times @ id %i: start time is later than end time' %id, 'red'))
+                    print(colored('Error in table cal_times @ id %i: start time is later than end time' %id, 'red'))
                     print ('%d, %s, %s, %s' %(id, str(start_time), str(end_time), is_arrival))
                     print
                 for i in (start_time, end_time):
@@ -315,23 +343,23 @@ def validate_tables(psql_connect_string, tables):
                         print
             
             if table=='destinations' or table=='origins':
-                if table=='destinations': name, lat, lon, time_id = row
+                if table=='destinations': 
+                    name, lat, lon, time_id = row
+                    c2.execute('SELECT * FROM cal_times WHERE id = %i' %time_id) #check if there are times in cal_times that fit the time_id of the current destination
+                    if not c2.fetchone():
+                        valid = False
+                        print(colored('Error in table destinations @ name %s: time id \'%i\' is not found in cal_times' %(name, time_id), 'red'))
+                        print row
+                        print
                 else: name, lat, lon = row
                 if not (max_lat >= lat >= min_lat and max_lon >= lon >= min_lon):
                     valid = False
                     print(colored('Error in table %s @ name %s: lat/lon not within OSM Area (min_lat: %f; max_lat: %f;  min_lon %f; max_lon: %f' %(table, name, min_lat, max_lat, min_lon, max_lon), 'red'))
                     print row
                     print
-                if table=='destinations':
-                    c2.execute('SELECT * FROM cal_times WHERE id = %i' %time_id)
-                    if not c2.fetchone():
-                        valid = False
-                        print(colored('Error in table destinations @ name %s: time id \'%i\' is not found in cal_times' %(name, time_id), 'red'))
-                        print row
-                        print
-            
             
             row = c.fetchone()
+            
     c.close()
     c2.close()
     conn.close()
