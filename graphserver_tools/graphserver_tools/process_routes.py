@@ -308,7 +308,7 @@ class Proccessing():
         self.trips_calculated += entries
 
     def write_error_trip(self, start_end_time, route_id, is_arrival = False):
-        """Write a long trip (representing "unreachable"?) into database"""
+        """Write a long trip representing "unreachable" respectively "inacceptable" into database"""
         current_trip_id = str(self.trip_id)
         self.trip_id += 1
         if is_arrival:
@@ -496,7 +496,7 @@ def print_status(connection, time_step, logfile=None):
 ## logfile.flush()
 
             else:
-                text = '\r%s routes waiting to be processed. Please wait ... ' % routes_waiting
+                text = '\r%s routes waiting to be processed. Please wait ...              ' % routes_waiting
                 sys.stdout.write(text)
                 sys.stdout.flush()
 ## if logfile:
@@ -507,5 +507,5 @@ def print_status(connection, time_step, logfile=None):
 
     connection.close()
 
-    sys.stdout.write('\rThe last routes getting processed. Please wait ... \n')
+    sys.stdout.write('\rThe last routes getting processed. Please wait ...               \n')
     sys.stdout.flush()
