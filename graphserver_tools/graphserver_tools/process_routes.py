@@ -129,24 +129,35 @@ class Proccessing():
             # extract the actual routes and write them into the database
             del_dest=[]
             for dest in routes['destinations']:
-                if dest[2][time_index]:   #check if vertex is to be calculated at this time step
-                    try:
-                        vertices, edges = spt.path(dest[0])
-                        if not vertices: raise Exception()
-                    except:
-                        waiting_time = 999999999  #infinite waiting time if not reachable
-                    else:                        
-                        waiting_time = self.get_waiting_time(vertices, False)
+                if self.fast_calc:       #experimental faster calculation
+                    if dest[2][time_index]:   #check if vertex is to be calculated at this time step
+                        try:
+                            vertices, edges = spt.path(dest[0])
+                            if not vertices: raise Exception()
+                        except:
+                            error_trip = True
+                            waiting_time = 999999999  #infinite waiting time if not reachable
+                        else:                        
+                            waiting_time, error_trip = self.get_waiting_time(vertices, False)
                     
                     #for testing: write error trips for inacceptable travel times and duplicate entries if there is a waiting time
-                    entries = 0                            
-                    for time_index2, t2 in enumerate(routes['times'[:]]):
-                        if t <= t2 <= t + waiting_time:
-                            entries+=1
-                            dest[2][time_index2] = False #set to false, so that it will be ignored at this time step
-                            if waiting_time >= 999999999: self.write_error_trip(t2, dest[1], False)                              
-                    if waiting_time < 999999999: self.write_trip(vertices, dest[1], waiting_time, entries, False)
-                    if t + waiting_time > routes['times'][-1]: del_dest.append(dest)
+                        entries = 1                            
+                        for time_index2, t2 in enumerate(routes['times'[:]]):
+                            if t <= t2 <= t + waiting_time:
+                                entries+=1
+                                dest[2][time_index2] = False #set to false, so that it will be ignored at this time step
+                                if error_trip: self.write_error_trip(t2, dest[1], False)                              
+                        if not error_trip: self.write_trip(vertices, dest[1], waiting_time, entries, False)
+                        if t + waiting_time > routes['times'][-1]: del_dest.append(dest)
+                else:       #slower calculation, but stable
+                    for dest in routes['destinations']:
+                        try:
+                            vertices, edges = spt.path(dest[0])
+                            if not vertices: raise Exception()
+                        except: self.write_error_trip(t, dest[1], False)
+                        else: 
+                            waiting_time, error_trip = self.get_waiting_time(vertices, False)
+                            self.write_trip(vertices, dest[1], waiting_time, 1, False)
             for dest in del_dest:
                 routes['destinations'].remove(dest) #remove destinations that don't need to be calculated anymore to fasten iteration
                                 
@@ -175,27 +186,36 @@ class Proccessing():
             # extract the actual routes and write them into the database
             del_orig=[]
             for orig in routes['origins']:
-                if orig[2][time_index]:   #check if vertex is to be calculated at this time step
+                if self.fast_calc:      #experimental faster calculation
+                    if orig[2][time_index]:   #check if vertex is to be calculated at this time step
+                        try:
+                            vertices, edges = spt.path_retro(orig[0])
+                            if not vertices: raise Exception()
+                        except:
+                            error_trip = True
+                            waiting_time = 999999999  #infinite waiting time if not reachable
+                        else:                        
+                            waiting_time, error_trip = self.get_waiting_time(vertices, True)
+                                        
+                        entries = 1
+                        #write error trips for inacceptable travel times  
+                        if waiting_time >= self.time_step: 
+                            entries = 0
+                            for time_index2, t2 in enumerate(routes['times'[:]]):
+                                if t >= t2 >= t - waiting_time:                                                   
+                                    entries+=1
+                                    orig[2][time_index2] = False #set to false, so that it will be ignored at this time step
+                                    if error_trip: self.write_error_trip(t2, orig[1], True)
+                            if t - waiting_time < routes['times'][-1]: del_orig.append(orig)       
+                        if not error_trip: self.write_trip(vertices, orig[1], waiting_time, entries, True)
+                else:           #slower calculation, but stable
                     try:
                         vertices, edges = spt.path_retro(orig[0])
                         if not vertices: raise Exception()
-                    except:
-                        error_trip = True
-                        waiting_time = 999999999  #infinite waiting time if not reachable
-                    else:                        
+                    except: self.write_error_trip(t, orig[1], True)
+                    else: 
                         waiting_time, error_trip = self.get_waiting_time(vertices, True)
-                                        
-                    entries = 1
-                    #write error trips for inacceptable travel times  
-                    if waiting_time >= self.time_step: 
-                        entries = 0
-                        for time_index2, t2 in enumerate(routes['times'[:]]):
-                            if t >= t2 >= t - waiting_time:                                                   
-                                entries+=1
-                                orig[2][time_index2] = False #set to false, so that it will be ignored at this time step
-                                if error_trip: self.write_error_trip(t2, orig[1], True)
-                        if t - waiting_time < routes['times'][-1]: del_orig.append(orig)       
-                    if not error_trip: self.write_trip(vertices, orig[1], waiting_time, entries, True)
+                        self.write_trip(vertices, orig[1], waiting_time, 1, True)
             for orig in del_orig:
                 routes['origins'].remove(orig) #remove origins that don't need to be calculated anymore to fasten iteration
                 
@@ -226,7 +246,7 @@ class Proccessing():
         """look, if there is a waiting time at the first transit stop (for departure-time search)
         of a waiting time at the last transit stop before going home (for arrival-time search)"""
         travel_time = vertices[-1].state.time - vertices[0].state.time
-        if travel_time > (self.weightlimit): # and vertices[0].state.dist_walked < self.walk_ops.max_walk / 2:
+        if travel_time > (self.weightlimit) and self.fast_calc: # and vertices[0].state.dist_walked < self.walk_ops.max_walk / 2:
             return 999999999, True          #if traveltime is not acceptable return "infinite" waiting time
 
 
@@ -273,12 +293,12 @@ class Proccessing():
             self.trip_id += 1
             self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', ( self.trip_prefix + current_trip_id, route_id, start_time, end_time, travel_time ))
 
-            if self.write_cal_paths_details:
-                for c, v in enumerate(vertices):
-                    time = datetime.datetime.fromtimestamp(v.state.time)
-                    self.cursor.execute('INSERT INTO cal_paths_details VALUES (%s,%s,%s,%s,%s,%s,%s,%s)',\
-                                        ( self.trip_prefix + current_trip_id, c, v.label, time,
-                                          v.state.weight, v.state.dist_walked, v.state.num_transfers, v.state.trip_id ))
+        if self.write_cal_paths_details:
+            for c, v in enumerate(vertices):
+                time = datetime.datetime.fromtimestamp(v.state.time)
+                self.cursor.execute('INSERT INTO cal_paths_details VALUES (%s,%s,%s,%s,%s,%s,%s,%s)',\
+                                    ( self.trip_prefix + current_trip_id, c, v.label, time,
+                                      v.state.weight, v.state.dist_walked, v.state.num_transfers, v.state.trip_id ))
 
 
         if not self.trips_calculated % 1000:
@@ -301,7 +321,7 @@ class Proccessing():
             self.cursor.execute('INSERT INTO cal_paths VALUES (%s,%s,%s,%s,%s)', (self.trip_prefix + current_trip_id, route_id, start_date_time, end_time, (time.mktime(end_time.timetuple()) - start_end_time ) ))
 
 
-    def __init__(self, graph, db_connection_string, time_step=240, walking_speed=1.2, max_walk=1080, walking_reluctance=2, trip_prefix='', logfile = None, write_cal_paths_details=False, max_travel_time = 25200):
+    def __init__(self, graph, db_connection_string, time_step=240, walking_speed=1.2, max_walk=1080, walking_reluctance=2, trip_prefix='', logfile = None, write_cal_paths_details=False, max_travel_time = 25200,fast_calc=False):
 
         self.trip_prefix = trip_prefix
         self.time_step = time_step
@@ -319,7 +339,7 @@ class Proccessing():
         self.trip_id = 0
         self.trips_calculated = 0
         self.logfile = logfile
-
+        self.fast_calc = fast_calc
         self.get_old_trip_id()
         self.run()
 

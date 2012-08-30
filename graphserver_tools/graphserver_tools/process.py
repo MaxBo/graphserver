@@ -17,7 +17,7 @@ from graphserver_tools import write_results
 from graphserver_tools import process_routes
 
 
-DEBUG = True
+DEBUG = False
 
 
 
@@ -58,7 +58,7 @@ def build_route_data(graph, psql_connect_string, times_filename, points_filename
     import_route_data.calc_corresponding_vertices(graph, psql_connect_string)
 
 
-def calculate_routes(graph, psql_connect_string, options, num_processes=4, write_cal_paths_details=False):
+def calculate_routes(graph, psql_connect_string, options, num_processes=4, write_cal_paths_details=False, fast_calc=False):
     """Calculate the shortest paths
 
     Keyword arguments:
@@ -93,7 +93,8 @@ def calculate_routes(graph, psql_connect_string, options, num_processes=4, write
                                                                              socket.gethostname() + prefixes[i],
                                                                              logfile,
                                                                              write_cal_paths_details,
-                                                                             int(options['max-travel-time'])))
+                                                                             int(options['max-travel-time']),
+                                                                             fast_calc))
         p.start()
         sys.stdout.write('started thread %s \n' %i)
         time.sleep(10) #workaround for duplicate calculations - should be temporary
@@ -239,44 +240,120 @@ def validate_input(configuration, psql_connect_string, options):
             if error:
                 print(colored('ERROR: base data not in database - please import base data first', 'red'))
 
-#        if not options.import_routes and not options.import_all:
-        if options.calculate or options.export:
-            error = False
-            for nt in route_tables:
-                if (nt,) not in tables:
-                    valide = False
-                    error = True
-            if error:
-                print(colored('ERROR: route data not in database - please import route data first', 'red'))
-
         if options.export and not options.calculate:
-            error = False
             for nt in path_tables:
                 if (nt,) not in tables:
                     valide = False
-                    error = True
-            if error:
-                print(colored('ERROR: path data not in database - please calculate shortest paths first', 'red'))
+                    print(colored('ERROR: path data not in database - please calculate shortest paths first', 'red'))
+                    break   
 
+        if options.import_routes:
+            valide = validate_tables(psql_connect_string, ('destinations','origins'))
 
-        if options.calculate and ((not options.import_all) and (not options.import_routes)):
-            c.execute('SELECT id FROM cal_routes WHERE done=false')
-
-            if len(c.fetchall()) == 0:
-                print(colored('It looks like all routes have already been calculated. Do you want to start the calculation again? [ y/n ]', 'yellow'))
-                input = sys.stdin.read(1)
-
-                if input == 'y' or input == 'Y':
-                    c.execute('UPDATE cal_routes SET done=false')
-                    process_routes.create_db_tables(conn, True)
-                else:
+        if options.calculate and ((not options.import_all) and (not options.import_routes)):            
+            for nt in route_tables:
+                if (nt,) not in tables:
                     options.calculate = False
+                    print(colored('ERROR: route data not in database - please import route data first', 'red'))
+                    break
+        
+        if options.calculate:
+            if not validate_tables(psql_connect_string, ('cal_times',)): valide = False
+            else:
+                c.execute('SELECT id FROM cal_routes WHERE done=false')
+                if len(c.fetchall()) == 0:
+                    print(colored('It looks like all routes have already been calculated. Do you want to start the calculation again? [ y/n ]', 'yellow'))
+                    input = sys.stdin.read(1)
+
+                    if input == 'y' or input == 'Y':
+                        c.execute('UPDATE cal_routes SET done=false')
+                        process_routes.create_db_tables(conn, True)
+                    else:
+                        options.calculate = False
 
         c.close()
         conn.commit()
+        conn.close()
 
     return valide
 
+def validate_tables(psql_connect_string, tables):
+    """validate the given tables (tuples or lists needed!) for correctness"""
+    try:
+        conn = psycopg2.connect(psql_connect_string)
+        c = conn.cursor()
+        c2 = conn.cursor()
+
+    except:
+        print(colored('ERROR: could not connect to database', 'red'))
+        return False
+    if 'destinations' in tables or 'origin' in tables:
+        min_lat, max_lat, min_lon, max_lon = get_osm_borders(psql_connect_string)
+    valid = True
+    for table in tables:   
+        c.execute('SELECT * FROM %s' %table)
+        row = c.fetchone()
+        if not row:
+            print(colored('Table %s is empty' %table, 'red'))
+            valid = False
+            
+        while row:            
+            if table=='cal_times':
+                id, start_time, end_time, is_arrival = row
+                if start_time > end_time: 
+                    valid = False
+                    print(colored('error cal_times @ id %i: start time is later than end time' %id, 'red'))
+                    print ('%d, %s, %s, %s' %(id, str(start_time), str(end_time), is_arrival))
+                    print
+                for i in (start_time, end_time):
+                    try:
+                        valid_date = time.strptime(str(i), '%Y-%m-%d %H:%M:%S')
+                    except ValueError:
+                        valid = False
+                        print(colored('Error in table cal_times @ id %i: invalid date format: %s' %(id, str(i)), 'red'))
+                        print ('%d, %s, %s, %s' %(id, str(start_time), str(end_time), is_arrival))
+                        print
+            
+            if table=='destinations' or table=='origins':
+                if table=='destinations': name, lat, lon, time_id = row
+                else: name, lat, lon = row
+                if not (max_lat >= lat >= min_lat and max_lon >= lon >= min_lon):
+                    valid = False
+                    print(colored('Error in table %s @ name %s: lat/lon not within OSM Area (min_lat: %f; max_lat: %f;  min_lon %f; max_lon: %f' %(table, name, min_lat, max_lat, min_lon, max_lon), 'red'))
+                    print row
+                    print
+                if table=='destinations':
+                    c2.execute('SELECT * FROM cal_times WHERE id = %i' %time_id)
+                    if not c2.fetchone():
+                        valid = False
+                        print(colored('Error in table destinations @ name %s: time id \'%i\' is not found in cal_times' %(name, time_id), 'red'))
+                        print row
+                        print
+            
+            
+            row = c.fetchone()
+    c.close()
+    c2.close()
+    conn.close()
+    return valid
+
+def get_osm_borders(psql_connect_string):
+    try:
+        conn = psycopg2.connect(psql_connect_string)
+        c = conn.cursor()
+    except: pass
+    c.execute('SELECT MIN(lat) FROM osm_nodes')
+    min_lat = c.fetchone()[0]
+    c.execute('SELECT MAX(lat) FROM osm_nodes')
+    max_lat = c.fetchone()[0]
+    c.execute('SELECT MIN(lon) FROM osm_nodes')
+    min_lon = c.fetchone()[0]
+    c.execute('SELECT MAX(lon) FROM osm_nodes')
+    max_lon = c.fetchone()[0] 
+    c.close()
+    conn.close()
+    return min_lat, max_lat, min_lon, max_lon
+    
 
 def main():
     from optparse import OptionParser
@@ -292,10 +369,11 @@ def main():
     parser.add_option("-c", "--calculate", action="store_true", help="calculates shortest paths", dest="calculate", default=False)
     parser.add_option("-d", "--details", action="store_true", help="exports the calculted paths-details into the database", dest="details", default=False)
     parser.add_option("-e", "--export", action="store_true", help="exports the calculted paths as CSV-files", dest="export", default=False)
+    parser.add_option("-f", "--fast-calc", action="store_true", help="experimental faster calculation", dest="fast_calc", default=False)
 
     (options, args) = parser.parse_args()
 
-    starttime = time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.localtime())
+    #starttime = time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.localtime())
 
     if DEBUG: print(options)
 
@@ -339,12 +417,11 @@ def main():
 
         # only create tables if some importing was done
         #       UNUSED!
-        create_tables = options.import_all or options.import_base or options.import_routes
-
+        #create_tables = options.import_all or options.import_base or options.import_routes
         if not graph: graph = GraphDatabase(psql_connect_string).incarnate()
 
         start = time.time()
-        calculate_routes(graph, psql_connect_string, configuration, num_processes=configuration['parallel-calculations'], write_cal_paths_details=options.details)
+        calculate_routes(graph, psql_connect_string, configuration, num_processes=configuration['parallel-calculations'], write_cal_paths_details=options.details, fast_calc=options.fast_calc)
         cprint('total calculation time: %s' % utils.seconds_time_string(time.time() - start), attrs=['bold'])
 
     try:
@@ -357,6 +434,6 @@ def main():
         print('Exporting paths...')
         export_results(psql_connect_string, configuration['results'], configuration['result-details'])
 
-    print ("Startzeitpunkt:" + starttime)
-    print ("Endzeitpunkt:" + time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.localtime()))
+    #print ("Startzeitpunkt:" + starttime)
+    #print ("Endzeitpunkt:" + time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.localtime()))
     print('DONE')
