@@ -364,7 +364,7 @@ def validate_tables(psql_connect_string, tables):
             if table=='destinations' or table=='origins':
                 if table=='destinations': 
                     name, lat, lon, time_id = row
-                    c2.execute('SELECT * FROM cal_times WHERE id = %i' %time_id) #check if there are times in cal_times that fit the time_id of the current destination
+                    c2.execute('SELECT * FROM cal_times WHERE id = %i' %time_id) #check if there are times in cal_times that match the time_id of the destination
                     if not c2.fetchone():
                         valid = False
                         print(colored('Error in table destinations @ name %s: time id \'%i\' is not found in cal_times' %(name, time_id), 'red'))
