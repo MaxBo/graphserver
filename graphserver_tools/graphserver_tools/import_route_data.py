@@ -234,20 +234,20 @@ def calc_corresponding_vertices(graph, db_conn_string):
         #Indexed Preselection of Points (100) from osm and stops by geometry 
         #Look up for nearest point/stop
         c.execute('''WITH index_query AS (
-                      SELECT st_distance(st_transform(o.geom, 31467), st_transform('0101000020E61000000567953E193823400007488F3A664940', 31467)) AS distance,
+                      SELECT st_distance(st_transform(o.geom, 31467), st_transform(%s, 31467)) AS distance,
                              id
                       FROM osm_nodes 
                       ORDER BY geom <-> %s limit 100
                      )
-                     SELECT * FROM index_query order by distance limit 1;''', (geom))
+                     SELECT * FROM index_query ORDER BY distance LIMIT 1;''', (geom))
         near_osm = c.fetchone()
         c.execute('''WITH index_query AS (
-                      SELECT st_distance(st_transform(o.geom, 31467), st_transform('0101000020E61000000567953E193823400007488F3A664940', 31467)) AS distance,
+                      SELECT st_distance(st_transform(o.geom, 31467), st_transform(%s, 31467)) AS distance,
                              stop_id
                       FROM gtfs_stops 
                       ORDER BY geom <-> %s limit 100
                      )
-                     SELECT * FROM index_query order by distance limit 1;''', (geom))
+                     SELECT * FROM index_query ORDER BY distance LIMIT 1;''', (geom))
         near_sta = c.fetchone()
         #write osm or stop
         i+=1
