@@ -34,6 +34,13 @@ def create_gs_datbases(osm_xml_filename, gtfs_filename, db_conn_string):
 
         osmdb = osm_to_osmdb( osm_xml_filename, db_conn_string )
         gdb_import_osm(gdb, osmdb, 'osm', {}, None)
+        c = gdb.get_cursor()
+        c.execute("""SELECT AddGeometryColumn('osm_nodes', 'geom', 4326, 'POINT', 2);""")
+        c.execute("""UPDATE osm_nodes SET geom = st_setsrid(st_makepoint(lon,lat),4326);""")
+        c.execute("""CREATE INDEX osm_nodes_geom_idx ON osm_nodes USING gist(geom);""")
+        c.execute("""ANALYZE osm_nodes;""")
+        c.commit()
+        c.close()
 
 
     def importGtfsWrapper(gtfs_filename, db_conn_string):
@@ -44,6 +51,13 @@ def create_gs_datbases(osm_xml_filename, gtfs_filename, db_conn_string):
         gtfsdb.load_gtfs( gtfs_filename )
 
         gdb_load_gtfsdb( gdb, 1, gtfsdb, gdb.get_cursor())
+        c = gdb.get_cursor()
+        c.execute("""SELECT AddGeometryColumn('gtfs_stops', 'geom', 4326, 'POINT', 2);""")
+        c.execute("""UPDATE gtfs_stops SET geom = st_setsrid(st_makepoint(stop_lon,stop_lat),4326);""")
+        c.execute("""CREATE INDEX gtfs_stops_geom_idx ON gtfs_stops USING gist(geom);""")
+        c.execute("""ANALYZE gtfs_stops;""")
+        c.commit()
+        c.close()
 
 
     osm_process = multiprocessing.Process(target=importOsmWrapper, args=(osm_xml_filename, db_conn_string))
@@ -67,46 +81,44 @@ def link_osm_gtfs(db_conn_string, max_link_dist=150):
 
     conn = psycopg2.connect(db_conn_string)
     cursor = conn.cursor()
-
+    c = conn.cursor()
     gdb = GraphDatabase(db_conn_string)
 
-    cursor.execute('SELECT stop_id, stop_lat, stop_lon FROM gtfs_stops')
-    for i, (s_label, s_lat, s_lon) in enumerate(cursor.fetchall()):
-        j = False
-
-        range = 0.05 # might not be the best number
-        cursor.execute('''SELECT id, lat, lon FROM osm_nodes WHERE endnode_refs > 1 AND lat > %s AND lat < %s AND lon > %s AND lon < %s''', ( s_lat-range, s_lat+range, s_lon-range, s_lon+range ))
-        nodes = cursor.fetchall()
-        dists = []
-
-        for n_label, n_lat, n_lon in nodes:
-            dists.append( distance(s_lat, s_lon, n_lat, n_lon) )
-
-        for d in dists:
-            if d < max_link_dist:
-                j = True
-
-                n_label, n_lat, n_lon = nodes[dists.index(d)]
-
-                gdb.add_edge('sta-'+s_label, 'osm-'+n_label, Street('gtfs-osm link', d))
-                gdb.add_edge('osm-'+n_label, 'sta-'+s_label, Street('gtfs-osm link', d))
-
-
-        if not j and dists: # fallback mode
-            d = min(dists)
-
-            n_label, n_lat, n_lon = nodes[dists.index(d)]
-
-            gdb.add_edge('sta-'+s_label, 'osm-'+n_label, Street('gtfs-osm link', d))
-            gdb.add_edge('osm-'+n_label, 'sta-'+s_label, Street('gtfs-osm link', d))
-
-
-        if not dists:
-            print(colored('WARNING: failed linking %s! (%s, %s)' % (s_label, s_lat, s_lon), 'yellow'))
+    range = 8000 #osm nodes corresponding to the gtfs node are searched for within this range (in meters)
+    cursor.execute('SELECT stop_id, geom from gtfs_stops')
+    stops = cursor.fetchone()
+    i=0
+    while stops:
+        s_label, g_geom = stops
+        c.execute('''SELECT id AS n_label, 
+                            st_distance(st_transform(o.geom, 31467), st_transform(%s, 31467)) AS distance
+                     FROM osm_nodes o
+                     WHERE st_dwithin(st_transform(%s, 31467),st_transform(o.geom, 31467), %s)
+                     ORDER BY distance''', (g_geom, g_geom, range))
+        found_one = False
+        osm_link = c.fetchone()
+        while osm_link:
+            n_label, distance = osm_link
+            if distance <= max_link_dist:
+                gdb.add_edge('sta-'+s_label, 'osm-'+n_label, Street('gtfs-osm link', distance))
+                gdb.add_edge('osm-'+n_label, 'sta-'+s_label, Street('gtfs-osm link', distance))
+                found_one = True
+            elif not found_one: #add nearest node if no node was found in max. distance
+                gdb.add_edge('sta-'+s_label, 'osm-'+n_label, Street('gtfs-osm link', distance))
+                gdb.add_edge('osm-'+n_label, 'sta-'+s_label, Street('gtfs-osm link', distance))
+                found_one = True
+                break
+            else: break
+            osm_link = c.fetchone()
+        if not found_one: print(colored('WARNING: failed linking %s!)' % (s_label), 'yellow'))
+        else: print('Linked %s - number %i' %(s_label, i))
+        i+=1
+        stops = cursor.fetchone()
 
     gdb.commit()
     conn.commit()
     cursor.close()
+    c.close()
 
 
 def add_missing_stops(db_conn_string):
