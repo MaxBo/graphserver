@@ -57,8 +57,13 @@ def read_points_0(f, conn):
                                             lon REAL NOT NULL,
                                             name TEXT,
                                             time_id INTEGER )''')
-
     cursor.execute('INSERT INTO cal_points SELECT * FROM cal_points_view;')
+    cursor.execute("""SELECT AddGeometryColumn('cal_points', 'geom', 4326, 'POINT', 2);
+                      UPDATE cal_points SET geom = st_setsrid(st_makepoint(lon,lat),4326);
+                      CREATE INDEX cal_points_geom_idx ON cal_points USING gist(geom);
+                      ANALYZE cal_points;""")
+
+    
     cursor.close()
     conn.commit()
 
@@ -211,103 +216,52 @@ def read_routes(f, conn):
         conn.commit()
 
 def calc_corresponding_vertices(graph, db_conn_string):
-
-    def closest_vertices(list):
-        ''' wrapper function for multithreading'''
-
-        try:
-            for i, (id, lat, lon) in enumerate(list):
-                closest_vertex(id, lat, lon)
-
-        except psycopg2.OperationalError: # pick up the work if the cursor gets closed due to bad network connection
-            closest_vertices(list[i:])
-
-
-    def closest_vertex(id, lat, lon):
-        cv = None
-        min_dist = sys.maxint
-
-        for s_id, s_lat, s_lon in stations:
-            dist = distance(lat, lon, s_lat, s_lon)
-
-            if dist < min_dist:
-                min_dist = dist
-                cv = 'sta-' + s_id
-
-        range = 0.05 # might not be the best number
-
-        conn = psycopg2.connect(db_conn_string)
-        c = conn.cursor()
-
-        c.execute('''SELECT id, lat, lon FROM osm_nodes WHERE endnode_refs > 1 AND lat > %s AND lat < %s  AND lon > %s AND lon < %s''',
-                                                                                            ( lat-range, lat+range, lon-range, lon+range ))
-        nodes = [n for n in c]
-
-        for n_id, n_lat, n_lon in nodes:
-            dist = distance(lat, lon, n_lat, n_lon)
-
-            if dist < min_dist:
-                min_dist = dist
-                cv = 'osm-' + n_id
-
-        corres_vertices.append(( id, cv ))
-        if not c.closed:
-            c.close();
-        if not conn.closed:
-            conn.close();
-
-
-    # do the setup
+    """Find nearest OSM-Point or gtfs-Stop to the points inside the cal_points table
+       Write result (one per point) into table cal_corres_vertices
+       
+    """
+    
     conn = psycopg2.connect(db_conn_string)
     c = conn.cursor()
-    c.execute('SELECT id, lat, lon FROM cal_points')
-    points = c.fetchall()
-
-    c.execute('SELECT stop_id, stop_lat, stop_lon FROM gtfs_stops')
-    stations = c.fetchall()
-
-    corres_vertices = [] # will contain tuples of points with their corresponding vertices
-
-    # start a few threads for calculating
-    num_threads = 32 #  there will actualy be one more
-    num_calculations_per_thread = len(points) / num_threads
-
-    for i in range(num_threads):
-        thread.start_new_thread( closest_vertices, (points[i*num_calculations_per_thread:(i+1)*num_calculations_per_thread], ))
-
-    # a few points won't be calculted due to integer division
-    thread.start_new_thread( closest_vertices, (points[(i+1)*num_calculations_per_thread:], ) )
-
-    # wait till all points are calculated
-    finished = False
-
-    while not finished:
-        sys.stdout.write('\r%s/%s corresponding points found' % ( len(corres_vertices), len(points) ))
-        sys.stdout.flush()
-
-        time.sleep(1.0)
-
-        if set([id for id, lat, lon in points]) == set([id for id, cv in corres_vertices]):
-            finished = True
-
-
-    print('\r%s corresponding points found                  ' % len(points))
-
-    if conn.closed:
-        conn = psycopg2.connect(db_conn_string)
-    if c.closed:
-        c = conn.cursor()
-
-    # write the stuff into the database
     c.execute('DROP TABLE IF EXISTS cal_corres_vertices')
     c.execute('CREATE TABLE cal_corres_vertices ( point_id INTEGER PRIMARY KEY REFERENCES cal_points, vertex_label TEXT NOT NULL ) ')
-
-    for id, cv in set(corres_vertices):
-        if not cv:
-            print(colored("ERROR: point with id %s cannot be linked into graph!" % id, "red"))
-            cv = graph.vertices[0].label
-        c.execute('INSERT INTO cal_corres_vertices VALUES (%s,%s)', ( id, cv ))
+    
+    c.execute('SELECT id, geom FROM cal_points')
+    points = c.fetchall()
+    i = 1
+    for point in enumerate(points):
+        point_id, geom = point
+        #Indexed Preselection of Points (100) from osm and stops by geometry 
+        #Look up for nearest point/stop
+        c.execute('''WITH index_query AS (
+                      SELECT st_distance(st_transform(o.geom, 31467), st_transform('0101000020E61000000567953E193823400007488F3A664940', 31467)) AS distance,
+                             id
+                      FROM osm_nodes 
+                      ORDER BY geom <-> %s limit 100
+                     )
+                     SELECT * FROM index_query order by distance limit 1;''', (geom))
+        near_osm = c.fetchone()
+        c.execute('''WITH index_query AS (
+                      SELECT st_distance(st_transform(o.geom, 31467), st_transform('0101000020E61000000567953E193823400007488F3A664940', 31467)) AS distance,
+                             stop_id
+                      FROM gtfs_stops 
+                      ORDER BY geom <-> %s limit 100
+                     )
+                     SELECT * FROM index_query order by distance limit 1;''', (geom))
+        near_sta = c.fetchone()
+        #write osm or stop
+        i+=1
+        if not (near_osm and near_sta): 
+            print(colored("ERROR: point with id %s cannot be linked into graph!" % point_id, "red"))
+            i-=1
+        elif near_osm and not near_sta: c.execute('INSERT INTO cal_corres_vertices VALUES (%s,%s)', ( point_id, 'osm-' + near_osm[1] ))
+        elif near_sta and not near_osm: c.execute('INSERT INTO cal_corres_vertices VALUES (%s,%s)', ( point_id, 'sta-' + near_sta[1] ))
+        elif near_osm[0] < near_sta[0]: c.execute('INSERT INTO cal_corres_vertices VALUES (%s,%s)', ( point_id, 'osm-' + near_osm[1] ))
+        else: c.execute('INSERT INTO cal_corres_vertices VALUES (%s,%s)', ( point_id, 'sta-' + near_sta[1] ))        
+        sys.stdout.write('\r%s/%s corresponding points found' % ( i, len(points) ))
+        sys.stdout.flush()
 
     conn.commit()
     c.close()
+    conn.close()
 

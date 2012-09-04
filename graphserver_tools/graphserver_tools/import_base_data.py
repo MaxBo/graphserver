@@ -35,10 +35,10 @@ def create_gs_datbases(osm_xml_filename, gtfs_filename, db_conn_string):
         osmdb = osm_to_osmdb( osm_xml_filename, db_conn_string )
         gdb_import_osm(gdb, osmdb, 'osm', {}, None)
         c = gdb.get_cursor()
-        c.execute("""SELECT AddGeometryColumn('osm_nodes', 'geom', 4326, 'POINT', 2);""")
-        c.execute("""UPDATE osm_nodes SET geom = st_setsrid(st_makepoint(lon,lat),4326);""")
-        c.execute("""CREATE INDEX osm_nodes_geom_idx ON osm_nodes USING gist(geom);""")
-        c.execute("""ANALYZE osm_nodes;""")
+        c.execute("""SELECT AddGeometryColumn('osm_nodes', 'geom', 4326, 'POINT', 2); 
+                     UPDATE osm_nodes SET geom = st_setsrid(st_makepoint(lon,lat),4326);
+                     CREATE INDEX osm_nodes_geom_idx ON osm_nodes USING gist(geom);
+                     ANALYZE osm_nodes;""")
         c.commit()
         c.close()
 
@@ -52,10 +52,10 @@ def create_gs_datbases(osm_xml_filename, gtfs_filename, db_conn_string):
 
         gdb_load_gtfsdb( gdb, 1, gtfsdb, gdb.get_cursor())
         c = gdb.get_cursor()
-        c.execute("""SELECT AddGeometryColumn('gtfs_stops', 'geom', 4326, 'POINT', 2);""")
-        c.execute("""UPDATE gtfs_stops SET geom = st_setsrid(st_makepoint(stop_lon,stop_lat),4326);""")
-        c.execute("""CREATE INDEX gtfs_stops_geom_idx ON gtfs_stops USING gist(geom);""")
-        c.execute("""ANALYZE gtfs_stops;""")
+        c.execute("""SELECT AddGeometryColumn('gtfs_stops', 'geom', 4326, 'POINT', 2);
+                     UPDATE gtfs_stops SET geom = st_setsrid(st_makepoint(stop_lon,stop_lat),4326);
+                     CREATE INDEX gtfs_stops_geom_idx ON gtfs_stops USING gist(geom);
+                     ANALYZE gtfs_stops;""")
         c.commit()
         c.close()
 
@@ -84,7 +84,7 @@ def link_osm_gtfs(db_conn_string, max_link_dist=150):
     c = conn.cursor()
     gdb = GraphDatabase(db_conn_string)
 
-    range = 8000 #osm nodes corresponding to the gtfs node are searched for within this range (in meters)
+    range = 5000 #osm nodes corresponding to the gtfs node are searched for within this range (in meters)
     cursor.execute('SELECT stop_id, geom from gtfs_stops')
     stops = cursor.fetchone()
     while stops:
@@ -92,7 +92,8 @@ def link_osm_gtfs(db_conn_string, max_link_dist=150):
         c.execute('''SELECT id AS n_label, 
                             st_distance(st_transform(o.geom, 31467), st_transform(%s, 31467)) AS distance
                      FROM osm_nodes o
-                     WHERE st_dwithin(st_transform(%s, 31467),st_transform(o.geom, 31467), %s)
+                     WHERE st_dwithin(st_transform(%s, 31467),st_transform(o.geom, 31467), %s) 
+                     AND endnode_refs > 1
                      ORDER BY distance''', (g_geom, g_geom, range))
         found_one = False
         osm_link = c.fetchone()
