@@ -34,24 +34,24 @@ def build_base_data(db_conn_string, osm_xml_filename, gtfs_filename):
     import_base_data.link_osm_gtfs(db_conn_string)
 
 
-    # recreate all calculation tables
+    #recreate all calculation tables
     conn = psycopg2.connect(db_conn_string)
 
-    process_routes.create_db_tables(conn, True)
+    process_routes.create_db_tables(conn, 'base')
 
     conn.commit()
 
 
-def build_route_data(graph, psql_connect_string, times_filename, points_filename, routes_filename):
+def build_route_data(graph, psql_connect_string, dest_table):
     """Import route data (routes, timetables and the points to be calculated) from csv files into database"""
     conn = psycopg2.connect(psql_connect_string)
 
-    import_route_data.read_times(times_filename, conn)
-    import_route_data.read_points_0(points_filename, conn)
-    import_route_data.read_routes_0(routes_filename, conn)
+    #import_route_data.read_times(times_filename, conn)
+    import_route_data.read_points_0(conn, dest_table)
+    import_route_data.read_routes_0(conn)
 
     # recreate all calculation tables
-    process_routes.create_db_tables(conn, True)
+    process_routes.create_db_tables(conn, 'routes')
 
     conn.commit()
 
@@ -72,7 +72,7 @@ def calculate_routes(graph, psql_connect_string, options, num_processes=4, write
     conn = psycopg2.connect(psql_connect_string)
 
 
-    process_routes.create_db_tables(conn, False)
+    process_routes.create_db_tables(conn, 'calc')
 
     conn.commit()
     sys.stdout.write('created db_tables\n')
@@ -132,9 +132,7 @@ def read_config(file_path):
                  'psql-user':'postgres',
                  'psql-password':'',
                  'psql-database':'graphserver',
-                 'routes':'routes.csv',
-                 'times':'times.csv',
-                 'points':'points.csv',
+                 'destinations' : 'destinations',
                  'transit-feed':'transit_data.zip',
                  'osm-data':'streets.osm',
                  'results':'results.csv',
@@ -149,10 +147,6 @@ def read_config(file_path):
                                                                               config['psql-password'],
                                                                               config['psql-host'],
                                                                               config['psql-port']       )
-
-    config['routes'] = os.path.join(os.path.dirname(file_path), config['routes'])
-    config['times'] = os.path.join(os.path.dirname(file_path), config['times'])
-    config['points'] = os.path.join(os.path.dirname(file_path), config['points'])
 
     config['transit-feed'] = os.path.join(os.path.dirname(file_path), config['transit-feed'])
     config['osm-data'] = os.path.join(os.path.dirname(file_path), config['osm-data'])
@@ -175,35 +169,21 @@ def validate_input(configuration, psql_connect_string, options):
     Return true if valid
 
     """
-    valide = True
-
+    valid = True
+    print('Checking data, please wait...')
     # check input files
-    if options.import_base or options.import_all:
+    if options.import_base: # or options.import_all:
         if not os.path.exists(configuration['osm-data']):
             print(colored('ERROR: could not find osm-data', 'red'))
             print('looked at: %s' % configuration['osm-data'])
-            valide = False
+            valid = False
 
         if not os.path.exists(configuration['transit-feed']):
             print(colored('ERROR: could not find transit-feed', 'red'))
             print('looked at: %s' % configuration['transit-feed'])
-            valide = False
+            valid = False
 
-    if options.import_routes or options.import_all:
-        if not os.path.exists(configuration['routes']):
-            print(colored('ERROR: could not find routes.csv', 'red'))
-            print('looked at: %s' % configuration['routes'])
-            valide = False
 
-        if not os.path.exists(configuration['times']):
-            print(colored('ERROR: could not find times.csv', 'red'))
-            print('looked at: %s' % configuration['times'])
-            valide = False
-
-        if not os.path.exists(configuration['points']):
-            print(colored('ERROR: could not find points.csv', 'red'))
-            print('looked at: %s' % configuration['points'])
-            valide = False
 
     # check database
     base_tables = ( 'graph_vertices', 'graph_payloads', 'graph_edges', 'graph_resources',
@@ -211,7 +191,9 @@ def validate_input(configuration, psql_connect_string, options):
                     'gtfs_calendar_dates', 'gtfs_frequencies', 'gtfs_routes', 'gtfs_shapes',
                     'gtfs_stop_times', 'gtfs_stops', 'gtfs_transfers', 'gtfs_trips'            )
 
-    route_tables = ( 'cal_corres_vertices', 'cal_points', 'cal_routes', 'cal_times' )
+    point_tables = ('cal_times', 'origins', configuration['destinations'] )
+    
+    route_tables = ( 'cal_corres_vertices', 'cal_points', 'cal_routes')
 
     path_tables = ( 'cal_paths', 'cal_paths_details' )
 
@@ -225,45 +207,49 @@ def validate_input(configuration, psql_connect_string, options):
 
         if DEBUG: raise
 
-        valide = False
+        valid = False
 
     else:
         c.execute("select tablename from pg_tables where schemaname='public'" )
         tables = c.fetchall()
 
-        if not options.import_base and not options.import_all:
+        if not options.import_base: # and not options.import_all:
             error = False
             for nt in base_tables:
                 if (nt,) not in tables:
-                    valide = False
-                    error = True
-            if error:
-                print(colored('ERROR: base data not in database - please import base data first', 'red'))
+                    valid = False
+                    print(colored('ERROR: base data not in database - please import base data first', 'red'))
+            if valid and not validate_tables(psql_connect_string, (base_tables), configuration): valid = False 
 
         if options.export and not options.calculate:
             for nt in path_tables:
                 if (nt,) not in tables:
-                    valide = False
+                    valid = False
                     print(colored('ERROR: path data not in database - please calculate shortest paths first', 'red'))
-                    break
-            if not validate_tables(psql_connect_string, ('cal_paths', 'cal_path_details')): valide = False   
+                    exit[-1]
+            if valid and not validate_tables(psql_connect_string, (path_tables), configuration): valid = False   
 
         if options.import_routes:
-            if not validate_tables(psql_connect_string, ('destinations','origins','cal_times','gtfs_stop_times')): 
-                valide, options.calculate = False, False
+            for nt in point_tables:
+                if (nt,) not in tables:
+                    valid = False
+                    print(colored('ERROR: Table {0} doesn\'t exist. Please create and fill before importing route data.'.format(nt), 'red'))
+                                        
+            if valid and not validate_tables(psql_connect_string, (point_tables+('gtfs_stop_times',)), configuration): 
+                valid, options.calculate = False, False
             
 
-        if options.calculate and ((not options.import_all) and (not options.import_routes)):            
+        if options.calculate and ((not options.import_routes)):  #and (not options.import_all)          
             for nt in route_tables:
                 if (nt,) not in tables:
-                    options.calculate, valide = False, False
+                    options.calculate, valid = False, False
                     print(colored('ERROR: route data not in database - please import route data first', 'red'))
                     break
-            if not validate_tables(psql_connect_string, ('gtfs_stop_times','cal_routes')):
-                options.calculate, valide = False, False
+            if valid and not validate_tables(psql_connect_string, ('gtfs_stop_times','cal_routes'), configuration):
+                options.calculate, valid = False, False
         
         if options.calculate:
-            if not validate_tables(psql_connect_string, ('cal_times',)): valide = False
+            if not validate_tables(psql_connect_string, ('cal_times',), configuration): valid = False
             else:
                 c.execute('SELECT id FROM cal_routes WHERE done=false')
                 if len(c.fetchall()) == 0:
@@ -280,9 +266,9 @@ def validate_input(configuration, psql_connect_string, options):
         conn.commit()
         conn.close()
 
-    return valide
+    return valid
 
-def validate_tables(psql_connect_string, tables):
+def validate_tables(psql_connect_string, tables, configuration):
     """validate the given tables (tuples or lists needed!) for correctness"""
     try:
         conn = psycopg2.connect(psql_connect_string)
@@ -292,7 +278,7 @@ def validate_tables(psql_connect_string, tables):
     except:
         print(colored('ERROR: could not connect to database', 'red'))
         return False
-    if 'destinations' in tables or 'origin' in tables:
+    if configuration['destinations'] in tables or 'origin' in tables:
         min_lat, max_lat, min_lon, max_lon = get_osm_borders(psql_connect_string)
     valid = True
     for table in tables:
@@ -306,42 +292,42 @@ def validate_tables(psql_connect_string, tables):
                         ORDER BY trip_id, g1.stop_sequence''')
             row = c.fetchone()
             if row:
-                valid = False
                 print(colored('Time Travel detected in table gtfs_stop_times @ trip_id %s: arrival time earlier than preceding departure time' %row[0], 'red'))
                 print('departure time at stop sequence %i: %i'%(row[3],row[2]))
                 print('arrival time at stop sequence %i: %i'%(row[4], row[1]))
-                print
-                break
+                print(colored('You have to correct or remove the trip %s it manually from gtfs feed and import base data again' %row[0], 'yellow'))
+                print(colored('Do you want to continue anyway? [ y/n ]', 'yellow'))
+                input = sys.stdin.read(1)
+                if input != 'y' and input != 'Y': 
+                    valid = False
+                    break
         
         if table == 'cal_routes':
             c.execute('SELECT COUNT(id) FROM cal_routes')
             num_routes = c.fetchone()
             num_origs = c.execute('SELECT COUNT(name) FROM origins')
             num_origs = c.fetchone()
-            num_dests = c.execute('SELECT COUNT(name) FROM destinations')
+            num_dests = c.execute('SELECT COUNT(name) FROM {0}'.format(configuration['destinations']))
             num_dests = c.fetchone()
             if num_routes[0] != num_origs[0] * num_dests[0]:
-                print(colored('The numbers of origins and destinations don\'t match the number of routes, maybe you should import the route data again. Do you want to start the calculation anyway? [ y/n ]', 'yellow'))
+                print(colored('The numbers of origins and destinations don\'t match the number of routes, maybe you should import the route data again. Do you want to continue anyway? [ y/n ]', 'yellow'))
                 input = sys.stdin.read(1)
-
-                if input == 'y' or input == 'Y':
-                    c.execute('UPDATE cal_routes SET done=false')
-                    process_routes.create_db_tables(conn, True)
-                else:
+                if input != 'y' and input != 'Y': 
                     valid = False
+                    break
                  
                
         c.execute('SELECT * FROM %s' %table)
         row = c.fetchone()
-        if not row:
-            print(colored('Table %s is empty' %table, 'red'))
+        if not row and table != 'gtfs_calendar_dates' and table != 'gtfs_frequencies' and table != 'gtfs_transfers': #those 3 tables are empty, because yet not implemented
+            print(colored('ERROR: Table %s is empty!' %table, 'red'))
             valid = False
             
         while row:
             if table == 'gtfs_stop_times':
                 if row[1] > row[2]:
                     valid = False
-                    print(colored('Error in table gtfs_stop_times @ id %s: arrival time is later than departure time in same row' %row[0], 'red'))
+                    print(colored('ERROR in table gtfs_stop_times @ id %s: arrival time is later than departure time in same row' %row[0], 'red'))
                     print row
                     print
                    
@@ -349,7 +335,7 @@ def validate_tables(psql_connect_string, tables):
                 id, start_time, end_time, is_arrival = row
                 if start_time > end_time: 
                     valid = False
-                    print(colored('Error in table cal_times @ id %i: start time is later than end time' %id, 'red'))
+                    print(colored('ERROR in table cal_times @ id %i: start time is later than end time' %id, 'red'))
                     print ('%d, %s, %s, %s' %(id, str(start_time), str(end_time), is_arrival))
                     print
                 for i in (start_time, end_time):
@@ -357,23 +343,23 @@ def validate_tables(psql_connect_string, tables):
                         valid_date = time.strptime(str(i), '%Y-%m-%d %H:%M:%S')
                     except ValueError:
                         valid = False
-                        print(colored('Error in table cal_times @ id %i: invalid date format: %s' %(id, str(i)), 'red'))
+                        print(colored('ERROR in table cal_times @ id %i: invalid date format: %s' %(id, str(i)), 'red'))
                         print ('%d, %s, %s, %s' %(id, str(start_time), str(end_time), is_arrival))
                         print
             
-            if table=='destinations' or table=='origins':
-                if table=='destinations': 
+            if table==configuration['destinations'] or table=='origins':
+                if table== configuration['destinations']: 
                     name, lat, lon, time_id = row
                     c2.execute('SELECT * FROM cal_times WHERE id = %i' %time_id) #check if there are times in cal_times that match the time_id of the destination
                     if not c2.fetchone():
                         valid = False
-                        print(colored('Error in table destinations @ name %s: time id \'%i\' is not found in cal_times' %(name, time_id), 'red'))
+                        print(colored('ERROR in table %s @ name %s: time id \'%i\' is not found in cal_times' %(table, name, time_id), 'red'))
                         print row
                         print
                 else: name, lat, lon = row
                 if not (max_lat >= lat >= min_lat and max_lon >= lon >= min_lon):
                     valid = False
-                    print(colored('Error in table %s @ name %s: lat/lon not within OSM Area (min_lat: %f; max_lat: %f;  min_lon %f; max_lon: %f' %(table, name, min_lat, max_lat, min_lon, max_lon), 'red'))
+                    print(colored('ERROR in table %s @ name %s: lat/lon not within OSM Area (min_lat: %f; max_lat: %f;  min_lon %f; max_lon: %f' %(table, name, min_lat, max_lat, min_lon, max_lon), 'red'))
                     print row
                     print
             
@@ -412,7 +398,7 @@ def main():
 
     parser.add_option("-b", "--import-base", action="store_true", help="imports GTFS and OSM data into the database", dest="import_base", default=False)
     parser.add_option("-r", "--import-routes", action="store_true", help="imports routing data into the database", dest="import_routes", default=False)
-    parser.add_option("-i", "--import-all", action="store_true", help="imports GTFS, OSM and routing data into the database", dest="import_all", default=False)
+    #parser.add_option("-i", "--import-all", action="store_true", help="imports GTFS, OSM and routing data into the database", dest="import_all", default=False)
     parser.add_option("-c", "--calculate", action="store_true", help="calculates shortest paths", dest="calculate", default=False)
     parser.add_option("-d", "--details", action="store_true", help="exports the calculted paths-details into the database", dest="details", default=False)
     parser.add_option("-e", "--export", action="store_true", help="exports the calculted paths as CSV-files", dest="export", default=False)
@@ -436,9 +422,9 @@ def main():
         parser.print_help()
         exit(-1)
 
-    valide = validate_input(configuration, psql_connect_string, options)
+    valid = validate_input(configuration, psql_connect_string, options)
 
-    if not valide:
+    if not valid:
         parser.print_help()
         exit(-1)
 
@@ -446,17 +432,22 @@ def main():
 
     graph = None
 
-    if options.import_base or options.import_all:
+    if options.import_base: # or options.import_all:
+        print(colored('Do you want to import new base data? Warning: all existing data will be deleted! [ y/n ]', 'yellow'))
+        input = sys.stdin.read(1)
+        if input != 'y' and input != 'Y':
+            parser.print_help()
+            exit(-1)
         print('Importing base data...')
         build_base_data(psql_connect_string, configuration['osm-data'], configuration['transit-feed'])
 
 
-    if options.import_routes or options.import_all:
+    if options.import_routes: # or options.import_all:
         print('Importing routing data...')
 
         graph = GraphDatabase(psql_connect_string).incarnate()
 
-        build_route_data(graph, psql_connect_string, configuration['times'], configuration['points'], configuration['routes'])
+        build_route_data(graph, psql_connect_string, configuration['destinations'])
 
 
     if options.calculate:
