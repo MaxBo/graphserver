@@ -21,11 +21,11 @@ from graphserver_tools.utils.utils import distance, string_to_datetime
 from graphserver_tools.utils import utf8csv
 
 
-def read_points_0(f, conn):
+def read_points_0(conn, dest_table):
     """Load points from csv file into database"""
     cursor = conn.cursor()
 
-    sql = '''
+    sql =    sql = '''
     CREATE OR REPLACE VIEW public.cal_points_view(
         id,
         lat,
@@ -42,13 +42,14 @@ def read_points_0(f, conn):
       FROM origins
       UNION ALL
       SELECT row_number() OVER(
-      ORDER BY destinations.name) ::integer + 1000000 AS id,
-               destinations.lat,
-               destinations.lon,
-               destinations.name,
-               destinations.time_id
-      FROM destinations;;
-       '''
+      ORDER BY {0}.name) ::integer + 1000000 AS id,
+               {0}.lat,
+               {0}.lon,
+               {0}.name,
+               {0}.time_id
+      FROM {0};
+       '''.format(dest_table)
+       
     cursor.execute(sql)
 
     cursor.execute('DROP TABLE IF EXISTS cal_points CASCADE')
@@ -124,7 +125,7 @@ def read_times(f, conn):
     conn.commit()
 
 
-def read_routes_0(f, conn):
+def read_routes_0(conn):
     """Load routes from cal_routes_view into cal_routes
     references to points and timetable"""
     cursor = conn.cursor()

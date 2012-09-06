@@ -367,7 +367,7 @@ class Proccessing():
         self.graph.destroy()
 
 
-def create_db_tables(connection, recreate=False):
+def create_db_tables(connection, process='calc'):
     """Create the tables cal_paths and cal_paths_details which are needed
     to store the results of the calculation of the shortest paths
     Overwrite existing tables if argument recreate is set to True"""
@@ -376,34 +376,53 @@ def create_db_tables(connection, recreate=False):
     cursor.execute("select tablename from pg_tables where schemaname='public'" )
     tables = cursor.fetchall()
 
-    if ( 'cal_routes', ) not in tables:   #added, was missing for cal_paths reference
+    if ( 'origins', ) not in tables or process == 'base':
+        cursor.execute('DROP TABLE IF EXISTS origins CASCADE')
+        cursor.execute('''CREATE TABLE origins( name text PRIMARY KEY,
+                                                lat double precision NOT NULL,
+                                                lon double precision NOT NULL)''')
+    
+    
+    if ( 'cal_points', ) not in tables or process == 'base':
+        cursor.execute('DROP TABLE IF EXISTS cal_points CASCADE')
+        cursor.execute('''CREATE TABLE cal_points ( id INTEGER PRIMARY KEY,
+                                                    lat REAL NOT NULL,
+                                                    lon REAL NOT NULL,
+                                                    name TEXT,
+                                                    time_id INTEGER )''')
+        
+    if ( 'cal_times', ) not in tables or process == 'base':
+        cursor.execute('DROP TABLE IF EXISTS cal_times CASCADE')
+        cursor.execute('''CREATE TABLE cal_times ( id INTEGER PRIMARY KEY,
+                                                   start_time TIMESTAMP NOT NULL,
+                                                   end_time TIMESTAMP NOT NULL,
+                                                   is_arrival_time BOOLEAN NOT NULL )''')
+
+    if ( 'cal_routes', ) not in tables or process == 'base':
+        cursor.execute('DROP TABLE IF EXISTS cal_routes CASCADE')
         cursor.execute('''CREATE TABLE cal_routes ( id INTEGER PRIMARY KEY,
-                                                origin INTEGER REFERENCES cal_points,
-                                                destination INTEGER REFERENCES cal_points,
-                                                time INTEGER REFERENCES cal_times,
-                                                done BOOLEAN )''')
+                                                    origin INTEGER REFERENCES cal_points,
+                                                    destination INTEGER REFERENCES cal_points,
+                                                    time INTEGER REFERENCES cal_times,
+                                                    done BOOLEAN )''')
 
 
 
-    if ( 'cal_paths', ) not in tables or recreate:
-
-        if recreate:
-            cursor.execute('DROP TABLE IF EXISTS cal_paths CASCADE')
-
+    if ( 'cal_paths', ) not in tables or process != 'calc':
+        
+        cursor.execute('DROP TABLE IF EXISTS cal_paths CASCADE')
         cursor.execute('''CREATE TABLE cal_paths ( id TEXT PRIMARY KEY,
-                                               route_id INTEGER REFERENCES cal_routes,
-                                               start_time TIMESTAMP NOT NULL,
-                                               end_time TIMESTAMP NOT NULL,
-                                               total_time INTEGER NOT NULL )''')
+                                                   route_id INTEGER REFERENCES cal_routes,
+                                                   start_time TIMESTAMP NOT NULL,
+                                                   end_time TIMESTAMP NOT NULL,
+                                                   total_time INTEGER NOT NULL )''')
 
         cursor.execute('UPDATE public.cal_routes SET done = FALSE;')
 
 
-    if ( 'cal_paths_details', ) not in tables or recreate:
+    if ( 'cal_paths_details', ) not in tables or process != 'calc':
 
-        if recreate:
-            cursor.execute('DROP TABLE IF EXISTS cal_paths_details CASCADE')
-
+        cursor.execute('DROP TABLE IF EXISTS cal_paths_details CASCADE')
         cursor.execute('''CREATE TABLE cal_paths_details ( path_id TEXT REFERENCES cal_paths,
                                                            counter INTEGER NOT NULL,
                                                            label TEXT NOT NULL,
@@ -412,40 +431,7 @@ def create_db_tables(connection, recreate=False):
                                                            dist_walked REAL NOT NULL,
                                                            num_transfers INTEGER NOT NULL,
                                                            gtfs_trip_id TEXT,
-                                                        UNIQUE (path_id, counter)) ''')
-
-
-    cursor.execute('''CREATE OR REPLACE VIEW public.best_time (route_id,
-                                                               start_time,
-                                                               end_time,
-                                                               total_time)
-                    AS
-                    SELECT a.route_id, a.start_time, a.end_time, a.total_time
-                    FROM (
-                        SELECT p.route_id, row_number() OVER (PARTITION BY p.route_id ORDER BY p.total_time) AS rownumber,
-                        p.start_time,
-                        p.end_time,
-                        p.total_time
-                        FROM cal_paths p
-                        ) a
-                    WHERE a.rownumber = 1;''')
-    sql = '''
-    CREATE OR REPLACE VIEW Ergebnis AS
-    SELECT
-      o.name AS origin_name,
-      d.name AS destination_name,
-      bt.start_time,
-      bt.end_time,
-      bt.total_time
-    FROM
-      public.origins o
-      INNER JOIN public.cal_points_view p_o ON (o.name = p_o.name)
-      INNER JOIN public.cal_routes r ON (p_o.id = r.origin)
-      INNER JOIN public.best_time bt ON (r.id = bt.route_id)
-      INNER JOIN public.cal_points_view p_d ON (r.destination = p_d.id)
-      INNER JOIN public.destinations d ON (p_d.name = d.name)
-    '''
-    #cursor.execute(sql)
+                                                           UNIQUE (path_id, counter)) ''')
 
     connection.commit()
     cursor.close()
