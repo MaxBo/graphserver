@@ -35,10 +35,12 @@ def create_gs_datbases(osm_xml_filename, gtfs_filename, db_conn_string):
         osmdb = osm_to_osmdb( osm_xml_filename, db_conn_string )
         gdb_import_osm(gdb, osmdb, 'osm', {}, None)
         c = gdb.get_cursor()
-        c.execute("""SELECT AddGeometryColumn('osm_nodes', 'geom', 4326, 'POINT', 2); 
+        #try: c.execute('''SELECT DropGeometryColumn('osm_nodes','geom')''')
+        #except: pass 
+        c.execute('''SELECT AddGeometryColumn('osm_nodes', 'geom', 4326, 'POINT', 2); 
                      UPDATE osm_nodes SET geom = st_setsrid(st_makepoint(lon,lat),4326);
                      CREATE INDEX osm_nodes_geom_idx ON osm_nodes USING gist(geom);
-                     ANALYZE osm_nodes;""")
+                     ANALYZE osm_nodes;''')
         c.commit()
         c.close()
 
@@ -52,10 +54,12 @@ def create_gs_datbases(osm_xml_filename, gtfs_filename, db_conn_string):
 
         gdb_load_gtfsdb( gdb, 1, gtfsdb, gdb.get_cursor())
         c = gdb.get_cursor()
-        c.execute("""SELECT AddGeometryColumn('gtfs_stops', 'geom', 4326, 'POINT', 2);
+        #try: c.execute('''SELECT DropGeometryColumn('gtfs_stops','geom')''')
+        #except: pass        
+        c.execute('''SELECT AddGeometryColumn('gtfs_stops', 'geom', 4326, 'POINT', 2);
                      UPDATE gtfs_stops SET geom = st_setsrid(st_makepoint(stop_lon,stop_lat),4326);
                      CREATE INDEX gtfs_stops_geom_idx ON gtfs_stops USING gist(geom);
-                     ANALYZE gtfs_stops;""")
+                     ANALYZE gtfs_stops;''')
         c.commit()
         c.close()
 
@@ -85,8 +89,11 @@ def link_osm_gtfs(db_conn_string, max_link_dist=150):
     gdb = GraphDatabase(db_conn_string)
 
     #range = 5000 #osm nodes corresponding to the gtfs node are searched for within this range (in meters)
-    cursor.execute('SELECT stop_id, geom from gtfs_stops')
+    cursor.execute('SELECT COUNT(*) FROM gtfs_stops')
+    stops_nr = cursor.fetchone()[0]
+    cursor.execute('SELECT stop_id, geom FROM gtfs_stops')
     stops = cursor.fetchone()
+    i=0
     while stops:
         s_label, g_geom = stops
 
@@ -95,11 +102,12 @@ def link_osm_gtfs(db_conn_string, max_link_dist=150):
                             st_distance(st_transform(o.geom, 31467), st_transform(%s, 31467)) AS distance
                      FROM osm_nodes o
                      WHERE endnode_refs > 1
-                     ORDER BY geom <-> %s limit 1000
+                     ORDER BY geom <-> %s limit 1000)
                      SELECT * FROM index_query 
-                     ORDER BY distance''', (g_geom, g_geom, range))
+                     ORDER BY distance''', (g_geom, g_geom))
         found_one = False
         osm_link = c.fetchone()
+        i+=1
         while osm_link:
             n_label, distance = osm_link
             if distance <= max_link_dist:
@@ -113,9 +121,13 @@ def link_osm_gtfs(db_conn_string, max_link_dist=150):
                 break
             else: break
             osm_link = c.fetchone()
-        if not found_one: print(colored('WARNING: failed linking %s!)' % (s_label), 'yellow'))
+        if not found_one: 
+            print(colored('WARNING: failed linking %s!)' % (s_label), 'yellow'))
+            i-=1
+        sys.stdout.write('\r%s/%s gtfs stops linked' % ( i, stops_nr ))
+        sys.stdout.flush()
         stops = cursor.fetchone()
-
+    print
     gdb.commit()
     conn.commit()
     cursor.close()

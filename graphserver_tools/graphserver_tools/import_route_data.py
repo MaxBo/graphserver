@@ -21,7 +21,7 @@ from graphserver_tools.utils.utils import distance, string_to_datetime
 from graphserver_tools.utils import utf8csv
 
 
-def read_points_0(f, conn):
+def read_points_0(conn, dest_table):
     """Load points from csv file into database"""
     cursor = conn.cursor()
 
@@ -42,26 +42,28 @@ def read_points_0(f, conn):
       FROM origins
       UNION ALL
       SELECT row_number() OVER(
-      ORDER BY destinations.name) ::integer + 1000000 AS id,
-               destinations.lat,
-               destinations.lon,
-               destinations.name,
-               destinations.time_id
-      FROM destinations;;
-       '''
+      ORDER BY {0}.name) ::integer + 1000000 AS id,
+               {0}.lat,
+               {0}.lon,
+               {0}.name,
+               {0}.time_id
+      FROM {0};
+       '''.format(dest_table)
     cursor.execute(sql)
 
     cursor.execute('DROP TABLE IF EXISTS cal_points CASCADE')
+    #try: cursor.execute('''SELECT DropGeometryColumn('cal_points','geom')''')
+    #except: pass
     cursor.execute('''CREATE TABLE cal_points ( id INTEGER PRIMARY KEY,
                                             lat REAL NOT NULL,
                                             lon REAL NOT NULL,
                                             name TEXT,
                                             time_id INTEGER )''')
     cursor.execute('INSERT INTO cal_points SELECT * FROM cal_points_view;')
-    cursor.execute("""SELECT AddGeometryColumn('cal_points', 'geom', 4326, 'POINT', 2);
+    cursor.execute('''SELECT AddGeometryColumn('cal_points', 'geom', 4326, 'POINT', 2);
                       UPDATE cal_points SET geom = st_setsrid(st_makepoint(lon,lat),4326);
                       CREATE INDEX cal_points_geom_idx ON cal_points USING gist(geom);
-                      ANALYZE cal_points;""")
+                      ANALYZE cal_points;''')
 
     
     cursor.close()
@@ -129,7 +131,7 @@ def read_times(f, conn):
     conn.commit()
 
 
-def read_routes_0(f, conn):
+def read_routes_0(conn):
     """Load routes from cal_routes_view into cal_routes
     references to points and timetable"""
     cursor = conn.cursor()
@@ -171,7 +173,7 @@ def read_routes_0(f, conn):
     conn.commit()
 
 
-def read_routes(f, conn):
+def read_routes(conn):
     """Load routes from csv file into database
     references to points and timetable"""
     cursor = conn.cursor()
@@ -209,7 +211,7 @@ def read_routes(f, conn):
                                                                       False                 ))
 
     except:
-        print(colored("ERROR: time, origin or desitionation could not be found on route %s!" % i, "red"))
+        print(colored("ERROR: time, origin or destination could not be found on route %s!" % i, "red"))
         raise
     finally:
         cursor.close()
@@ -222,32 +224,35 @@ def calc_corresponding_vertices(graph, db_conn_string):
     """
     
     conn = psycopg2.connect(db_conn_string)
+    cursor = conn.cursor()
     c = conn.cursor()
-    c.execute('DROP TABLE IF EXISTS cal_corres_vertices')
-    c.execute('CREATE TABLE cal_corres_vertices ( point_id INTEGER PRIMARY KEY REFERENCES cal_points, vertex_label TEXT NOT NULL ) ')
-    
-    c.execute('SELECT id, geom FROM cal_points')
-    points = c.fetchall()
-    i = 1
-    for point in enumerate(points):
-        point_id, geom = point
-        #Indexed Preselection of Points (100) from osm and stops by geometry 
-        #Look up for nearest point/stop
+    cursor.execute('SELECT COUNT(*) FROM cal_points')
+    points_nr = cursor.fetchone()[0]
+    cursor.execute('DROP TABLE IF EXISTS cal_corres_vertices')
+    cursor.execute('CREATE TABLE cal_corres_vertices ( point_id INTEGER PRIMARY KEY REFERENCES cal_points, vertex_label TEXT NOT NULL ) ')
+    cursor.execute('CREATE INDEX idx_corres_point ON cal_corres_vertices(point_id)')
+    cursor.execute('SELECT id, geom FROM cal_points')
+    point = cursor.fetchone()
+    i = 0
+    while point:
+        point_id, p_geom = point
+        #Indexed Preselection of Points (100) from osm and stops by geometry first
+        #Look for nearest point/stop
         c.execute('''WITH index_query AS (
                       SELECT st_distance(st_transform(o.geom, 31467), st_transform(%s, 31467)) AS distance,
                              id
-                      FROM osm_nodes 
+                      FROM osm_nodes o
                       ORDER BY geom <-> %s limit 100
                      )
-                     SELECT * FROM index_query ORDER BY distance LIMIT 1;''', (geom))
+                     SELECT * FROM index_query ORDER BY distance LIMIT 1;''', (p_geom, p_geom))
         near_osm = c.fetchone()
         c.execute('''WITH index_query AS (
-                      SELECT st_distance(st_transform(o.geom, 31467), st_transform(%s, 31467)) AS distance,
+                      SELECT st_distance(st_transform(g.geom, 31467), st_transform(%s, 31467)) AS distance,
                              stop_id
-                      FROM gtfs_stops 
+                      FROM gtfs_stops g
                       ORDER BY geom <-> %s limit 100
                      )
-                     SELECT * FROM index_query ORDER BY distance LIMIT 1;''', (geom))
+                     SELECT * FROM index_query ORDER BY distance LIMIT 1;''', (p_geom, p_geom))
         near_sta = c.fetchone()
         #write osm or stop
         i+=1
@@ -258,10 +263,12 @@ def calc_corresponding_vertices(graph, db_conn_string):
         elif near_sta and not near_osm: c.execute('INSERT INTO cal_corres_vertices VALUES (%s,%s)', ( point_id, 'sta-' + near_sta[1] ))
         elif near_osm[0] < near_sta[0]: c.execute('INSERT INTO cal_corres_vertices VALUES (%s,%s)', ( point_id, 'osm-' + near_osm[1] ))
         else: c.execute('INSERT INTO cal_corres_vertices VALUES (%s,%s)', ( point_id, 'sta-' + near_sta[1] ))        
-        sys.stdout.write('\r%s/%s corresponding points found' % ( i, len(points) ))
+        sys.stdout.write('\r%s/%s corresponding points found' % ( i, points_nr ))
         sys.stdout.flush()
-
+        point = cursor.fetchone()
+    print
     conn.commit()
     c.close()
+    cursor.close()
     conn.close()
 
