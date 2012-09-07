@@ -138,7 +138,7 @@ class Proccessing():
                             error_trip = True
                             waiting_time = 999999999  #infinite waiting time if not reachable
                         else:                        
-                            waiting_time, error_trip = self.get_waiting_time(vertices, False)
+                            waiting_time, error_trip = self.get_waiting_time(vertices, routes['times'], False)
                     
                     #for testing: write error trips for inacceptable travel times and duplicate entries if there is a waiting time
                         entries = 1                            
@@ -150,14 +150,14 @@ class Proccessing():
                         if not error_trip: self.write_trip(vertices, dest[1], waiting_time, entries, False)
                         if t + waiting_time > routes['times'][-1]: del_dest.append(dest)
                 else:       #slower calculation, but stable
-                    for dest in routes['destinations']:
-                        try:
-                            vertices, edges = spt.path(dest[0])
-                            if not vertices: raise Exception()
-                        except: self.write_error_trip(t, dest[1], False)
-                        else: 
-                            waiting_time, error_trip = self.get_waiting_time(vertices, False)
-                            self.write_trip(vertices, dest[1], waiting_time, 1, False)
+                    try:
+                        vertices, edges = spt.path(dest[0])
+                        if not vertices: raise Exception()
+                    except: error_trip=True
+                    else: waiting_time, error_trip = self.get_waiting_time(vertices, routes['times'], False)
+                    if error_trip: self.write_error_trip(t, dest[1], False)
+                    else: self.write_trip(vertices, dest[1], waiting_time, 1, False)
+                        
             for dest in del_dest:
                 routes['destinations'].remove(dest) #remove destinations that don't need to be calculated anymore to fasten iteration
                                 
@@ -182,7 +182,6 @@ class Proccessing():
                     spt = self.graph.shortest_path_tree_retro(routes['origins'][0][0], routes['destination'], s, self.walk_ops, weightlimit = self.weightlimit)# faster but only ONE destination
             except:
                 pass
-
             # extract the actual routes and write them into the database
             del_orig=[]
             for orig in routes['origins']:
@@ -195,7 +194,7 @@ class Proccessing():
                             error_trip = True
                             waiting_time = 999999999  #infinite waiting time if not reachable
                         else:                        
-                            waiting_time, error_trip = self.get_waiting_time(vertices, True)
+                            waiting_time, error_trip = self.get_waiting_time(vertices, routes['times'], True)
                                         
                         entries = 1
                         #write error trips for inacceptable travel times  
@@ -212,10 +211,10 @@ class Proccessing():
                     try:
                         vertices, edges = spt.path_retro(orig[0])
                         if not vertices: raise Exception()
-                    except: self.write_error_trip(t, orig[1], True)
-                    else: 
-                        waiting_time, error_trip = self.get_waiting_time(vertices, True)
-                        self.write_trip(vertices, orig[1], waiting_time, 1, True)
+                    except: error_trip = True
+                    else: waiting_time, error_trip = self.get_waiting_time(vertices, routes['times'], True)
+                    if error_trip: self.write_error_trip(t, orig[1], True)
+                    else: self.write_trip(vertices, orig[1], waiting_time, 1, True)
             for orig in del_orig:
                 routes['origins'].remove(orig) #remove origins that don't need to be calculated anymore to fasten iteration
                 
@@ -242,11 +241,13 @@ class Proccessing():
 
             routes = self.get_route_dict()
             
-    def get_waiting_time(self, vertices, is_arrival=False):
+    def get_waiting_time(self, vertices, times, is_arrival=False):
         """look, if there is a waiting time at the first transit stop (for departure-time search)
-        of a waiting time at the last transit stop before going home (for arrival-time search)"""
+        of a waiting time at the last transit stop before going home (for arrival-time search)
+        check if travel time is acceptable and if arrival is within time window
+        """
         travel_time = vertices[-1].state.time - vertices[0].state.time
-        if travel_time > (self.weightlimit) and self.fast_calc: # and vertices[0].state.dist_walked < self.walk_ops.max_walk / 2:
+        if travel_time > (self.max_travel_time) :
             return 999999999, True          #if traveltime is not acceptable return "infinite" waiting time
 
 
@@ -268,7 +269,11 @@ class Proccessing():
                         waiting_time = v.state.weight - weight_in_last_row -1
                         break
 
-            weight_in_last_row, num_transfers_in_last_row = v.state.weight, v.state.num_transfers        
+            weight_in_last_row, num_transfers_in_last_row = v.state.weight, v.state.num_transfers
+        #check if arrival exceeds time window, half an hour tolerance
+        if is_arrival: 
+            if (vertices[-1].state.time - waiting_time) < (min(times) - 1800): return 999999999, True
+        elif (vertices[0].state.time + waiting_time) > (max(times) + 1800): return 999999999, True          
         return waiting_time, False
 
 
