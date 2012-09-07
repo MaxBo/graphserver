@@ -150,7 +150,6 @@ class Proccessing():
                         if not error_trip: self.write_trip(vertices, dest[1], waiting_time, entries, False)
                         if t + waiting_time > routes['times'][-1]: del_dest.append(dest)
                 else:       #slower calculation, but stable
-<<<<<<< HEAD
                     try:
                         vertices, edges = spt.path(dest[0])
                         if not vertices: raise Exception()
@@ -159,17 +158,6 @@ class Proccessing():
                     if error_trip: self.write_error_trip(t, dest[1], False)
                     else: self.write_trip(vertices, dest[1], waiting_time, 1, False)
                         
-=======
-                    for dest in routes['destinations']:
-                        try:
-                            vertices, edges = spt.path(dest[0])
-                            if not vertices: raise Exception()
-                        except: error_trip=True
-                        else: 
-                            waiting_time, error_trip = self.get_waiting_time(vertices, routes['times'], False)
-                        if error_trip: self.write_error_trip(t, dest[1], False)
-                        else: self.write_trip(vertices, dest[1], waiting_time, 1, False)
->>>>>>> origin/christoph
             for dest in del_dest:
                 routes['destinations'].remove(dest) #remove destinations that don't need to be calculated anymore to fasten iteration
                                 
@@ -224,12 +212,7 @@ class Proccessing():
                         vertices, edges = spt.path_retro(orig[0])
                         if not vertices: raise Exception()
                     except: error_trip = True
-<<<<<<< HEAD
                     else: waiting_time, error_trip = self.get_waiting_time(vertices, routes['times'], True)
-=======
-                    else: 
-                        waiting_time, error_trip = self.get_waiting_time(vertices, routes['times'], True)
->>>>>>> origin/christoph
                     if error_trip: self.write_error_trip(t, orig[1], True)
                     else: self.write_trip(vertices, orig[1], waiting_time, 1, True)
             for orig in del_orig:
@@ -285,17 +268,12 @@ class Proccessing():
                     if num_transfers_in_last_row == 0:
                         waiting_time = v.state.weight - weight_in_last_row -1
                         break
-
+ 
             weight_in_last_row, num_transfers_in_last_row = v.state.weight, v.state.num_transfers
         #check if arrival exceeds time window, half an hour tolerance
-<<<<<<< HEAD
         if is_arrival: 
             if (vertices[-1].state.time - waiting_time) < (min(times) - 1800): return 999999999, True
         elif (vertices[0].state.time + waiting_time) > (max(times) + 1800): return 999999999, True          
-=======
-        if (vertices[-1].state.time - waiting_time) < (min(times) - 1800) or (vertices[-1].state.time + waiting_time) > (max(times) + 1800): 
-            return 999999999, True          
->>>>>>> origin/christoph
         return waiting_time, False
 
 
