@@ -239,31 +239,31 @@ def calc_corresponding_vertices(graph, db_conn_string):
         #Indexed Preselection of Points (100) from osm and stops by geometry first
         #Look for nearest point/stop
         c.execute('''WITH index_query AS (
-                      SELECT st_distance(st_transform(o.geom, 31467), st_transform(%s, 31467)) AS distance,
+                      SELECT st_distance(st_transform(o.geom, 31467), st_transform('{0}', 31467)) AS distance,
                              id
                       FROM osm_nodes o
-                      ORDER BY geom <-> %s limit 100
+                      ORDER BY geom <-> '{0}' limit 100
                      )
-                     SELECT * FROM index_query ORDER BY distance LIMIT 1;''', (p_geom, p_geom))
+                     SELECT * FROM index_query ORDER BY distance LIMIT 1;'''.format(p_geom))
         near_osm = c.fetchone()
         c.execute('''WITH index_query AS (
-                      SELECT st_distance(st_transform(g.geom, 31467), st_transform(%s, 31467)) AS distance,
+                      SELECT st_distance(st_transform(g.geom, 31467), st_transform('{0}', 31467)) AS distance,
                              stop_id
                       FROM gtfs_stops g
-                      ORDER BY geom <-> %s limit 100
+                      ORDER BY geom <-> '{0}' limit 100
                      )
-                     SELECT * FROM index_query ORDER BY distance LIMIT 1;''', (p_geom, p_geom))
+                     SELECT * FROM index_query ORDER BY distance LIMIT 1;'''.format(p_geom))
         near_sta = c.fetchone()
         #write osm or stop
         i+=1
         if not (near_osm and near_sta): 
-            print(colored("ERROR: point with id %s cannot be linked into graph!" % point_id, "red"))
+            print(colored("ERROR: point with id {0} cannot be linked into graph!".format(point_id), "red"))
             i-=1
         elif near_osm and not near_sta: c.execute('INSERT INTO cal_corres_vertices VALUES (%s,%s)', ( point_id, 'osm-' + near_osm[1] ))
         elif near_sta and not near_osm: c.execute('INSERT INTO cal_corres_vertices VALUES (%s,%s)', ( point_id, 'sta-' + near_sta[1] ))
         elif near_osm[0] < near_sta[0]: c.execute('INSERT INTO cal_corres_vertices VALUES (%s,%s)', ( point_id, 'osm-' + near_osm[1] ))
         else: c.execute('INSERT INTO cal_corres_vertices VALUES (%s,%s)', ( point_id, 'sta-' + near_sta[1] ))        
-        sys.stdout.write('\r%s/%s corresponding points found' % ( i, points_nr ))
+        sys.stdout.write('\r{0}/{1} corresponding points found' .format( i, points_nr ))
         sys.stdout.flush()
         point = cursor.fetchone()
     print

@@ -260,11 +260,13 @@ class GTFSDatabase:
 
         c.execute( "CREATE INDEX stop_times_trip_id ON gtfs_stop_times (trip_id)" )
         c.execute( "CREATE INDEX stop_times_stop_id ON gtfs_stop_times (stop_id)" )
+        c.execute( "CREATE INDEX stop_times_stop_sequence ON gtfs_stop_times (stop_sequence)" )
         c.execute( "CREATE INDEX trips_trip_id ON gtfs_trips (trip_id)" )
         c.execute( "CREATE INDEX stops_stop_lat ON gtfs_stops (stop_lat)" )
         c.execute( "CREATE INDEX stops_stop_lon ON gtfs_stops (stop_lon)" )
         c.execute( "CREATE INDEX route_route_id ON gtfs_routes (route_id)" )
         c.execute( "CREATE INDEX trips_route_id ON gtfs_trips (route_id)" )
+        c.execute( "CREATE INDEX trips_shape_id ON gtfs_shapes (shape_id)")
 
     def stops(self):
         c = self.conn.cursor()

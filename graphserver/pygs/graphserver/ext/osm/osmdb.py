@@ -113,6 +113,7 @@ class OSMDB:
 
         c.execute( "CREATE INDEX nodes_lon ON osm_nodes (lon)" )
         c.execute( "CREATE INDEX nodes_lat ON osm_nodes (lat)" )
+        c.execute( "CREATE INDEX osm_ways_id ON osm_edges (id)" )
 
         self.conn.commit()
         c.close()
@@ -395,12 +396,12 @@ class OSMDB:
         c.execute( "SELECT id, tags, nds FROM osm_ways WHERE id = %s", (id,) )
 
         try:
-          id, tags_str, nds_str = c.next()
-          ret = WayRecord(id, tags_str, nds_str)
+            id, tags_str, nds_str = c.next()
+            ret = WayRecord(id, tags_str, nds_str)
         except StopIteration:
-          raise Exception( "OSMDB has no way with id '%s'"%id )
+            raise Exception( "OSMDB has no way with id '%s'"%id )
         finally:
-          c.close()
+            c.close()
 
         return ret
 

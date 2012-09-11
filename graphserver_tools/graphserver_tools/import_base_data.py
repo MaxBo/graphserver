@@ -79,7 +79,7 @@ def create_gs_datbases(osm_xml_filename, gtfs_filename, db_conn_string):
 def link_osm_gtfs(db_conn_string, max_link_dist=150):
     """Link the OSM and the transit-feed
     
-    add edges (to table graph_edges) between a stop-node and an osm-node within a defined range (both directions)
+    add edges (to table graph_edges) between stations and near osm-nodes within a defined range (both directions)
         
     """
 
@@ -99,12 +99,12 @@ def link_osm_gtfs(db_conn_string, max_link_dist=150):
 
         c.execute('''WITH index_query AS(
                      SELECT id AS n_label, 
-                            st_distance(st_transform(o.geom, 31467), st_transform(%s, 31467)) AS distance
+                            st_distance(st_transform(o.geom, 31467), st_transform('{0}', 31467)) AS distance
                      FROM osm_nodes o
                      WHERE endnode_refs > 1
-                     ORDER BY geom <-> %s limit 1000)
+                     ORDER BY geom <-> '{0}' limit 1000)
                      SELECT * FROM index_query 
-                     ORDER BY distance''', (g_geom, g_geom))
+                     ORDER BY distance'''.format(g_geom))
         found_one = False
         osm_link = c.fetchone()
         i+=1
