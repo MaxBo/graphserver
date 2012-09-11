@@ -173,7 +173,7 @@ def read_routes_0(conn):
     conn.commit()
 
 
-def read_routes(conn):
+def read_routes(f, conn):
     """Load routes from csv file into database
     references to points and timetable"""
     cursor = conn.cursor()

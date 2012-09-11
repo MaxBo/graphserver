@@ -219,6 +219,7 @@ def validate_input(configuration, psql_connect_string, options):
                 if (nt,) not in tables:
                     valid = False
                     print(colored('ERROR: base data not in database - please import base data first', 'red'))
+                    break;
             if valid and not validate_tables(psql_connect_string, (base_tables), configuration): valid = False 
 
         if options.export and not options.calculate:
