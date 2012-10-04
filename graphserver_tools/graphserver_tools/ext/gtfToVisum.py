@@ -252,9 +252,9 @@ class GtfsToVisum(VisumPuTTables):
         conn = psycopg2.connect(self.db_connect_string)
         c = conn.cursor()
 
-        c.execute('INSERT INTO "VSYS" VALUES (%s, %s, %s, %s)', ('Tram/Light rail', 'Tram/Light rail', 'OV', 1))
-        c.execute('INSERT INTO "VSYS" VALUES (%s, %s, %s, %s)', ('Subway', 'Subway', 'OV', 1))
-        c.execute('INSERT INTO "VSYS" VALUES (%s, %s, %s, %s)', ('Railway', 'Railway', 'OV', 1))
+        c.execute('INSERT INTO "VSYS" VALUES (%s, %s, %s, %s)', ('Tram', 'Tram', 'OV', 1))
+        c.execute('INSERT INTO "VSYS" VALUES (%s, %s, %s, %s)', ('UBahn', 'U-/S-Bahn', 'OV', 1))
+        c.execute('INSERT INTO "VSYS" VALUES (%s, %s, %s, %s)', ('Zug', 'Zug', 'OV', 1))
         c.execute('INSERT INTO "VSYS" VALUES (%s, %s, %s, %s)', ('Bus', 'Bus', 'OV', 1))
         c.execute('INSERT INTO "VSYS" VALUES (%s, %s, %s, %s)', ('Ferry', 'Ferry', 'OV', 1))
         c.execute('INSERT INTO "VSYS" VALUES (%s, %s, %s, %s)', ('Cable Car', 'Cable Car', 'OV', 1))
