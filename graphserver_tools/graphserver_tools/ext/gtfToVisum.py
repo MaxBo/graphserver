@@ -322,7 +322,7 @@ class GtfsToVisum(VisumPuTTables):
                                 'typnr':1,
                                 'vsysset':vsysset
                             })
-
+            print id, strecke_start, strecke_end
             for index, p in enumerate(points[1:-2]):
 
                 strecken_poly.append({  'von_knoten':strecke_start,
