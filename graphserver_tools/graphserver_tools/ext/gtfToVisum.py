@@ -283,6 +283,9 @@ class GtfsToVisum(VisumPuTTables):
                 print 'new vertex nr: %d' % vertex_nr
 
                 cursor.execute('INSERT INTO "KNOTEN" VALUES (%s,%s,%s)', (vertex_nr, lat, lon))
+            else:
+                if isinstance(vertex_nr, tuple):
+                    vertex_nr = vertex_nr[0]
 
             return vertex_nr
 
