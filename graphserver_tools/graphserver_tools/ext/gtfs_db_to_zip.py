@@ -24,6 +24,7 @@ def convert(schema='mv'):
     conn = psycopg2.connect(psql_connect_string)
     cur = conn.cursor(cursor_factory = DictCursor)
     afz = 'route_short_name,route_long_name,stop_name'.split(',')
+    url = 'agency_url'
     times = 'arrival_time,departure_time'.split(',')
     files = 'agency, calendar, calendar_dates, frequencies, routes, shapes, stop_times, stops, transfers, trips'.split(', ')
     with zipfile.ZipFile(r'D:\temp\feed.zip', 'w') as zf:
@@ -48,6 +49,9 @@ def convert(schema='mv'):
                             field = '"%s"' %field
                         if field is None:
                             field = ''
+                        if col == url:
+                            if field == '':
+                                field = 'http://www.bahn.de'
                         field = '%s' %field
                         r.append(field)
                     f.write(','.join(r) + '\n')

@@ -275,8 +275,10 @@ class GtfsToVisum(VisumPuTTables):
             # create a new vertex if nothing could be fetched
             if not vertex_nr:
                 cursor.execute('SELECT MAX("NR") FROM "KNOTEN"')
-
-                vertex_nr = int(cursor.fetchone()) +1
+                row = cursor.fetchone()
+                if isinstance(row, tuple):
+                    row = row[0]
+                vertex_nr = int(row) +1
 
                 print 'new vertex nr: %d' % vertex_nr
 
