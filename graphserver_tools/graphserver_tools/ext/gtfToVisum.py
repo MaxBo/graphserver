@@ -282,7 +282,7 @@ class GtfsToVisum(VisumPuTTables):
 
                 print 'new vertex nr: %d' % vertex_nr
 
-                cursor.execute('INSERT INTO "KONTEN" VALUES (%s,%s,%s)', (vertex_nr, lat, lon))
+                cursor.execute('INSERT INTO "KNOTEN" VALUES (%s,%s,%s)', (vertex_nr, lat, lon))
 
             return vertex_nr
 
