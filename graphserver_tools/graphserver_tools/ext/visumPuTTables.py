@@ -104,7 +104,7 @@ class VisumPuTTables(object):
                                     "NACHFZPELEMINDEX" integer,
                                     PRIMARY KEY ("NR")
                                 );
-                                CREATE INDEX "FAHRPLANFAHRT_idx" ON dino."FAHRPLANFAHRT"
+                                CREATE INDEX "FAHRPLANFAHRT_idx" ON "FAHRPLANFAHRT"
                                 USING btree ("LINNAME", "LINROUTENAME", "FZPROFILNAME");
                                 ''')
 
@@ -116,7 +116,7 @@ class VisumPuTTables(object):
                                     "NACHFZPELEMINDEX" integer,
                                     PRIMARY KEY ("FPLFAHRTNR", "NR"),
                                     CONSTRAINT "FAHRPLANFAHRTABSCHNITT_fk" FOREIGN KEY ("FPLFAHRTNR")
-                                    REFERENCES dino."FAHRPLANFAHRT"("NR")
+                                    REFERENCES "FAHRPLANFAHRT"("NR")
                                     ON DELETE NO ACTION
                                     ON UPDATE NO ACTION
                                     NOT DEFERRABLE
