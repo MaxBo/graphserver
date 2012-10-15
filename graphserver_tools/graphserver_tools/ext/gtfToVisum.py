@@ -15,12 +15,23 @@ import transitfeed
 from graphserver_tools.ext.visumPuTTables import VisumPuTTables
 from graphserver_tools.utils import utils
 
-EPOCH_TO_1899 = 2209165200
+EPOCH_TO_1899_td = datetime.timedelta(25569, 3600)
+EPOCH_TO_1899 = EPOCH_TO_1899_td.total_seconds()
 
 def unescape(s):
     s = s.replace('&apos;', "'")
     return s
 
+def get_timedelta(t):
+    """
+    returns a timedelta
+    @params t: time in seconds since EPOCH
+    @type t: long integer
+    @rtype: datetime.timedelta-object
+    """
+    d = t // 86400
+    s = t % 86400
+    return datetime.timedelta(d, s)
 
 class GtfsToVisum(VisumPuTTables):
 
@@ -76,19 +87,31 @@ class GtfsToVisum(VisumPuTTables):
     def transform(self):
         ''' Converts the feed associated with this object into a data for a visum database.
         '''
-
+        print '_processVerkehrssysteme'
         self._processVerkehrssysteme()
+        print '_processBetreiber'
         self._processBetreiber()
+        print '_processKnoten'
         self._processKnoten()
+        print '_processStrecken'
         self._processStrecken()
+        print '_processHaltestelle'
         self._processHaltestelle()
+        print '_processHaltestellenbereich'
         self._processHaltestellenbereich()
+        print '_processHaltepunkt'
         self._processHaltepunkt()
+        print '_processLinie'
         self._processLinie()
+        print '_processLinienroute'
         self._processLinienroute()
+        print '_processLinienroutenelement'
         self._processLinienroutenelement()
+        print '_processFahrzeitprofil'
         self._processFahrzeitprofil()
+        print '_processFahrzeitprofilelement'
         self._processFahrzeitprofilelement()
+        print '_processUebergangsGehzeitenHaltestellenbereich'
 ##        self._processFahrplanfahrt()
         self._processUebergangsGehzeitenHaltestellenbereich()
 
@@ -280,9 +303,9 @@ class GtfsToVisum(VisumPuTTables):
                     row = row[0]
                 vertex_nr = int(row) +1
 
-                print 'new vertex nr: %d' % vertex_nr
+##                print 'new vertex nr: %d' % vertex_nr
 
-                cursor.execute('INSERT INTO "KNOTEN" VALUES (%s,%s,%s)', (vertex_nr, lat, lon))
+                cursor.execute('INSERT INTO "KNOTEN" VALUES (%s,%s,%s)', (vertex_nr, lon, lat))
             else:
                 if isinstance(vertex_nr, tuple):
                     vertex_nr = vertex_nr[0]
@@ -318,19 +341,19 @@ class GtfsToVisum(VisumPuTTables):
                 id = strecken_read[(strecke_end, strecke_start)]
 
 
-            strecken.append({   'nr':id,
+            strecken.append({   'nr':id + 1,
                                 'von_knoten':strecke_start,
                                 'nach_knoten':strecke_end,
                                 'name':None,
                                 'typnr':1,
                                 'vsysset':vsysset
                             })
-            print id, strecke_start, strecke_end
+##            print id, strecke_start, strecke_end
             for index, p in enumerate(points[1:-2]):
 
                 strecken_poly.append({  'von_knoten':strecke_start,
                                         'nach_knoten':strecke_end,
-                                        'index':index,
+                                        'index':index + 1,
                                         'x_koord':p[0],
                                         'y_koord':p[1]
                                     })
@@ -701,12 +724,12 @@ class GtfsToVisum(VisumPuTTables):
                         has_valid_fahrten = True
                         start_time = st.departure_secs + EPOCH_TO_1899 # make the result on 1899-12-30
                         vonfzpelemindex = fzpindex
-                        trip_departure = datetime.datetime.fromtimestamp(st.departure_secs - EPOCH_TO_1899)
+                        trip_departure = datetime.datetime.fromtimestamp(st.departure_secs) - EPOCH_TO_1899_td
                         aus = 0
                     fzpindex_mapper = {st.stop_sequence: fzpindex}
 
-                    arrival = datetime.datetime.fromtimestamp(st.arrival_secs - start_time)
-                    departure = datetime.datetime.fromtimestamp(st.departure_secs - start_time)
+                    arrival = datetime.datetime.fromtimestamp(st.arrival_secs) - get_timedelta(start_time)
+                    departure = datetime.datetime.fromtimestamp(st.departure_secs) - get_timedelta(start_time)
                     if fzpindex == 1:
                         # setze arrival auf 0 min - keine negativen Zeiten
                         arrival = departure
@@ -742,7 +765,7 @@ class GtfsToVisum(VisumPuTTables):
                             aus = 0 if st.drop_off_type == 1 else 1
 
                             if ein or aus:
-                                departure = datetime.datetime.fromtimestamp(st.departure_secs - EPOCH_TO_1899)
+                                departure = datetime.datetime.fromtimestamp(st.departure_secs) - EPOCH_TO_1899_td
                                 break
 
                         name = trip.trip_headsign if trip.trip_headsign else None
@@ -761,7 +784,7 @@ class GtfsToVisum(VisumPuTTables):
 
                         # add frequency trips
                         for st in trip.GetFrequencyStartTimes():
-                            st_departure = datetime.datetime.fromtimestamp(st - EPOCH_TO_1899)
+                            st_departure = datetime.datetime.fromtimestamp(st) - EPOCH_TO_1899_td
 
                             if st_departure != departure:
 
@@ -830,7 +853,7 @@ class GtfsToVisum(VisumPuTTables):
 ##                # only put trips into visum that which are valid on the selected date
 ##                if self.date in trip.service_period.ActiveDates():
 ##
-##                    departure = datetime.datetime.fromtimestamp(trip.GetStartTime() - EPOCH_TO_1899)
+##                    departure = datetime.datetime.fromtimestamp(trip.GetStartTime()) - EPOCH_TO_1899_td
 ##                    name = trip.trip_headsign if trip.trip_headsign else None
 ##
 ##                    fahrten.append({    'nr' : nr,
@@ -847,7 +870,7 @@ class GtfsToVisum(VisumPuTTables):
 ##
 ##                    # add frequency trips
 ##                    for st in trip.GetFrequencyStartTimes():
-##                        st_departure = datetime.datetime.fromtimestamp(st - EPOCH_TO_1899)
+##                        st_departure = datetime.datetime.fromtimestamp(st) - EPOCH_TO_1899_td
 ##
 ##                        if st_departure != departure:
 ##
@@ -892,7 +915,7 @@ class GtfsToVisum(VisumPuTTables):
     def _processUebergangsGehzeitenHaltestellenbereich(self):
 
         zeiten = []
-        vsysset = 'Tram/Light rail,Subway,Railway,Bus,Ferry,Cable Car,Gondola,Funicular'
+        vsysset = 'OV-Fuss'
 
         for t in self._schedule.GetTransferList():
 
