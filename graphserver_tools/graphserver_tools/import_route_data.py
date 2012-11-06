@@ -22,7 +22,10 @@ from graphserver_tools.utils import utf8csv
 
 
 def read_points_0(f, conn):
-    """Load points from csv file into database"""
+    """
+    Load points from cal_points_view into database
+    referenceing origins and destinations tables
+    """
     cursor = conn.cursor()
 
     sql = '''

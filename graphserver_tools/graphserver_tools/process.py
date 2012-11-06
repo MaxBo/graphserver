@@ -42,11 +42,12 @@ def build_base_data(db_conn_string, osm_xml_filename, gtfs_filename):
     conn.commit()
 
 
-def build_route_data(graph, psql_connect_string, times_filename, points_filename, routes_filename):
+def build_route_data(graph, psql_connect_string, times_filename, points_filename, routes_filename, import_times):
     """Import route data (routes, timetables and the points to be calculated) from csv files into database"""
     conn = psycopg2.connect(psql_connect_string)
 
-    import_route_data.read_times(times_filename, conn)
+    if import_times:
+        import_route_data.read_times(times_filename, conn)
     import_route_data.read_points_0(points_filename, conn)
     import_route_data.read_routes_0(routes_filename, conn)
 
@@ -104,6 +105,64 @@ def calculate_routes(graph, psql_connect_string, options, num_processes=4, write
 
     for p in processes:
         p.join()
+
+
+def create_result_views(psql_connect_string):
+
+    conn = psycopg2.connect(psql_connect_string)
+    sql_ergebniss = """
+    CREATE OR REPLACE VIEW public.ergebnis(
+    origin_name,
+    destination_name,
+    start_time,
+    end_time,
+    total_time,
+    route_id)
+AS
+  SELECT o.name AS origin_name,
+         d.name AS destination_name,
+         bt.start_time,
+         bt.end_time,
+         bt.total_time,
+         r.id AS route_id
+  FROM origins o
+       JOIN cal_points_view p_o ON o.name::text = p_o.name::text
+       JOIN cal_routes r ON p_o.id = r.origin
+       JOIN best_time bt ON r.id = bt.route_id
+       JOIN cal_points_view p_d ON r.destination = p_d.id
+       JOIN destinations d ON p_d.name::text = d.name::text;
+"""
+
+    sql_best_time = """
+    CREATE OR REPLACE VIEW public.best_time(
+    route_id,
+    start_time,
+    end_time,
+    total_time)
+AS
+  SELECT a.route_id,
+         a.start_time,
+         a.end_time,
+         a.total_time
+  FROM (
+         SELECT p.route_id,
+                row_number() OVER(PARTITION BY p.route_id
+         ORDER BY p.total_time) AS rownumber,
+                  p.start_time,
+                  p.end_time,
+                  p.total_time
+         FROM cal_paths p
+       ) a
+  WHERE a.rownumber = 1;
+"""
+
+    try:
+        cur = conn.cursor()
+        cur.execute(sql_ergebniss)
+        cur.execute(sql_best_time)
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def export_results(psql_connect_string, results_filename, result_details_filename):
@@ -285,6 +344,7 @@ def main():
     parser = OptionParser(usage=usage)
 
     parser.add_option("-b", "--import-base", action="store_true", help="imports GTFS and OSM data into the database", dest="import_base", default=False)
+    parser.add_option("-t", "--import-times", action="store_true", help="imports times data into the database", dest="import_times", default=False)
     parser.add_option("-r", "--import-routes", action="store_true", help="imports routing data into the database", dest="import_routes", default=False)
     parser.add_option("-i", "--import-all", action="store_true", help="imports GTFS, OSM and routing data into the database", dest="import_all", default=False)
     parser.add_option("-c", "--calculate", action="store_true", help="calculates shortest paths", dest="calculate", default=False)
@@ -329,7 +389,7 @@ def main():
 
         graph = GraphDatabase(psql_connect_string).incarnate()
 
-        build_route_data(graph, psql_connect_string, configuration['times'], configuration['points'], configuration['routes'])
+        build_route_data(graph, psql_connect_string, configuration['times'], configuration['points'], configuration['routes'], import_times=options.import_times)
 
 
     if options.calculate:
@@ -343,8 +403,8 @@ def main():
 
         start = time.time()
         calculate_routes(graph, psql_connect_string, configuration, num_processes=configuration['parallel-calculations'], write_cal_paths_details=options.details)
+        create_result_views(psql_connect_string)
         cprint('total calculation time: %s' % utils.seconds_time_string(time.time() - start), attrs=['bold'])
-
     try:
         graph.destroy()
     except:
